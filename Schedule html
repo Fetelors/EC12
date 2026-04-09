@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electric Castle 2026 — Programme</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;}
+html,body{height:100%;overflow:hidden;background:#F5F0E8;font-family:'DM Sans',sans-serif;color:#111;}
+.topbar{height:58px;background:#111;display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;z-index:80;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#F5F0E8;line-height:1;white-space:nowrap;}
+.logo span{color:#6A9D2D;}
+.day-nav{display:flex;align-items:center;gap:8px;margin-left:16px;}
+.nav-btn{width:28px;height:28px;border:1.5px solid rgba(255,255,255,0.3);background:transparent;cursor:pointer;color:#F5F0E8;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .12s;flex-shrink:0;}
+.nav-btn:hover{background:rgba(255,255,255,0.12);}
+.day-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff;line-height:1;white-space:nowrap;}
+.day-dots{display:flex;gap:5px;align-items:center;margin-left:4px;}
+.dot{width:6px;height:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.3);background:transparent;cursor:pointer;transition:all .12s;}
+.dot.active{background:#6A9D2D;border-color:#6A9D2D;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.save-btn{padding:7px 16px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.7);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:7px;}
+.save-btn:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.save-btn.pending{background:#C45B00;border-color:#C45B00;color:#fff;}
+.save-btn.saving{opacity:0.5;cursor:wait;}
+.cbubble{min-width:17px;height:17px;border-radius:9px;background:#fff;color:#C45B00;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+.save-hint{font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;}
+.col-headers{display:flex;flex-shrink:0;border-bottom:2px solid rgba(0,0,0,0.15);background:#F5F0E8;position:relative;z-index:70;}
+.ch-gutter{width:58px;min-width:58px;flex-shrink:0;}
+.ch-stage{width:152px;min-width:152px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:9px 6px;border-left:1px solid rgba(0,0,0,0.1);}
+.ch-stage .sname{font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:white;text-align:center;line-height:1.2;}
+.scroll-outer{flex:1;overflow:auto;position:relative;}
+.grid-wrap{display:flex;position:relative;min-width:max-content;}
+.gutter{width:58px;min-width:58px;flex-shrink:0;position:relative;background:#F5F0E8;border-right:1.5px solid rgba(0,0,0,0.12);}
+.t-label{position:absolute;right:7px;font-size:9.5px;color:#bbb;transform:translateY(-50%);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.t-label.hr{color:#888;font-weight:600;}
+.t-label.midnight{color:#111;font-weight:700;font-size:10px;}
+.stage-col{width:152px;min-width:152px;flex-shrink:0;position:relative;border-left:1px solid rgba(0,0,0,0.09);}
+.gl{position:absolute;left:0;right:0;border-top:1px solid rgba(0,0,0,0.055);pointer-events:none;}
+.gl.hr{border-top:1px solid rgba(0,0,0,0.12);}
+.gl.midnight{border-top:2px dashed rgba(0,0,0,0.18);}
+.midnight-lbl{position:absolute;right:5px;font-size:7.5px;font-weight:700;color:rgba(0,0,0,0.25);letter-spacing:0.5px;pointer-events:none;z-index:3;}
+.act{position:absolute;left:3px;right:3px;border-radius:4px;padding:5px 6px 11px;cursor:grab;overflow:hidden;z-index:2;display:flex;flex-direction:column;transition:box-shadow .1s,filter .1s;}
+.act:hover{box-shadow:0 3px 12px rgba(0,0,0,0.25);z-index:6;filter:brightness(1.06);}
+.act.dragging{cursor:grabbing;opacity:0.85;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:200;transition:none;}
+.act.changed{outline:2.5px solid rgba(255,255,255,0.9);outline-offset:-2px;}
+.a-name{font-size:10px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.a-time{font-size:8.5px;color:rgba(255,255,255,0.6);margin-top:2px;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.a-sfx{font-size:8px;color:rgba(255,255,255,0.35);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.resize-h{position:absolute;bottom:0;left:0;right:0;height:8px;cursor:ns-resize;border-radius:0 0 4px 4px;background:linear-gradient(transparent,rgba(0,0,0,0.22));}
+.ghost{position:absolute;left:3px;right:3px;border-radius:4px;border:2px dashed rgba(0,0,0,0.2);background:rgba(0,0,0,0.04);pointer-events:none;z-index:1;display:none;}
+.tip{position:fixed;background:#111;border-radius:6px;padding:9px 12px;font-size:11px;max-width:200px;z-index:999;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+.tip.on{opacity:1;}
+.tip-name{font-weight:700;color:#fff;margin-bottom:3px;}
+.tip-time{color:#aaa;font-size:10px;}
+.tip-sfx{color:#666;font-size:9.5px;margin-top:3px;font-style:italic;}
+.toast{position:fixed;bottom:20px;right:20px;padding:9px 15px;border-radius:4px;font-size:12px;font-weight:600;z-index:999;pointer-events:none;opacity:0;transform:translateY(5px);transition:opacity .18s,transform .18s;}
+.toast.on{opacity:1;transform:translateY(0);}
+.toast.ok{background:#6A9D2D;color:#fff;}
+.toast.err{background:#C0392B;color:#fff;}
+.toast.warn{background:#C45B00;color:#fff;}
+</style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;">
+<div class="topbar">
+  <div class="logo">ELECTRIC <span>CASTLE</span> 2026</div>
+  <div class="day-nav">
+    <button class="nav-btn" onclick="prevDay()">&#8592;</button>
+    <div id="dt" class="day-title"></div>
+    <button class="nav-btn" onclick="nextDay()">&#8594;</button>
+  </div>
+  <div id="dots" class="day-dots"></div>
+  <div class="topbar-right">
+    <span id="sh" class="save-hint"></span>
+    <button id="sbtn" class="save-btn" onclick="save()">
+      Save <span id="cb" class="cbubble" style="display:none"></span>
+    </button>
+  </div>
+</div>
+<div id="hdr" class="col-headers"></div>
+<div id="scrl" class="scroll-outer">
+  <div id="wrap" class="grid-wrap"></div>
+</div>
+<div class="tip" id="tip">
+  <div class="tip-name" id="tn"></div>
+  <div class="tip-time" id="tt"></div>
+  <div class="tip-sfx"  id="ts"></div>
+</div>
+<div class="toast" id="tst"></div>
+<script>
+const ACTS   = [{"stage": "MAINSTAGE", "date": "2026-07-16", "artist": "VALERIA STOICA", "start": 1170, "end": 1200, "sfx": "", "_id": "MAINSTAGE|2026-07-16|VALERIA STOICA"}, {"stage": "MAINSTAGE", "date": "2026-07-16", "artist": "INNA", "start": 1240, "end": 1290, "sfx": "", "_id": "MAINSTAGE|2026-07-16|INNA"}, {"stage": "MAINSTAGE", "date": "2026-07-16", "artist": "Justin Timberlake", "start": 1365, "end": 1485, "sfx": "SFX", "_id": "MAINSTAGE|2026-07-16|Justin Timberlake"}, {"stage": "MAINSTAGE", "date": "2026-07-16", "artist": "SOFI TUKKER", "start": 1515, "end": 1605, "sfx": "SFX + Flames // Sparkulars?", "_id": "MAINSTAGE|2026-07-16|SOFI TUKKER"}, {"stage": "MAINSTAGE", "date": "2026-07-17", "artist": "Zdob si Zdub", "start": 1160, "end": 1220, "sfx": "", "_id": "MAINSTAGE|2026-07-17|Zdob si Zdub"}, {"stage": "MAINSTAGE", "date": "2026-07-17", "artist": "Róisín Murphy", "start": 1260, "end": 1320, "sfx": "", "_id": "MAINSTAGE|2026-07-17|Róisín Murphy"}, {"stage": "MAINSTAGE", "date": "2026-07-17", "artist": "Queens of the Stone Age", "start": 1370, "end": 1445, "sfx": "NO SFX", "_id": "MAINSTAGE|2026-07-17|Queens of the Stone Age"}, {"stage": "MAINSTAGE", "date": "2026-07-17", "artist": "NETSKY B2B NGHTMRE", "start": 1485, "end": 1575, "sfx": "flames + co2 + confetti + sparkular", "_id": "MAINSTAGE|2026-07-17|NETSKY B2B NGHTMRE"}, {"stage": "MAINSTAGE", "date": "2026-07-18", "artist": "GRASU XXL", "start": 1080, "end": 1135, "sfx": "", "_id": "MAINSTAGE|2026-07-18|GRASU XXL"}, {"stage": "MAINSTAGE", "date": "2026-07-18", "artist": "BOSQUITO", "start": 1170, "end": 1230, "sfx": "", "_id": "MAINSTAGE|2026-07-18|BOSQUITO"}, {"stage": "MAINSTAGE", "date": "2026-07-18", "artist": "Rudimental", "start": 1260, "end": 1320, "sfx": "flames + co2 + sparkulars confetti", "_id": "MAINSTAGE|2026-07-18|Rudimental"}, {"stage": "MAINSTAGE", "date": "2026-07-18", "artist": "YUNGBLUD", "start": 1360, "end": 1420, "sfx": "ask mgmt for sfx?", "_id": "MAINSTAGE|2026-07-18|YUNGBLUD"}, {"stage": "MAINSTAGE", "date": "2026-07-18", "artist": "JUSTICE", "start": 1470, "end": 1545, "sfx": "no sfx", "_id": "MAINSTAGE|2026-07-18|JUSTICE"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "TARAPHONICS", "start": 1080, "end": 1140, "sfx": "", "_id": "MAINSTAGE|2026-07-19|TARAPHONICS"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "NOGA EREZ", "start": 1175, "end": 1235, "sfx": "", "_id": "MAINSTAGE|2026-07-19|NOGA EREZ"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "SHAGGY", "start": 1270, "end": 1330, "sfx": "ask mgmt for sfx?", "_id": "MAINSTAGE|2026-07-19|SHAGGY"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "ALEX SUPER BEATS", "start": 1350, "end": 1440, "sfx": "flames + co2 + confetti", "_id": "MAINSTAGE|2026-07-19|ALEX SUPER BEATS"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "DEKI ALEM", "start": 1230, "end": 1290, "sfx": "co2", "_id": "MAINSTAGE|2026-07-19|DEKI ALEM"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "IRIS - Cristi Minculescu, Valter& Boro", "start": 1325, "end": 1385, "sfx": "flames", "_id": "MAINSTAGE|2026-07-19|IRIS - Cristi Minculescu, Valter& Boro"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "Reel party by BT: Krafty Kuts + Degs", "start": 1410, "end": 1515, "sfx": "co2 + flames + confetti", "_id": "MAINSTAGE|2026-07-19|Reel party by BT: Krafty Kuts + Degs"}, {"stage": "MAINSTAGE", "date": "2026-07-19", "artist": "fish56octagon", "start": 1515, "end": 1620, "sfx": "co2 + flames", "_id": "MAINSTAGE|2026-07-19|fish56octagon"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "Dimitri's Bats", "start": 900, "end": 960, "sfx": "", "_id": "HANGAR|2026-07-18|Dimitri's Bats"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "MIHAIL", "start": 1000, "end": 1060, "sfx": "", "_id": "HANGAR|2026-07-18|MIHAIL"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "OCS", "start": 1100, "end": 1160, "sfx": "", "_id": "HANGAR|2026-07-18|OCS"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "Nilüfer Yanya", "start": 1200, "end": 1260, "sfx": "", "_id": "HANGAR|2026-07-18|Nilüfer Yanya"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "JOEY VALENCE & BRAE", "start": 1300, "end": 1360, "sfx": "co2", "_id": "HANGAR|2026-07-18|JOEY VALENCE & BRAE"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "Big Break Change", "start": 1360, "end": 1410, "sfx": "", "_id": "HANGAR|2026-07-18|Big Break Change"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "BRUTALISMUS 3000", "start": 1410, "end": 1470, "sfx": "co2 + flames + sparkulare", "_id": "HANGAR|2026-07-18|BRUTALISMUS 3000"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "DEGS", "start": 1500, "end": 1560, "sfx": "", "_id": "HANGAR|2026-07-18|DEGS"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "KINGS OF THE ROLLERS & INJA", "start": 1560, "end": 1620, "sfx": "co2 + flames", "_id": "HANGAR|2026-07-18|KINGS OF THE ROLLERS & INJA"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "ANAÏS B2B HOAX + PVC", "start": 1620, "end": 1680, "sfx": "co2 + flames", "_id": "HANGAR|2026-07-18|ANAÏS B2B HOAX + PVC"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "Unglued + DEGS", "start": 1680, "end": 1740, "sfx": "", "_id": "HANGAR|2026-07-18|Unglued + DEGS"}, {"stage": "HANGAR", "date": "2026-07-18", "artist": "URBANDAWN + PVC", "start": 1740, "end": 1800, "sfx": "", "_id": "HANGAR|2026-07-18|URBANDAWN + PVC"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "Taking Back August", "start": 840, "end": 890, "sfx": "", "_id": "HANGAR|2026-07-19|Taking Back August"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "DORA GAITANOVICI", "start": 925, "end": 980, "sfx": "", "_id": "HANGAR|2026-07-19|DORA GAITANOVICI"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "DIRTY SHIRT", "start": 1020, "end": 1080, "sfx": "co2 + flames", "_id": "HANGAR|2026-07-19|DIRTY SHIRT"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "JAHNERATION", "start": 1120, "end": 1180, "sfx": "", "_id": "HANGAR|2026-07-19|JAHNERATION"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "Sylvie Kreusch", "start": 1220, "end": 1280, "sfx": "", "_id": "HANGAR|2026-07-19|Sylvie Kreusch"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "NEIL FRANCES pres Club NF", "start": 1320, "end": 1380, "sfx": "", "_id": "HANGAR|2026-07-19|NEIL FRANCES pres Club NF"}, {"stage": "HANGAR", "date": "2026-07-19", "artist": "BICEP pres. CHROMA AV Dj-set", "start": 1425, "end": 1515, "sfx": "no sfx", "_id": "HANGAR|2026-07-19|BICEP pres. CHROMA AV Dj-set"}, {"stage": "Backyard", "date": "2026-07-16", "artist": "JACOTÉNE", "start": 1140, "end": 1200, "sfx": "", "_id": "Backyard|2026-07-16|JACOTÉNE"}, {"stage": "Backyard", "date": "2026-07-16", "artist": "Diana Căldăraru", "start": 1230, "end": 1290, "sfx": "", "_id": "Backyard|2026-07-16|Diana Căldăraru"}, {"stage": "Backyard", "date": "2026-07-16", "artist": "THE SCRATCH", "start": 1440, "end": 1500, "sfx": "", "_id": "Backyard|2026-07-16|THE SCRATCH"}, {"stage": "Backyard", "date": "2026-07-17", "artist": "Mindthegap Trio", "start": 990, "end": 1050, "sfx": "", "_id": "Backyard|2026-07-17|Mindthegap Trio"}, {"stage": "Backyard", "date": "2026-07-17", "artist": "Cireșan", "start": 1080, "end": 1140, "sfx": "", "_id": "Backyard|2026-07-17|Cireșan"}, {"stage": "Backyard", "date": "2026-07-17", "artist": "Kids With Buns", "start": 1170, "end": 1230, "sfx": "", "_id": "Backyard|2026-07-17|Kids With Buns"}, {"stage": "Backyard", "date": "2026-07-17", "artist": "30 Century Man", "start": 1275, "end": 1335, "sfx": "", "_id": "Backyard|2026-07-17|30 Century Man"}, {"stage": "Backyard", "date": "2026-07-17", "artist": "Kit Sebastian", "start": 1410, "end": 1470, "sfx": "", "_id": "Backyard|2026-07-17|Kit Sebastian"}, {"stage": "Backyard", "date": "2026-07-18", "artist": "Boebeck", "start": 1050, "end": 1100, "sfx": "", "_id": "Backyard|2026-07-18|Boebeck"}, {"stage": "Backyard", "date": "2026-07-18", "artist": "IOVA", "start": 1140, "end": 1200, "sfx": "", "_id": "Backyard|2026-07-18|IOVA"}, {"stage": "Backyard", "date": "2026-07-18", "artist": "CARI CARI", "start": 1230, "end": 1290, "sfx": "", "_id": "Backyard|2026-07-18|CARI CARI"}, {"stage": "Backyard", "date": "2026-07-18", "artist": "Casablanca Drivers", "start": 1335, "end": 1395, "sfx": "", "_id": "Backyard|2026-07-18|Casablanca Drivers"}, {"stage": "Backyard", "date": "2026-07-18", "artist": "ALI", "start": 1445, "end": 1505, "sfx": "", "_id": "Backyard|2026-07-18|ALI"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "Andra Andriucă", "start": 900, "end": 960, "sfx": "", "_id": "Backyard|2026-07-19|Andra Andriucă"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "Musspell", "start": 990, "end": 1050, "sfx": "", "_id": "Backyard|2026-07-19|Musspell"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "Gramofone", "start": 1080, "end": 1140, "sfx": "", "_id": "Backyard|2026-07-19|Gramofone"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "WOOMB", "start": 1170, "end": 1230, "sfx": "", "_id": "Backyard|2026-07-19|WOOMB"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "GIRL ULTRA", "start": 1275, "end": 1335, "sfx": "", "_id": "Backyard|2026-07-19|GIRL ULTRA"}, {"stage": "Backyard", "date": "2026-07-19", "artist": "DOV'È LIANA", "start": 1380, "end": 1440, "sfx": "", "_id": "Backyard|2026-07-19|DOV'È LIANA"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "K Line", "start": 960, "end": 1080, "sfx": "", "_id": "BOOHA|2026-07-15|K Line"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "Malex", "start": 1080, "end": 1200, "sfx": "", "_id": "BOOHA|2026-07-15|Malex"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "Miu", "start": 1200, "end": 1350, "sfx": "", "_id": "BOOHA|2026-07-15|Miu"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "EVE + POL (live)", "start": 1350, "end": 1440, "sfx": "", "_id": "BOOHA|2026-07-15|EVE + POL (live)"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "¥ØU$UK€ ¥UK1MAT$U", "start": 1440, "end": 1560, "sfx": "co2", "_id": "BOOHA|2026-07-15|¥ØU$UK€ ¥UK1MAT$U"}, {"stage": "BOOHA", "date": "2026-07-15", "artist": "Les Gourmands", "start": 1560, "end": 1680, "sfx": "", "_id": "BOOHA|2026-07-15|Les Gourmands"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "SAMBO (GLO Contest Winner)", "start": 840, "end": 900, "sfx": "", "_id": "BOOHA|2026-07-16|SAMBO (GLO Contest Winner)"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "Cool Cats", "start": 900, "end": 990, "sfx": "", "_id": "BOOHA|2026-07-16|Cool Cats"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "Cultatum", "start": 990, "end": 1080, "sfx": "", "_id": "BOOHA|2026-07-16|Cultatum"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "Totally Spice", "start": 1080, "end": 1200, "sfx": "", "_id": "BOOHA|2026-07-16|Totally Spice"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "Mianda", "start": 1200, "end": 1320, "sfx": "", "_id": "BOOHA|2026-07-16|Mianda"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "Vlademir", "start": 1320, "end": 1440, "sfx": "", "_id": "BOOHA|2026-07-16|Vlademir"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "SOFIA KOURTESIS", "start": 1440, "end": 1560, "sfx": "", "_id": "BOOHA|2026-07-16|SOFIA KOURTESIS"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "AME", "start": 1560, "end": 1740, "sfx": "", "_id": "BOOHA|2026-07-16|AME"}, {"stage": "BOOHA", "date": "2026-07-16", "artist": "George Heerd", "start": 1740, "end": 1830, "sfx": "", "_id": "BOOHA|2026-07-16|George Heerd"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "SCATTERBRAIN", "start": 720, "end": 810, "sfx": "", "_id": "BOOHA|2026-07-17|SCATTERBRAIN"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "SUB:LIMINAL", "start": 810, "end": 870, "sfx": "", "_id": "BOOHA|2026-07-17|SUB:LIMINAL"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "HUGH HARDIE B2B AZOTIX + PVC", "start": 870, "end": 960, "sfx": "", "_id": "BOOHA|2026-07-17|HUGH HARDIE B2B AZOTIX + PVC"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "FLAVA D + PVC", "start": 960, "end": 1050, "sfx": "co2", "_id": "BOOHA|2026-07-17|FLAVA D + PVC"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "VOLTAGE + INJA", "start": 1050, "end": 1140, "sfx": "", "_id": "BOOHA|2026-07-17|VOLTAGE + INJA"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "Los Bastoneros", "start": 1140, "end": 1230, "sfx": "", "_id": "BOOHA|2026-07-17|Los Bastoneros"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "Mihai Popoviciu", "start": 1230, "end": 1350, "sfx": "", "_id": "BOOHA|2026-07-17|Mihai Popoviciu"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "JAYDA G", "start": 1350, "end": 1470, "sfx": "", "_id": "BOOHA|2026-07-17|JAYDA G"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "ANFISA LETYAGO", "start": 1470, "end": 1590, "sfx": "", "_id": "BOOHA|2026-07-17|ANFISA LETYAGO"}, {"stage": "BOOHA", "date": "2026-07-17", "artist": "Sixtee Seconds", "start": 1590, "end": 1710, "sfx": "", "_id": "BOOHA|2026-07-17|Sixtee Seconds"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "FarSight", "start": 720, "end": 840, "sfx": "", "_id": "BOOHA|2026-07-18|FarSight"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "ZO", "start": 840, "end": 960, "sfx": "", "_id": "BOOHA|2026-07-18|ZO"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "NEXUS", "start": 960, "end": 1020, "sfx": "", "_id": "BOOHA|2026-07-18|NEXUS"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "GRID", "start": 1020, "end": 1080, "sfx": "", "_id": "BOOHA|2026-07-18|GRID"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "DWLS B2B MEMPHYS + BLOCKSBERG & DEGS", "start": 1080, "end": 1140, "sfx": "", "_id": "BOOHA|2026-07-18|DWLS B2B MEMPHYS + BLOCKSBERG & DEGS"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "EMILY MAKIS & Deadline", "start": 1140, "end": 1185, "sfx": "", "_id": "BOOHA|2026-07-18|EMILY MAKIS & Deadline"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "CULTURE SHOCK", "start": 1185, "end": 1260, "sfx": "co2", "_id": "BOOHA|2026-07-18|CULTURE SHOCK"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "DigitaLove", "start": 1260, "end": 1380, "sfx": "", "_id": "BOOHA|2026-07-18|DigitaLove"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "Du Mad", "start": 1380, "end": 1470, "sfx": "", "_id": "BOOHA|2026-07-18|Du Mad"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "Bon Entendeur", "start": 1470, "end": 1590, "sfx": "", "_id": "BOOHA|2026-07-18|Bon Entendeur"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "HOT SINCE 82", "start": 1590, "end": 1710, "sfx": "", "_id": "BOOHA|2026-07-18|HOT SINCE 82"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "MAHONY", "start": 1710, "end": 1830, "sfx": "", "_id": "BOOHA|2026-07-18|MAHONY"}, {"stage": "BOOHA", "date": "2026-07-18", "artist": "edip b2b kov", "start": 1830, "end": 1920, "sfx": "", "_id": "BOOHA|2026-07-18|edip b2b kov"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "ENEVEL", "start": 720, "end": 810, "sfx": "", "_id": "BOOHA|2026-07-19|ENEVEL"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "NELU", "start": 810, "end": 900, "sfx": "", "_id": "BOOHA|2026-07-19|NELU"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "DECKSTER", "start": 900, "end": 960, "sfx": "", "_id": "BOOHA|2026-07-19|DECKSTER"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "KASRA Hosted by GQ", "start": 960, "end": 1020, "sfx": "HOSTED BY GQ", "_id": "BOOHA|2026-07-19|KASRA Hosted by GQ"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "CALYX Hosted by GQ", "start": 1020, "end": 1080, "sfx": "co2", "_id": "BOOHA|2026-07-19|CALYX Hosted by GQ"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "SIMULA Hosted by GQ", "start": 1080, "end": 1140, "sfx": "", "_id": "BOOHA|2026-07-19|SIMULA Hosted by GQ"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "IBIZA RECORDS", "start": 1140, "end": 1260, "sfx": "", "_id": "BOOHA|2026-07-19|IBIZA RECORDS"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "CC:DISCO!", "start": 1260, "end": 1350, "sfx": "", "_id": "BOOHA|2026-07-19|CC:DISCO!"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "Dj Tennis", "start": 1350, "end": 1470, "sfx": "", "_id": "BOOHA|2026-07-19|Dj Tennis"}, {"stage": "BOOHA", "date": "2026-07-19", "artist": "B2B", "start": 1470, "end": 1560, "sfx": "", "_id": "BOOHA|2026-07-19|B2B"}, {"stage": "Hideout", "date": "2026-07-15", "artist": "Julian M", "start": 1080, "end": 1230, "sfx": "", "_id": "Hideout|2026-07-15|Julian M"}, {"stage": "Hideout", "date": "2026-07-15", "artist": "Eleez", "start": 1230, "end": 1350, "sfx": "", "_id": "Hideout|2026-07-15|Eleez"}, {"stage": "Hideout", "date": "2026-07-15", "artist": "Volt", "start": 1350, "end": 1470, "sfx": "", "_id": "Hideout|2026-07-15|Volt"}, {"stage": "Hideout", "date": "2026-07-15", "artist": "Stasi Sanlin", "start": 1470, "end": 1590, "sfx": "", "_id": "Hideout|2026-07-15|Stasi Sanlin"}, {"stage": "Hideout", "date": "2026-07-15", "artist": "Gully", "start": 1590, "end": 1680, "sfx": "", "_id": "Hideout|2026-07-15|Gully"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "eTy", "start": 960, "end": 1080, "sfx": "", "_id": "Hideout|2026-07-16|eTy"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "Oktopus", "start": 1080, "end": 1200, "sfx": "", "_id": "Hideout|2026-07-16|Oktopus"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "Nomad", "start": 1200, "end": 1320, "sfx": "", "_id": "Hideout|2026-07-16|Nomad"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "Corvin & Buniku", "start": 1320, "end": 1440, "sfx": "", "_id": "Hideout|2026-07-16|Corvin & Buniku"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "DEER JADE", "start": 1440, "end": 1560, "sfx": "", "_id": "Hideout|2026-07-16|DEER JADE"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "&FRIENDS", "start": 1560, "end": 1680, "sfx": "", "_id": "Hideout|2026-07-16|&FRIENDS"}, {"stage": "Hideout", "date": "2026-07-16", "artist": "Benja", "start": 1680, "end": 1800, "sfx": "", "_id": "Hideout|2026-07-16|Benja"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "Benz", "start": 870, "end": 990, "sfx": "", "_id": "Hideout|2026-07-17|Benz"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "Silence Path", "start": 990, "end": 1110, "sfx": "", "_id": "Hideout|2026-07-17|Silence Path"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "Akos", "start": 1110, "end": 1230, "sfx": "", "_id": "Hideout|2026-07-17|Akos"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "CLARAA", "start": 1230, "end": 1320, "sfx": "", "_id": "Hideout|2026-07-17|CLARAA"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "FNX OMAR", "start": 1320, "end": 1410, "sfx": "", "_id": "Hideout|2026-07-17|FNX OMAR"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "FLOYD LAVINE", "start": 1410, "end": 1500, "sfx": "", "_id": "Hideout|2026-07-17|FLOYD LAVINE"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "NITEFREAK", "start": 1500, "end": 1620, "sfx": "", "_id": "Hideout|2026-07-17|NITEFREAK"}, {"stage": "Hideout", "date": "2026-07-17", "artist": "MoBlack", "start": 1620, "end": 1770, "sfx": "", "_id": "Hideout|2026-07-17|MoBlack"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "Musai", "start": 960, "end": 1080, "sfx": "", "_id": "Hideout|2026-07-18|Musai"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "Gala", "start": 1080, "end": 1200, "sfx": "", "_id": "Hideout|2026-07-18|Gala"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "Marwan Dua", "start": 1200, "end": 1320, "sfx": "", "_id": "Hideout|2026-07-18|Marwan Dua"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "BAKAYAN", "start": 1320, "end": 1440, "sfx": "", "_id": "Hideout|2026-07-18|BAKAYAN"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "PAUZA", "start": 1440, "end": 1560, "sfx": "", "_id": "Hideout|2026-07-18|PAUZA"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "Sparrow & Barbossa", "start": 1560, "end": 1740, "sfx": "", "_id": "Hideout|2026-07-18|Sparrow & Barbossa"}, {"stage": "Hideout", "date": "2026-07-18", "artist": "DJ Optick", "start": 1740, "end": 1860, "sfx": "", "_id": "Hideout|2026-07-18|DJ Optick"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "Shurubel", "start": 960, "end": 1080, "sfx": "", "_id": "Hideout|2026-07-19|Shurubel"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "Kataa", "start": 1080, "end": 1200, "sfx": "", "_id": "Hideout|2026-07-19|Kataa"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "Aftermath", "start": 1200, "end": 1290, "sfx": "", "_id": "Hideout|2026-07-19|Aftermath"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "Rhem (live)", "start": 1290, "end": 1410, "sfx": "", "_id": "Hideout|2026-07-19|Rhem (live)"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "NASIRI", "start": 1410, "end": 1500, "sfx": "", "_id": "Hideout|2026-07-19|NASIRI"}, {"stage": "Hideout", "date": "2026-07-19", "artist": "MAGA", "start": 1500, "end": 1680, "sfx": "", "_id": "Hideout|2026-07-19|MAGA"}, {"stage": "The Beach", "date": "2026-07-15", "artist": "Raoul", "start": 1020, "end": 1140, "sfx": "", "_id": "The Beach|2026-07-15|Raoul"}, {"stage": "The Beach", "date": "2026-07-15", "artist": "SILENT DISCIPLE", "start": 1140, "end": 1260, "sfx": "", "_id": "The Beach|2026-07-15|SILENT DISCIPLE"}, {"stage": "The Beach", "date": "2026-07-15", "artist": "DJ SPINNA", "start": 1260, "end": 1380, "sfx": "", "_id": "The Beach|2026-07-15|DJ SPINNA"}, {"stage": "The Beach", "date": "2026-07-15", "artist": "Kosta", "start": 1380, "end": 1500, "sfx": "", "_id": "The Beach|2026-07-15|Kosta"}, {"stage": "The Beach", "date": "2026-07-15", "artist": "H2B - Helsinki 2 Bucharest", "start": 1500, "end": 1620, "sfx": "", "_id": "The Beach|2026-07-15|H2B - Helsinki 2 Bucharest"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "Soundcheck for djs", "start": 840, "end": 900, "sfx": "", "_id": "The Beach|2026-07-16|Soundcheck for djs"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "ATTIC", "start": 900, "end": 960, "sfx": "", "_id": "The Beach|2026-07-16|ATTIC"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "Legally B", "start": 960, "end": 1080, "sfx": "", "_id": "The Beach|2026-07-16|Legally B"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "ALDARIS", "start": 1080, "end": 1200, "sfx": "", "_id": "The Beach|2026-07-16|ALDARIS"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "DJ SAUCE", "start": 1200, "end": 1290, "sfx": "", "_id": "The Beach|2026-07-16|DJ SAUCE"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "Romansoff", "start": 1290, "end": 1440, "sfx": "", "_id": "The Beach|2026-07-16|Romansoff"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "Octo Octa & Eris Drew", "start": 1440, "end": 1620, "sfx": "", "_id": "The Beach|2026-07-16|Octo Octa & Eris Drew"}, {"stage": "The Beach", "date": "2026-07-16", "artist": "Christine Renée", "start": 1620, "end": 1740, "sfx": "", "_id": "The Beach|2026-07-16|Christine Renée"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "Selector Music Sessions DUBASE", "start": 660, "end": 840, "sfx": "", "_id": "The Beach|2026-07-17|Selector Music Sessions DUBASE"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "CUC", "start": 840, "end": 960, "sfx": "", "_id": "The Beach|2026-07-17|CUC"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "NAVALA", "start": 960, "end": 1080, "sfx": "", "_id": "The Beach|2026-07-17|NAVALA"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "K-LU", "start": 1080, "end": 1200, "sfx": "", "_id": "The Beach|2026-07-17|K-LU"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "PUIU", "start": 1200, "end": 1320, "sfx": "", "_id": "The Beach|2026-07-17|PUIU"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "Cami Layé Okún", "start": 1320, "end": 1440, "sfx": "", "_id": "The Beach|2026-07-17|Cami Layé Okún"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "PANJABI HIT SQUAD", "start": 1440, "end": 1530, "sfx": "", "_id": "The Beach|2026-07-17|PANJABI HIT SQUAD"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "Bródy & Dr.Panda", "start": 1530, "end": 1650, "sfx": "", "_id": "The Beach|2026-07-17|Bródy & Dr.Panda"}, {"stage": "The Beach", "date": "2026-07-17", "artist": "BULLY", "start": 1650, "end": 1770, "sfx": "", "_id": "The Beach|2026-07-17|BULLY"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "Selector Music Sessions Nat Wendell", "start": 600, "end": 840, "sfx": "", "_id": "The Beach|2026-07-18|Selector Music Sessions Nat Wendell"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "CHIRTY", "start": 840, "end": 960, "sfx": "", "_id": "The Beach|2026-07-18|CHIRTY"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "DUBASE", "start": 960, "end": 1080, "sfx": "", "_id": "The Beach|2026-07-18|DUBASE"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "BIANCA OANCE", "start": 1080, "end": 1200, "sfx": "", "_id": "The Beach|2026-07-18|BIANCA OANCE"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "SUGAR", "start": 1200, "end": 1320, "sfx": "", "_id": "The Beach|2026-07-18|SUGAR"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "DAR DISKU", "start": 1320, "end": 1440, "sfx": "", "_id": "The Beach|2026-07-18|DAR DISKU"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "S!RENE", "start": 1440, "end": 1560, "sfx": "", "_id": "The Beach|2026-07-18|S!RENE"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "BLANILLA b2b MISSILE", "start": 1560, "end": 1680, "sfx": "", "_id": "The Beach|2026-07-18|BLANILLA b2b MISSILE"}, {"stage": "The Beach", "date": "2026-07-18", "artist": "DODO", "start": 1680, "end": 1800, "sfx": "", "_id": "The Beach|2026-07-18|DODO"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "Selector Music sessions:  PUIU", "start": 600, "end": 780, "sfx": "", "_id": "The Beach|2026-07-19|Selector Music sessions:  PUIU"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "ESAUNUE & XAKIS", "start": 780, "end": 840, "sfx": "", "_id": "The Beach|2026-07-19|ESAUNUE & XAKIS"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "Ioana b2b Cristina", "start": 840, "end": 960, "sfx": "", "_id": "The Beach|2026-07-19|Ioana b2b Cristina"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "D'JHU", "start": 960, "end": 1080, "sfx": "", "_id": "The Beach|2026-07-19|D'JHU"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "SHIMI", "start": 1080, "end": 1200, "sfx": "", "_id": "The Beach|2026-07-19|SHIMI"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "KARAK", "start": 1200, "end": 1320, "sfx": "", "_id": "The Beach|2026-07-19|KARAK"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "ROMARE", "start": 1320, "end": 1440, "sfx": "", "_id": "The Beach|2026-07-19|ROMARE"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "Shanti Celeste", "start": 1440, "end": 1560, "sfx": "", "_id": "The Beach|2026-07-19|Shanti Celeste"}, {"stage": "The Beach", "date": "2026-07-19", "artist": "WAX ON FRIDAYS", "start": 1560, "end": 1680, "sfx": "", "_id": "The Beach|2026-07-19|WAX ON FRIDAYS"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "SELECTOR MUSIC", "start": 840, "end": 1080, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|SELECTOR MUSIC"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "Pixar Stelar", "start": 1080, "end": 1200, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|Pixar Stelar"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "Socol", "start": 1200, "end": 1320, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|Socol"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "KARAOKE", "start": 1320, "end": 1350, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|KARAOKE"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "Abasc", "start": 1350, "end": 1440, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|Abasc"}, {"stage": "Ping Pong Stage", "date": "2026-07-15", "artist": "Disko Anksyete (Corina Sucarov)", "start": 1440, "end": 1560, "sfx": "", "_id": "Ping Pong Stage|2026-07-15|Disko Anksyete (Corina Sucarov)"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "SELECTOR MUSIC", "start": 840, "end": 1050, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|SELECTOR MUSIC"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "VAnIIRII", "start": 1050, "end": 1170, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|VAnIIRII"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "Muri", "start": 1170, "end": 1320, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|Muri"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "SELECTOR MUSIC", "start": 1320, "end": 1470, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|SELECTOR MUSIC#1"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "Enasescu", "start": 1470, "end": 1560, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|Enasescu"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "DENY", "start": 1560, "end": 1620, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|DENY"}, {"stage": "Ping Pong Stage", "date": "2026-07-16", "artist": "M.O.Z.A.R", "start": 1620, "end": 1710, "sfx": "", "_id": "Ping Pong Stage|2026-07-16|M.O.Z.A.R"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "SELECTOR MUSIC", "start": 840, "end": 1020, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|SELECTOR MUSIC"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "Heaven can wait", "start": 1020, "end": 1140, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|Heaven can wait"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "Diana Sar", "start": 1140, "end": 1230, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|Diana Sar"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "KARAOKE", "start": 1230, "end": 1260, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|KARAOKE"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "zda", "start": 1260, "end": 1320, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|zda"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "KARAOKE", "start": 1320, "end": 1350, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|KARAOKE#1"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "Andi Moisescu", "start": 1350, "end": 1440, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|Andi Moisescu"}, {"stage": "Ping Pong Stage", "date": "2026-07-17", "artist": "HIP HOP TAKEOVERS", "start": 1440, "end": 1680, "sfx": "", "_id": "Ping Pong Stage|2026-07-17|HIP HOP TAKEOVERS"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "SELECTOR MUSIC", "start": 840, "end": 1020, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|SELECTOR MUSIC"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "Olaf", "start": 1020, "end": 1110, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|Olaf"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "YCS", "start": 1110, "end": 1215, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|YCS"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "Christian Thomson", "start": 1215, "end": 1275, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|Christian Thomson"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "MEGANISI", "start": 1275, "end": 1350, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|MEGANISI"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "KARAOKE", "start": 1350, "end": 1380, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|KARAOKE"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "NYSS", "start": 1380, "end": 1440, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|NYSS"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "Rosa Pistola", "start": 1440, "end": 1560, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|Rosa Pistola"}, {"stage": "Ping Pong Stage", "date": "2026-07-18", "artist": "DJ Hefe", "start": 1560, "end": 1680, "sfx": "", "_id": "Ping Pong Stage|2026-07-18|DJ Hefe"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "SELECTOR MUSIC", "start": 840, "end": 1020, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|SELECTOR MUSIC"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "Ouch Collective", "start": 1020, "end": 1140, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|Ouch Collective"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "DJ Cristache", "start": 1140, "end": 1230, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|DJ Cristache"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "KARAOKE", "start": 1230, "end": 1260, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|KARAOKE"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "TOESUP", "start": 1260, "end": 1320, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|TOESUP"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "KARAOKE", "start": 1320, "end": 1350, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|KARAOKE#1"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "DJ MA-TA", "start": 1350, "end": 1440, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|DJ MA-TA"}, {"stage": "Ping Pong Stage", "date": "2026-07-19", "artist": "PAULVLJ", "start": 1440, "end": 1560, "sfx": "", "_id": "Ping Pong Stage|2026-07-19|PAULVLJ"}, {"stage": "Stables", "date": "2026-07-16", "artist": "Ivva", "start": 1320, "end": 1500, "sfx": "", "_id": "Stables|2026-07-16|Ivva"}, {"stage": "Stables", "date": "2026-07-16", "artist": "Cap", "start": 1500, "end": 1680, "sfx": "", "_id": "Stables|2026-07-16|Cap"}, {"stage": "Stables", "date": "2026-07-16", "artist": "Quest", "start": 1680, "end": 1860, "sfx": "", "_id": "Stables|2026-07-16|Quest"}, {"stage": "Stables", "date": "2026-07-16", "artist": "Gojnea76", "start": 1860, "end": 2040, "sfx": "", "_id": "Stables|2026-07-16|Gojnea76"}, {"stage": "Stables", "date": "2026-07-17", "artist": "Elia Nafzger", "start": 1320, "end": 1500, "sfx": "", "_id": "Stables|2026-07-17|Elia Nafzger"}, {"stage": "Stables", "date": "2026-07-17", "artist": "Dan Andrei", "start": 1500, "end": 1680, "sfx": "", "_id": "Stables|2026-07-17|Dan Andrei"}, {"stage": "Stables", "date": "2026-07-17", "artist": "Sonja Moonear b2b Andrei Ciubuc", "start": 1680, "end": 1980, "sfx": "", "_id": "Stables|2026-07-17|Sonja Moonear b2b Andrei Ciubuc"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Suciu", "start": 540, "end": 720, "sfx": "", "_id": "Stables|2026-07-18|Suciu"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Mihnea Rog", "start": 720, "end": 900, "sfx": "", "_id": "Stables|2026-07-18|Mihnea Rog"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Paul K", "start": 900, "end": 1080, "sfx": "", "_id": "Stables|2026-07-18|Paul K"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Lizz", "start": 1080, "end": 1260, "sfx": "", "_id": "Stables|2026-07-18|Lizz"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Prichindel", "start": 1260, "end": 1380, "sfx": "", "_id": "Stables|2026-07-18|Prichindel"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Bila", "start": 1380, "end": 1500, "sfx": "", "_id": "Stables|2026-07-18|Bila"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Priku", "start": 1500, "end": 1680, "sfx": "", "_id": "Stables|2026-07-18|Priku"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Margaret Dygas", "start": 1680, "end": 1890, "sfx": "", "_id": "Stables|2026-07-18|Margaret Dygas"}, {"stage": "Stables", "date": "2026-07-18", "artist": "Arapu", "start": 1890, "end": 2100, "sfx": "", "_id": "Stables|2026-07-18|Arapu"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Gescu", "start": 660, "end": 840, "sfx": "", "_id": "Stables|2026-07-19|Gescu"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Cally", "start": 840, "end": 1020, "sfx": "", "_id": "Stables|2026-07-19|Cally"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Herodot", "start": 1020, "end": 1200, "sfx": "", "_id": "Stables|2026-07-19|Herodot"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Kozo", "start": 1200, "end": 1380, "sfx": "", "_id": "Stables|2026-07-19|Kozo"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Christian AB", "start": 1380, "end": 1560, "sfx": "", "_id": "Stables|2026-07-19|Christian AB"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Praslea", "start": 1560, "end": 1740, "sfx": "", "_id": "Stables|2026-07-19|Praslea"}, {"stage": "Stables", "date": "2026-07-19", "artist": "Charlie b2b Mihigh", "start": 1740, "end": 1800, "sfx": "", "_id": "Stables|2026-07-19|Charlie b2b Mihigh"}];
+const STAGES = [{"id": "MAINSTAGE", "color": "#6A9D2D", "label": "MAINSTAGE"}, {"id": "HANGAR", "color": "#4285F4", "label": "HANGAR"}, {"id": "Backyard", "color": "#BF9000", "label": "BACKYARD"}, {"id": "BOOHA", "color": "#9C27B0", "label": "BOOHA"}, {"id": "Hideout", "color": "#00838F", "label": "HIDEOUT"}, {"id": "The Beach", "color": "#0277BD", "label": "THE BEACH"}, {"id": "Ping Pong Stage", "color": "#E65100", "label": "PING PONG"}, {"id": "Stables", "color": "#4E342E", "label": "STABLES"}];
+const DAYS   = [{"date": "2026-07-15", "label": "WEDNESDAY 15 JULY"}, {"date": "2026-07-16", "label": "THURSDAY 16 JULY"}, {"date": "2026-07-17", "label": "FRIDAY 17 JULY"}, {"date": "2026-07-18", "label": "SATURDAY 18 JULY"}, {"date": "2026-07-19", "label": "SUNDAY 19 JULY"}];
+
+const PX=1.6, D_START=540, D_END=1920, SNAP=5;
+const G_H=(D_END-D_START)*PX;
+
+let dayIdx=0, drag=null;
+const mods={};
+
+const fmt=m=>{const v=((m%1440)+1440)%1440;return `${String(Math.floor(v/60)).padStart(2,'0')}:${String(v%60).padStart(2,'0')}`;};
+const toY=m=>(m-D_START)*PX;
+const toM=y=>y/PX+D_START;
+const snp=m=>Math.round(m/SNAP)*SNAP;
+const clmp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const drk=(h,a)=>'#'+[16,8,0].map(s=>Math.max(0,Math.min(255,((parseInt(h.slice(1),16)>>s)&255)-a)).toString(16).padStart(2,'0')).join('');
+
+function render(){
+  const day=DAYS[dayIdx];
+  document.getElementById('dt').textContent=day.label;
+  const dotsEl=document.getElementById('dots');
+  dotsEl.innerHTML='';
+  DAYS.forEach((d,i)=>{
+    const el=document.createElement('div');
+    el.className='dot'+(i===dayIdx?' active':'');
+    el.onclick=()=>{dayIdx=i;render();};
+    dotsEl.appendChild(el);
+  });
+  const dayActs=ACTS.filter(a=>a.date===day.date);
+  const stages=STAGES.filter(s=>dayActs.some(a=>a.stage===s.id));
+  const hdr=document.getElementById('hdr');
+  hdr.innerHTML='';
+  const g0=document.createElement('div');g0.className='ch-gutter';hdr.appendChild(g0);
+  stages.forEach(s=>{
+    const ch=document.createElement('div');ch.className='ch-stage';ch.style.background=s.color;
+    ch.innerHTML=`<div class="sname">${s.label}</div>`;hdr.appendChild(ch);
+  });
+  const wrap=document.getElementById('wrap');
+  wrap.innerHTML='';wrap.style.height=G_H+'px';
+  const gut=document.createElement('div');gut.className='gutter';gut.style.height=G_H+'px';
+  for(let m=D_START;m<=D_END;m+=30){
+    const isHr=m%60===0,isMid=m%1440===0;
+    const lb=document.createElement('div');
+    lb.className='t-label'+(isMid?' midnight':isHr?' hr':'');
+    lb.style.top=toY(m)+'px';lb.textContent=fmt(m);gut.appendChild(lb);
+  }
+  wrap.appendChild(gut);
+  stages.forEach(s=>{
+    const col=document.createElement('div');col.className='stage-col';col.style.height=G_H+'px';
+    col.style.background=s.color+'10';
+    for(let m=D_START;m<=D_END;m+=30){
+      const isHr=m%60===0,isMid=m%1440===0;
+      const gl=document.createElement('div');gl.className='gl'+(isMid?' midnight':isHr?' hr':'');
+      gl.style.top=toY(m)+'px';col.appendChild(gl);
+      if(isMid){const ml=document.createElement('div');ml.className='midnight-lbl';ml.style.top=(toY(m)+3)+'px';ml.textContent='▸ MIDNIGHT';col.appendChild(ml);}
+    }
+    const gh=document.createElement('div');gh.className='ghost';col.appendChild(gh);
+    dayActs.filter(a=>a.stage===s.id).sort((a,b)=>a.start-b.start).forEach(act=>{
+      const sc=Math.max(act.start,D_START),ec=Math.min(act.end,D_END);
+      if(ec<=sc)return;
+      const top=toY(sc),h=Math.max((ec-sc)*PX,16);
+      const bl=document.createElement('div');
+      bl.className='act'+(mods[act._id]?' changed':'');
+      bl.dataset.id=act._id;
+      bl.style.cssText=`top:${top}px;height:${h}px;background:${s.color};`;
+      bl.innerHTML=`<div class="a-name">${act.artist}</div>`
+        +(h>26?`<div class="a-time">${fmt(act.start)}–${fmt(act.end)}</div>`:'')
+        +(act.sfx&&h>44?`<div class="a-sfx">✦ ${act.sfx}</div>`:'');
+      const rh=document.createElement('div');rh.className='resize-h';bl.appendChild(rh);
+      bl.addEventListener('mouseenter',()=>{
+        document.getElementById('tn').textContent=act.artist;
+        document.getElementById('tt').textContent=`${fmt(act.start)} – ${fmt(act.end)} (${act.end-act.start}min)`;
+        const sf=document.getElementById('ts');sf.textContent=act.sfx||'';sf.style.display=act.sfx?'block':'none';
+        document.getElementById('tip').classList.add('on');
+      });
+      bl.addEventListener('mouseleave',()=>document.getElementById('tip').classList.remove('on'));
+      col.appendChild(bl);
+    });
+    wrap.appendChild(col);
+  });
+}
+
+const scrl=()=>document.getElementById('scrl');
+document.addEventListener('mousedown',e=>{
+  const bl=e.target.closest('.act');if(!bl)return;
+  const act=ACTS.find(a=>a._id===bl.dataset.id);if(!act)return;
+  e.preventDefault();
+  const sc=scrl();
+  drag={bl,act:{...act},col:bl.parentElement,sc,
+    sy:e.clientY+sc.scrollTop,t0:parseFloat(bl.style.top),h0:parseFloat(bl.style.height),
+    mode:e.target.classList.contains('resize-h')?'resize':'move'};
+  bl.classList.add('dragging');
+  const gh=bl.parentElement.querySelector('.ghost');
+  if(gh){gh.style.cssText=`display:block;top:${bl.style.top};height:${bl.style.height};`;}
+},{passive:false});
+
+document.addEventListener('mousemove',e=>{
+  if(!drag)return;e.preventDefault();
+  const dy=(e.clientY+drag.sc.scrollTop)-drag.sy;
+  const gh=drag.col.querySelector('.ghost');
+  if(drag.mode==='move'){
+    const rt=clmp(drag.t0+dy,0,G_H-drag.h0);drag.bl.style.top=rt+'px';
+    if(gh){const sm=clmp(snp(toM(rt)),D_START,D_END-5);gh.style.top=toY(sm)+'px';gh.style.height=drag.h0+'px';}
+  }else{
+    const rh=Math.max(drag.h0+dy,SNAP*PX);drag.bl.style.height=rh+'px';
+    if(gh){gh.style.top=drag.bl.style.top;gh.style.height=Math.max(snp(rh/PX),SNAP)*PX+'px';}
+  }
+},{passive:false});
+
+document.addEventListener('mouseup',()=>{
+  if(!drag)return;
+  const {bl,act,col,mode}=drag;
+  bl.classList.remove('dragging');
+  const gh=col.querySelector('.ghost');if(gh)gh.style.display='none';
+  let ns=act.start,ne=act.end;
+  if(mode==='move'){
+    ns=clmp(snp(toM(parseFloat(bl.style.top))),D_START,D_END-5);
+    ne=ns+(act.end-act.start);bl.style.top=toY(ns)+'px';
+  }else{
+    const dur=Math.max(snp(parseFloat(bl.style.height)/PX),SNAP);
+    ne=act.start+dur;bl.style.height=dur*PX+'px';
+  }
+  const live=ACTS.find(a=>a._id===act._id);
+  if(live){live.start=ns;live.end=ne;}
+  const tEl=bl.querySelector('.a-time');if(tEl)tEl.textContent=fmt(ns)+'–'+fmt(ne);
+  mods[act._id]={stage:act.stage,date:act.date,artist:act.artist,newStartMins:ns,newEndMins:ne};
+  bl.classList.add('changed');
+  updateSave();drag=null;
+});
+
+document.addEventListener('mousemove',e=>{
+  const t=document.getElementById('tip');t.style.left=(e.clientX+14)+'px';t.style.top=(e.clientY-8)+'px';
+});
+
+function updateSave(){
+  const n=Object.keys(mods).length;
+  const cb=document.getElementById('cb');cb.textContent=n;cb.style.display=n?'flex':'none';
+  document.getElementById('sbtn').className='save-btn'+(n?' pending':'');
+  document.getElementById('sh').textContent=n?`${n} unsaved change${n>1?'s':''}` :'';
+}
+
+function save(){
+  const changes=Object.values(mods);if(!changes.length)return;
+  const btn=document.getElementById('sbtn');
+  btn.className='save-btn saving';btn.disabled=true;
+  const ok=()=>{
+    Object.keys(mods).forEach(k=>delete mods[k]);
+    document.querySelectorAll('.act.changed').forEach(el=>el.classList.remove('changed'));
+    updateSave();toast('Saved to Google Sheets ✓','ok');btn.disabled=false;
+  };
+  const fail=()=>{toast('Save failed — see console','err');btn.disabled=false;updateSave();};
+  // google.script.run is available when this page is served by Apps Script (doGet)
+  if(typeof google!=='undefined'&&google.script){
+    google.script.run.withSuccessHandler(r=>r&&r.ok?ok():fail()).withFailureHandler(fail).updateActs(changes);
+  }else{
+    toast('Open this page via the Apps Script web app URL','warn');
+    btn.disabled=false;btn.className='save-btn pending';
+  }
+}
+
+const prevDay=()=>{if(dayIdx>0){dayIdx--;render();}};
+const nextDay=()=>{if(dayIdx<DAYS.length-1){dayIdx++;render();}};
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')prevDay();if(e.key==='ArrowRight')nextDay();});
+
+let _ti=null;
+function toast(msg,type){
+  const t=document.getElementById('tst');t.textContent=msg;t.className='toast on '+(type||'');
+  clearTimeout(_ti);_ti=setTimeout(()=>t.classList.remove('on'),3200);
+}
+
+render();
+</script>
+</body>
+</html>

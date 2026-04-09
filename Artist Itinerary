@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EC11 — Artist Itinerary</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800;900&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+
+<style>
+/* ══════════════════════════════════════════════════════════════
+   PALETTE
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  /* Brand palette */
+  --rosewood:     #CA2E55;
+  --cerulean:     #337CA0;
+  --pollen:       #FFD25A;
+  --sage:         #679436;
+  --aqua:         #B3F2DD;
+
+  /* Section colours — 5 sections, 5 colours */
+  --c1: #CA2E55;  /* Show & Stage     — Rosewood  */
+  --c2: #337CA0;  /* Hotel            — Cerulean  */
+  --c3: #FFD25A;  /* Hospitality      — Pollen    */
+  --c4: #679436;  /* Transfers        — Sage      */
+  --c5: #B3F2DD;  /* Contacts         — Icy Aqua  */
+
+  /* Section text — some light backgrounds need dark text */
+  --c1-text: #ffffff;
+  --c2-text: #ffffff;
+  --c3-text: #1C1A16;   /* dark on yellow */
+  --c4-text: #ffffff;
+  --c5-text: #1C1A16;   /* dark on aqua  */
+
+  /* Muted section bg tints */
+  --c1-tint: #fdf0f3;
+  --c2-tint: #f0f6fa;
+  --c3-tint: #fffbee;
+  --c4-tint: #f2f7ec;
+  --c5-tint: #f0fdf8;
+
+  /* Neutral */
+  --bg:       #F7F8FA;
+  --white:    #FFFFFF;
+  --ink:      #1C1A16;
+  --ink-mid:  #3D3A35;
+  --ink-soft: #858180;
+  --rule:     #E4E2DE;
+
+  /* Alert — missing fields */
+  --alert:       #CA2E55;
+  --alert-light: #fdf0f3;
+
+  /* Spine */
+  --spine: #DDD9D4;
+  --spine-w: 2px;
+  --spine-x: 52px;   /* left offset of spine within main */
+
+  /* Typography */
+  --ff-head: 'Raleway', sans-serif;
+  --ff-body: 'Sora', sans-serif;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   RESET
+   ══════════════════════════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--ff-body);
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCK SCREEN
+   ══════════════════════════════════════════════════════════════ */
+#lock-screen {
+  position: fixed; inset: 0;
+  background: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  transition: opacity 0.5s ease;
+}
+#lock-screen.hidden { opacity: 0; pointer-events: none; }
+
+.lock-card {
+  background: #242018;
+  width: 92%; max-width: 440px;
+  padding: 52px 52px 44px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorative colour strip at top of lock card */
+.lock-stripe {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 5px;
+  display: flex;
+}
+.lock-stripe span {
+  flex: 1;
+}
+.lock-stripe span:nth-child(1) { background: var(--rosewood); }
+.lock-stripe span:nth-child(2) { background: var(--cerulean); }
+.lock-stripe span:nth-child(3) { background: var(--pollen); }
+.lock-stripe span:nth-child(4) { background: var(--sage); }
+.lock-stripe span:nth-child(5) { background: var(--aqua); }
+
+.lock-eyebrow {
+  font-family: var(--ff-head);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 4px; text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  margin-bottom: 14px;
+}
+
+.lock-title {
+  font-family: var(--ff-head);
+  font-size: 34px; font-weight: 800;
+  color: #F7F8FA; line-height: 1;
+  margin-bottom: 6px;
+}
+
+.lock-title-accent { color: var(--cerulean); }
+
+.lock-sub {
+  font-size: 13px; font-weight: 300;
+  color: rgba(255,255,255,0.35);
+  line-height: 1.6; margin-bottom: 40px;
+}
+
+/* Word preview slots */
+.word-slots {
+  display: flex; gap: 6px; justify-content: center;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.word-slot {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-family: var(--ff-body);
+  font-size: 11px; font-weight: 500;
+  color: rgba(255,255,255,0.18);
+  letter-spacing: 0.4px;
+  min-width: 76px; text-align: center;
+  transition: all 0.2s;
+}
+.word-slot.active { border-color: var(--cerulean); color: #F7F8FA; background: rgba(51,124,160,0.15); }
+.word-slot.filled { border-color: rgba(51,124,160,0.4); color: rgba(51,124,160,0.85); background: rgba(51,124,160,0.06); }
+
+/* Input */
+.passphrase-input {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  border-radius: 6px;
+  color: #F7F8FA;
+  font-family: var(--ff-body);
+  font-size: 15px; font-weight: 400;
+  padding: 14px 18px;
+  outline: none;
+  transition: border-color 0.2s;
+  text-align: center;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+.passphrase-input::placeholder { color: rgba(255,255,255,0.18); font-weight: 300; }
+.passphrase-input:focus { border-color: var(--cerulean); }
+.passphrase-input.error { border-color: var(--rosewood); animation: shake 0.35s ease; }
+
+.lock-error {
+  font-size: 12px; color: #E0889A;
+  height: 16px; margin-bottom: 10px;
+}
+
+.unlock-btn {
+  width: 100%;
+  background: var(--cerulean);
+  border: none; border-radius: 6px;
+  color: #fff;
+  font-family: var(--ff-head);
+  font-size: 12px; font-weight: 800;
+  padding: 15px; cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 2px; text-transform: uppercase;
+}
+.unlock-btn:hover { background: #2a6884; }
+
+.lock-hint {
+  margin-top: 24px;
+  font-size: 11px; font-weight: 300;
+  color: rgba(255,255,255,0.18); line-height: 1.7;
+}
+.lock-hint code {
+  font-family: var(--ff-body);
+  background: rgba(255,255,255,0.05);
+  padding: 1px 6px; border-radius: 3px;
+  color: rgba(255,255,255,0.28);
+}
+
+@keyframes shake {
+  0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)}
+  40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   APP HEADER
+   ══════════════════════════════════════════════════════════════ */
+.app-header {
+  background: var(--white);
+  border-bottom: 1px solid var(--rule);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.07);
+}
+
+/* Five-colour stripe across very top */
+.colour-stripe {
+  display: flex; height: 4px;
+}
+.colour-stripe span { flex: 1; }
+.colour-stripe span:nth-child(1) { background: var(--c1); }
+.colour-stripe span:nth-child(2) { background: var(--c2); }
+.colour-stripe span:nth-child(3) { background: var(--c3); }
+.colour-stripe span:nth-child(4) { background: var(--c4); }
+.colour-stripe span:nth-child(5) { background: var(--c5); }
+
+.header-inner {
+  max-width: 1120px; margin: 0 auto;
+  padding: 20px 40px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+}
+
+.brand {
+  display: flex; align-items: center; gap: 14px;
+}
+.brand-circles {
+  display: flex; gap: -4px;
+}
+.brand-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  margin-right: -3px;
+  border: 2px solid var(--white);
+}
+.brand-dot:nth-child(1) { background: var(--c1); z-index: 5; }
+.brand-dot:nth-child(2) { background: var(--c2); z-index: 4; }
+.brand-dot:nth-child(3) { background: var(--c3); z-index: 3; }
+.brand-dot:nth-child(4) { background: var(--c4); z-index: 2; }
+.brand-dot:nth-child(5) { background: var(--c5); z-index: 1; }
+
+.brand-label {}
+.brand-eyebrow {
+  font-family: var(--ff-head);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 3px; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 2px;
+}
+.brand-title {
+  font-family: var(--ff-head);
+  font-size: 20px; font-weight: 800;
+  color: var(--ink); line-height: 1;
+}
+
+.header-right { display: flex; align-items: center; gap: 16px; }
+
+.header-artist-pill {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  padding: 8px 16px 8px 12px;
+}
+.hap-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--c1); flex-shrink: 0;
+}
+.hap-label {
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.hap-name {
+  font-family: var(--ff-head);
+  font-size: 14px; font-weight: 700;
+  color: var(--ink);
+}
+
+.lock-btn {
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  color: var(--ink-soft);
+  font-family: var(--ff-head);
+  font-size: 10px; font-weight: 700;
+  padding: 9px 16px; cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.lock-btn:hover { border-color: var(--ink-soft); color: var(--ink); }
+
+/* Meta bar */
+.meta-bar {
+  background: var(--bg);
+  border-top: 1px solid var(--rule);
+}
+.meta-inner {
+  max-width: 1120px; margin: 0 auto;
+  padding: 10px 40px;
+  display: flex; align-items: center;
+  gap: 0; flex-wrap: wrap;
+}
+.meta-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 20px 0 0; margin-right: 20px;
+  border-right: 1px solid var(--rule);
+}
+.meta-item:last-child { border-right: none; }
+.meta-label {
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ink-soft);
+}
+.meta-value {
+  font-size: 12px; font-weight: 500; color: var(--ink-mid);
+}
+
+/* Alert bar */
+.alert-bar {
+  background: var(--rosewood); display: none;
+}
+.alert-bar.visible { display: block; }
+.alert-inner {
+  max-width: 1120px; margin: 0 auto;
+  padding: 10px 40px;
+  display: flex; align-items: center; gap: 12px;
+}
+.alert-excl {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900; color: #fff;
+  flex-shrink: 0;
+}
+.alert-text {
+  font-size: 12px; font-weight: 500;
+  color: rgba(255,255,255,0.9); line-height: 1.4;
+}
+.alert-text strong { color: #fff; }
+
+/* ══════════════════════════════════════════════════════════════
+   MAIN — TIMELINE LAYOUT
+   ══════════════════════════════════════════════════════════════ */
+.main {
+  max-width: 1120px; margin: 0 auto;
+  padding: 48px 40px 100px;
+  position: relative;
+}
+
+/* VERTICAL SPINE LINE */
+.main::before {
+  content: '';
+  position: absolute;
+  left: calc(40px + var(--spine-x));
+  top: 48px; bottom: 100px;
+  width: var(--spine-w);
+  background: var(--spine);
+  pointer-events: none;
+}
+
+/* ── Artist Hero ─────────────────────────────────────────── */
+.artist-hero {
+  padding-left: calc(var(--spine-x) + 32px + 32px);
+  margin-bottom: 52px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px; flex-wrap: wrap;
+}
+
+.hero-name {
+  font-family: var(--ff-head);
+  font-size: 56px; font-weight: 900;
+  color: var(--ink); line-height: 1;
+  letter-spacing: -1.5px;
+}
+
+.hero-tags {
+  display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+}
+
+.tag {
+  font-family: var(--ff-head);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  padding: 4px 12px; border-radius: 100px;
+}
+.tag-ink { background: var(--ink); color: var(--white); }
+.tag-c1  { background: var(--c1); color: #fff; }
+.tag-c2  { background: var(--c2); color: #fff; }
+.tag-c3  { background: var(--c3); color: var(--c3-text); }
+.tag-c4  { background: var(--c4); color: #fff; }
+.tag-c5  { background: var(--c5); color: var(--c5-text); }
+.tag-alert { background: var(--alert); color: #fff; }
+
+.hero-date-block {
+  text-align: right; flex-shrink: 0;
+}
+.hdb-day {
+  font-family: var(--ff-head);
+  font-size: 52px; font-weight: 900;
+  line-height: 1;
+}
+.hdb-sub {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ink-soft); margin-top: 4px;
+}
+
+/* ── Section block — timeline node + card ────────────────── */
+.sections { display: flex; flex-direction: column; gap: 24px; }
+
+.section-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Left column: spine node */
+.section-node {
+  width: calc(var(--spine-x) + 32px);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 28px;
+  position: relative;
+}
+
+/* Circle number */
+.node-circle {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  z-index: 2;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.node-circle:hover { transform: scale(1.06); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+
+.section-block.s1 .node-circle { background: var(--c1); }
+.section-block.s2 .node-circle { background: var(--c2); }
+.section-block.s3 .node-circle { background: var(--c3); }
+.section-block.s4 .node-circle { background: var(--c4); }
+.section-block.s5 .node-circle { background: var(--c5); }
+
+.node-num {
+  font-family: var(--ff-head);
+  font-size: 22px; font-weight: 900;
+  line-height: 1; letter-spacing: -0.5px;
+}
+.section-block.s1 .node-num,
+.section-block.s2 .node-num,
+.section-block.s4 .node-num { color: #fff; }
+.section-block.s3 .node-num,
+.section-block.s5 .node-num { color: var(--ink); }
+
+/* Connector line: horizontal, from circle to card */
+.node-connector {
+  position: absolute;
+  top: 60px; /* align to circle centre */
+  left: 32px; /* start at circle edge */
+  height: 2px;
+  background: var(--spine);
+  width: 32px;
+  z-index: 1;
+}
+
+/* Missing badge on node */
+.node-badge {
+  margin-top: 8px;
+  font-family: var(--ff-head);
+  font-size: 9px; font-weight: 800;
+  letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--alert);
+  background: var(--alert-light);
+  padding: 2px 8px; border-radius: 100px;
+  white-space: nowrap;
+  display: none;
+}
+.node-badge.visible { display: block; }
+
+/* Right column: content card */
+.section-card {
+  flex: 1;
+  background: var(--white);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  margin-left: 32px;
+  border-top: 4px solid transparent;
+  transition: box-shadow 0.2s;
+}
+.section-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.1); }
+
+.section-block.s1 .section-card { border-top-color: var(--c1); }
+.section-block.s2 .section-card { border-top-color: var(--c2); }
+.section-block.s3 .section-card { border-top-color: var(--c3); }
+.section-block.s4 .section-card { border-top-color: var(--c4); }
+.section-block.s5 .section-card { border-top-color: var(--c5); }
+
+/* Card header */
+.card-header {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 14px;
+  cursor: pointer; user-select: none;
+  border-bottom: 1px solid var(--rule);
+}
+
+.card-title {
+  font-family: var(--ff-head);
+  font-size: 16px; font-weight: 800;
+  color: var(--ink); letter-spacing: 0.2px;
+}
+
+.card-toggle {
+  font-family: var(--ff-head);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex; align-items: center; gap: 6px;
+}
+
+.toggle-chevron {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: var(--ink-soft);
+  transition: transform 0.2s;
+}
+
+.section-card.collapsed .toggle-chevron { transform: rotate(-90deg); }
+
+.card-body { display: block; }
+.section-card.collapsed .card-body { display: none; }
+
+/* ══════════════════════════════════════════════════════════════
+   FIELD ROWS
+   ══════════════════════════════════════════════════════════════ */
+.field-group { border-bottom: 1px solid var(--rule); }
+.field-group:last-child { border-bottom: none; }
+
+.field-group-header {
+  padding: 8px 24px;
+  font-family: var(--ff-head);
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 2.5px; text-transform: uppercase;
+  color: var(--ink-soft);
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 210px 1fr;
+  border-bottom: 1px solid var(--rule);
+  min-height: 44px;
+}
+.field-row:last-child { border-bottom: none; }
+
+.field-label {
+  padding: 12px 16px 12px 24px;
+  font-family: var(--ff-head);
+  font-size: 11px; font-weight: 700;
+  color: var(--ink-soft);
+  border-right: 1px solid var(--rule);
+  display: flex; align-items: center; gap: 6px;
+  line-height: 1.3; letter-spacing: 0.2px;
+}
+
+.label-req {
+  font-size: 16px; font-weight: 900;
+  color: var(--alert); line-height: 1;
+  flex-shrink: 0;
+}
+
+.field-value {
+  padding: 12px 24px;
+  font-size: 13px; font-weight: 400;
+  color: var(--ink-mid);
+  display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap; line-height: 1.5;
+}
+.field-value strong { color: var(--ink); font-weight: 600; }
+.field-value .sub {
+  font-size: 11px; color: var(--ink-soft);
+  display: block; margin-top: 1px; width: 100%;
+}
+
+/* Missing row state */
+.field-row.missing .field-label {
+  background: var(--alert-light);
+  border-right-color: #f5c6c2;
+  color: var(--alert);
+}
+.field-row.missing .field-value {
+  background: var(--alert-light);
+}
+
+.missing-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--alert);
+  color: #fff;
+  font-family: var(--ff-head);
+  font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  letter-spacing: 0.5px; text-transform: uppercase;
+}
+.missing-mark { font-size: 12px; font-weight: 900; }
+
+/* ══════════════════════════════════════════════════════════════
+   SPECIAL COMPONENTS
+   ══════════════════════════════════════════════════════════════ */
+
+/* Angel block */
+.angel-block {
+  display: flex; align-items: stretch;
+  border-top: 1px solid var(--rule);
+}
+.angel-strip {
+  width: 5px; flex-shrink: 0;
+}
+.section-block.s1 .angel-strip { background: var(--c1); }
+
+.angel-inner {
+  flex: 1; padding: 16px 24px;
+  display: flex; align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.angel-label {
+  font-family: var(--ff-head);
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 3px;
+}
+.angel-name-disp {
+  font-family: var(--ff-head);
+  font-size: 17px; font-weight: 700; color: var(--ink);
+}
+.angel-phone-disp {
+  font-family: var(--ff-head);
+  font-size: 17px; font-weight: 700; color: var(--c1);
+}
+
+/* Hotel pair */
+.hotel-pair {
+  display: grid; grid-template-columns: 1fr 1fr;
+  border-top: 1px solid var(--rule);
+}
+.hotel-col {
+  padding: 20px 24px;
+  border-right: 1px solid var(--rule);
+}
+.hotel-col:last-child { border-right: none; }
+.hotel-col-type {
+  font-family: var(--ff-head);
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hotel-name-disp {
+  font-family: var(--ff-head);
+  font-size: 17px; font-weight: 700; color: var(--ink);
+  margin-bottom: 2px;
+}
+.hotel-sub {
+  font-size: 11px; color: var(--ink-soft); margin-bottom: 12px;
+}
+.hotel-mini { display: flex; flex-direction: column; gap: 0; }
+.hmr {
+  display: flex; justify-content: space-between;
+  align-items: baseline; gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 12px;
+}
+.hmr:last-child { border-bottom: none; }
+.hmr-l {
+  font-family: var(--ff-head);
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.5px;
+  color: var(--ink-soft); flex-shrink: 0;
+}
+.hmr-v { font-size: 12px; font-weight: 500; color: var(--ink-mid); text-align: right; }
+.hmr-miss { font-size: 11px; font-weight: 700; color: var(--alert); font-style: italic; }
+
+/* Transfer route */
+.route {
+  display: flex; align-items: center;
+  gap: 8px; flex-wrap: wrap;
+}
+.route-node {
+  background: var(--ink); color: var(--white);
+  font-family: var(--ff-head);
+  font-size: 11px; font-weight: 700;
+  padding: 5px 14px; border-radius: 100px;
+  letter-spacing: 0.3px;
+}
+.route-arr { font-size: 16px; color: var(--c4); font-weight: 700; }
+.route-dur {
+  font-size: 11px; color: var(--ink-soft);
+  background: var(--bg);
+  padding: 4px 12px; border-radius: 100px;
+  font-style: italic;
+}
+
+/* Contacts grid */
+.contacts-grid {
+  display: grid; grid-template-columns: repeat(3,1fr);
+  border-top: 1px solid var(--rule);
+}
+.contact-block {
+  padding: 16px 20px;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+.contact-block:nth-child(3n) { border-right: none; }
+.contact-block:nth-last-child(-n+3) { border-bottom: none; }
+.cb-role {
+  font-family: var(--ff-head);
+  font-size: 8px; font-weight: 800;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: var(--ink-soft); margin-bottom: 4px;
+}
+.cb-name { font-family: var(--ff-head); font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+.cb-phone { font-size: 12px; color: var(--ink-soft); }
+.cb-email { font-size: 11px; color: var(--c2); margin-top: 1px; word-break: break-all; }
+
+/* No-artist state */
+#no-artist {
+  text-align: center; padding: 80px 20px;
+  color: var(--ink-soft);
+}
+.na-circles {
+  display: flex; justify-content: center;
+  gap: -8px; margin-bottom: 28px;
+}
+.na-c {
+  width: 20px; height: 20px; border-radius: 50%;
+  margin-right: -6px; border: 3px solid var(--bg);
+}
+.na-c:nth-child(1){background:var(--c1)}
+.na-c:nth-child(2){background:var(--c2)}
+.na-c:nth-child(3){background:var(--c3)}
+.na-c:nth-child(4){background:var(--c4)}
+.na-c:nth-child(5){background:var(--c5)}
+.na-title { font-family: var(--ff-head); font-size: 22px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+.na-sub { font-size: 14px; font-weight: 300; line-height: 1.6; }
+
+/* ══════════════════════════════════════════════════════════════
+   RESPONSIVE
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+  .main { padding: 32px 24px 80px; }
+  .main::before { left: calc(24px + var(--spine-x)); }
+  .header-inner, .meta-inner, .alert-inner { padding-left: 24px; padding-right: 24px; }
+  .artist-hero { padding-left: calc(var(--spine-x) + 16px + 32px); }
+  .contacts-grid { grid-template-columns: 1fr 1fr; }
+  .hotel-pair { grid-template-columns: 1fr; }
+  .hotel-col { border-right: none; }
+  .field-row { grid-template-columns: 160px 1fr; }
+}
+
+@media (max-width: 640px) {
+  :root { --spine-x: 36px; }
+  .hero-name { font-size: 36px; }
+  .hdb-day { font-size: 36px; }
+  .node-circle { width: 52px; height: 52px; }
+  .node-num { font-size: 18px; }
+  .section-card { margin-left: 20px; }
+  .contacts-grid { grid-template-columns: 1fr; }
+  .contact-block { border-right: none; }
+  .field-row { grid-template-columns: 1fr; }
+  .field-label { border-right: none; border-bottom: 1px solid var(--rule); padding: 8px 16px; }
+  .field-value { padding: 8px 16px 12px; }
+  .main::before { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════
+     LOCK SCREEN
+     ══════════════════════════════════════════════════════════════ -->
+<div id="lock-screen">
+  <div class="lock-card">
+    <div class="lock-stripe">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="lock-eyebrow">Electric Castle &nbsp;&#183;&nbsp; EC11 &nbsp;&#183;&nbsp; 2025</div>
+    <div class="lock-title">Artist <span class="lock-title-accent">Itinerary</span></div>
+    <div class="lock-sub">Enter your passphrase to access<br>your personalised itinerary</div>
+
+    <div class="word-slots" id="word-slots">
+      <div class="word-slot" id="ws0">word</div>
+      <div class="word-slot" id="ws1">word</div>
+      <div class="word-slot" id="ws2">word</div>
+      <div class="word-slot" id="ws3">word</div>
+    </div>
+
+    <input
+      class="passphrase-input" id="passphrase-input"
+      type="text" placeholder="word-word-word-word"
+      autocomplete="off" autocorrect="off"
+      autocapitalize="off" spellcheck="false"
+      oninput="onPassInput(this.value)"
+      onkeydown="if(event.key==='Enter') attemptUnlock()"
+    />
+    <div class="lock-error" id="lock-error"></div>
+    <button class="unlock-btn" onclick="attemptUnlock()">Access My Itinerary</button>
+    <div class="lock-hint">
+      Your passphrase was sent by the EC11 hospitality team.<br>
+      Format: <code>word-word-word-word</code>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     APP
+     ══════════════════════════════════════════════════════════════ -->
+<div id="app" style="display:none;">
+
+  <div class="app-header">
+    <div class="colour-stripe">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-circles">
+          <div class="brand-dot"></div>
+          <div class="brand-dot"></div>
+          <div class="brand-dot"></div>
+          <div class="brand-dot"></div>
+          <div class="brand-dot"></div>
+        </div>
+        <div class="brand-label">
+          <div class="brand-eyebrow">Electric Castle &nbsp;&#183;&nbsp; EC11 &nbsp;&#183;&nbsp; 2025</div>
+          <div class="brand-title">Artist Itinerary</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="header-artist-pill">
+          <div class="hap-dot" id="hap-dot"></div>
+          <span class="hap-label">Viewing&nbsp;</span>
+          <span class="hap-name" id="header-artist-name">—</span>
+        </div>
+        <button class="lock-btn" onclick="lockScreen()">Lock</button>
+      </div>
+    </div>
+    <div class="meta-bar">
+      <div class="meta-inner">
+        <div class="meta-item">
+          <span class="meta-label">Festival</span>
+          <span class="meta-value">Electric Castle, Banffy Castle</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Airport</span>
+          <span class="meta-value">Cluj-Napoca — CLJ</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Show Date</span>
+          <span class="meta-value" id="meta-show-date">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Stage</span>
+          <span class="meta-value" id="meta-stage">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="alert-bar" id="alert-bar">
+      <div class="alert-inner">
+        <div class="alert-excl">!</div>
+        <div class="alert-text">
+          <strong><span id="missing-count-text">—</span> fields</strong> are awaiting confirmation from the tour manager — marked with <strong>*</strong> below. Contact your advancing lead.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div id="no-artist">
+      <div class="na-circles">
+        <div class="na-c"></div><div class="na-c"></div>
+        <div class="na-c"></div><div class="na-c"></div><div class="na-c"></div>
+      </div>
+      <div class="na-title">Enter a passphrase to begin</div>
+      <div class="na-sub">Your personalised itinerary will appear here</div>
+    </div>
+
+    <div id="itinerary-view" style="display:none;">
+      <div class="artist-hero">
+        <div>
+          <div class="hero-name" id="hero-name">—</div>
+          <div class="hero-tags" id="hero-tags"></div>
+        </div>
+        <div class="hero-date-block">
+          <div class="hdb-day" id="hero-date">—</div>
+          <div class="hdb-sub">Show Date</div>
+        </div>
+      </div>
+      <div class="sections" id="sections-container"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// FESTIVAL CONFIG — STATIC
+// ══════════════════════════════════════════════════════════════════════
+const FESTIVAL = {
+  name: 'Electric Castle',
+  edition: 'EC11',
+  year: '2025',
+  location: 'Banffy Castle, Bonțida',
+  airport: 'Cluj-Napoca (CLJ)',
+  emergencyTransport: '+40 768 028 436',
+  hotelLiaison: 'Sabina Molocea',
+  hotelLiaisonEmail: 'accommodation@electriccastle.ro',
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// ARTIST DATA
+// Use null for any unconfirmed field — it will be flagged as missing.
+// Passphrase format: four-lowercase-words-with-hyphens
+// ══════════════════════════════════════════════════════════════════════
+const ARTISTS = [
+
+  // ── ARTIST 1: Bicep ──────────────────────────────────────────────
+  {
+    id: 'bicep',
+    passphrase: 'silver-bolt-castle-dawn',
+
+    name: 'Bicep',
+    stage: 'Main Stage',
+    capacity: '30,000',
+
+    showDate: 'Thursday 17 July',
+    showDateShort: '17 Jul',
+    showTime: '22:00',
+    changeover: '21:30',
+    setDuration: '90',
+    loadIn: '14:00',
+    loadOut: '23:45',
+    soundcheckType: 'Full Soundcheck',
+    soundcheckTime: '17:00',
+    lightsCheck: '18:30',
+    overnightProgramming: 'No',
+    dressingRoom: 'DR4 — Main Stage block, ground floor',
+
+    advancingContact: 'Ioana Mureșan',
+    advancingEmail: 'ioana@electriccastle.ro',
+    advancingPhone: '+40 722 111 222',
+    bookingContact: 'Mike Smith',
+    bookingEmail: 'mike@agencyname.com',
+
+    angel: { name: 'Ana Popescu', phone: '+40 740 111 222' },
+
+    hotelA: {
+      name: 'Grand Hotel Italia',
+      type: '5★ Luxury',
+      address: 'Str. Trifoiului 10, Cluj-Napoca',
+      website: 'www.grandhotelitalia.ro',
+      checkInOut: '15:00 — 12:00',
+      breakfast: '07:00 – 10:30',
+      restaurant: '12:00 – 22:00',
+      roomService: 'Yes — 24h',
+      wellness: 'Spa, pool, gym',
+      laundry: 'Express available',
+    },
+
+    hotelCrew: {
+      name: 'Novotel Cluj',
+      type: '4★',
+      address: 'Calea Dorobanților 74-76, Cluj-Napoca',
+      website: 'www.novotel.com/cluj',
+      checkInOut: '14:00 — 11:00',
+      breakfast: '07:00 – 10:00',
+      restaurant: '12:00 – 21:00',
+      roomService: 'Yes — until 22:00',
+      wellness: 'Fitness centre',
+      laundry: 'Standard',
+    },
+
+    nightsTotal: '4',
+    nightsPaid: '3 (14–17 July)',
+    minibar: 'Covered',
+    mealsAtHotel: 'Covered — late-night boxes x6 on 17 July',
+    incidentals: 'Personal responsibility',
+
+    riderLink: 'https://docs.google.com/spreadsheets/d/EXAMPLE',
+    mealsOnSite: 'Vegan dinner x4, gluten-free required',
+    guestList: '20 guests',
+    guestListDeadline: '15 July 2025',
+    interviews: 'None scheduled',
+
+    drivingIn: false,
+    ownVehicle: null,
+    parking: null,
+    regPlates: null,
+
+    transfers: [
+      { time: 'On arrival', from: 'CLJ Airport', to: 'Grand Hotel Italia', duration: '25 min', driver: 'Vlad Ionescu', vehicle: 'Van — 8 seats' },
+      { time: '13:30', from: 'Grand Hotel Italia', to: 'Festival Site', duration: '40 min', driver: 'Vlad Ionescu', vehicle: 'Van — 8 seats' },
+      { time: 'Post-show ~23:50', from: 'Festival Site', to: 'Grand Hotel Italia', duration: '40 min', driver: null, vehicle: null },
+    ],
+
+    contacts: [
+      { role: 'Executive Producer', name: 'Titus Carole', phone: '0040 755 916 020', email: 'titus.carole@electriccastle.ro' },
+      { role: 'Production Manager', name: 'Sem Elitas', phone: '0032 476 02 28 33', email: 'sem.elitas@gmail.com' },
+      { role: 'Prod. Manager (Night)', name: 'Stijn Verheyden', phone: '0032 486 14 85 13', email: 'stijn@stinofix.com' },
+      { role: 'Stage Manager', name: 'Bjorn Lelegems', phone: '0032 478 71 34 90', email: 'bjorn@modemux.be' },
+      { role: 'Backstage Mgr (Day)', name: 'Heda Stoicescu', phone: '+40 745 490 112', email: 'hedda.stoicescu@gmail.com' },
+      { role: 'Backstage Mgr (Night)', name: 'Alexandra Buzas', phone: '+40 740 064 494', email: 'alexandra.buzas@electriccastle.ro' },
+    ],
+  },
+
+  // ── ARTIST 2: Four Tet ───────────────────────────────────────────
+  {
+    id: 'fourtet',
+    passphrase: 'ember-cloud-river-forge',
+
+    name: 'Four Tet',
+    stage: 'Main Stage',
+    capacity: '30,000',
+
+    showDate: 'Friday 18 July',
+    showDateShort: '18 Jul',
+    showTime: '23:30',
+    changeover: '23:00',
+    setDuration: '120',
+    loadIn: '16:00',
+    loadOut: '01:30',
+    soundcheckType: 'Line Check',
+    soundcheckTime: '19:00',
+    lightsCheck: '20:00',
+    overnightProgramming: 'Yes — until 02:30',
+    dressingRoom: null,
+
+    advancingContact: 'Ioana Mureșan',
+    advancingEmail: 'ioana@electriccastle.ro',
+    advancingPhone: '+40 722 111 222',
+    bookingContact: 'Sarah Chen',
+    bookingEmail: 'sarah@bookingagency.co',
+
+    angel: { name: 'Mia Stancu', phone: '+40 750 333 444' },
+
+    hotelA: {
+      name: 'Hotel Beyfin',
+      type: '4★ Boutique',
+      address: 'Str. Regele Ferdinand 12, Cluj-Napoca',
+      website: 'www.hotelbeyfin.ro',
+      checkInOut: '14:00 — 12:00',
+      breakfast: '07:30 – 11:00',
+      restaurant: '13:00 – 22:00',
+      roomService: 'Yes — until midnight',
+      wellness: 'Rooftop terrace',
+      laundry: 'Standard',
+    },
+
+    hotelCrew: null,
+
+    nightsTotal: '2',
+    nightsPaid: '2 (17–19 July)',
+    minibar: 'Covered',
+    mealsAtHotel: null,
+    incidentals: 'Personal responsibility',
+
+    riderLink: null,
+    mealsOnSite: 'Vegetarian x2, warm meal pre-show',
+    guestList: '10 guests',
+    guestListDeadline: null,
+    interviews: '1 x Photo shoot — 17:00 backstage (15 min)',
+
+    drivingIn: false,
+    ownVehicle: null, parking: null, regPlates: null,
+
+    transfers: [
+      { time: 'On arrival 14:00', from: 'CLJ Airport', to: 'Hotel Beyfin', duration: '20 min', driver: 'Andrei Moga', vehicle: 'Car — 4 seats' },
+      { time: '15:45', from: 'Hotel Beyfin', to: 'Festival Site', duration: '45 min', driver: 'Andrei Moga', vehicle: 'Car — 4 seats' },
+      { time: '~02:00', from: 'Festival Site', to: 'Hotel Beyfin', duration: '45 min', driver: null, vehicle: null },
+    ],
+
+    contacts: [
+      { role: 'Executive Producer', name: 'Titus Carole', phone: '0040 755 916 020', email: 'titus.carole@electriccastle.ro' },
+      { role: 'Production Manager', name: 'Sem Elitas', phone: '0032 476 02 28 33', email: 'sem.elitas@gmail.com' },
+      { role: 'Prod. Manager (Night)', name: 'Stijn Verheyden', phone: '0032 486 14 85 13', email: 'stijn@stinofix.com' },
+      { role: 'Stage Manager', name: 'Bjorn Lelegems', phone: '0032 478 71 34 90', email: 'bjorn@modemux.be' },
+      { role: 'Backstage Mgr (Day)', name: 'Heda Stoicescu', phone: '+40 745 490 112', email: 'hedda.stoicescu@gmail.com' },
+      { role: 'Backstage Mgr (Night)', name: 'Alexandra Buzas', phone: '+40 740 064 494', email: 'alexandra.buzas@electriccastle.ro' },
+    ],
+  },
+
+  // ── ARTIST 3: Moderat — heavy missing fields to demo the system ──
+  {
+    id: 'moderat',
+    passphrase: 'stone-flare-velvet-grove',
+
+    name: 'Moderat',
+    stage: 'Main Stage',
+    capacity: '30,000',
+
+    showDate: 'Saturday 19 July',
+    showDateShort: '19 Jul',
+    showTime: null,
+    changeover: null,
+    setDuration: '75',
+    loadIn: '13:00',
+    loadOut: null,
+    soundcheckType: 'Full Soundcheck',
+    soundcheckTime: null,
+    lightsCheck: null,
+    overnightProgramming: 'No',
+    dressingRoom: null,
+
+    advancingContact: 'Ioana Mureșan',
+    advancingEmail: 'ioana@electriccastle.ro',
+    advancingPhone: '+40 722 111 222',
+    bookingContact: 'Lars Weber',
+    bookingEmail: 'lars@eu-booking.de',
+
+    angel: { name: null, phone: null },
+
+    hotelA: {
+      name: 'Grand Hotel Italia',
+      type: '5★ Luxury',
+      address: 'Str. Trifoiului 10, Cluj-Napoca',
+      website: 'www.grandhotelitalia.ro',
+      checkInOut: '15:00 — 12:00',
+      breakfast: '07:00 – 10:30',
+      restaurant: '12:00 – 22:00',
+      roomService: 'Yes — 24h',
+      wellness: 'Spa, pool, gym',
+      laundry: 'Express available',
+    },
+
+    hotelCrew: {
+      name: 'Novotel Cluj',
+      type: '4★',
+      address: 'Calea Dorobanților 74-76, Cluj-Napoca',
+      website: 'www.novotel.com/cluj',
+      checkInOut: '14:00 — 11:00',
+      breakfast: '07:00 – 10:00',
+      restaurant: null,
+      roomService: null,
+      wellness: 'Fitness centre',
+      laundry: 'Standard',
+    },
+
+    nightsTotal: null,
+    nightsPaid: '4 (16–20 July)',
+    minibar: 'Covered',
+    mealsAtHotel: null,
+    incidentals: 'Personal responsibility',
+
+    riderLink: null,
+    mealsOnSite: null,
+    guestList: null,
+    guestListDeadline: '17 July 2025',
+    interviews: 'None scheduled',
+
+    drivingIn: true,
+    ownVehicle: null,
+    parking: null,
+    regPlates: null,
+
+    transfers: [
+      { time: null, from: 'Hotel', to: 'Festival Site', duration: '40 min', driver: null, vehicle: null },
+      { time: 'Post-show', from: 'Festival Site', to: 'Hotel', duration: '40 min', driver: null, vehicle: null },
+    ],
+
+    contacts: [
+      { role: 'Executive Producer', name: 'Titus Carole', phone: '0040 755 916 020', email: 'titus.carole@electriccastle.ro' },
+      { role: 'Production Manager', name: 'Sem Elitas', phone: '0032 476 02 28 33', email: 'sem.elitas@gmail.com' },
+      { role: 'Prod. Manager (Night)', name: 'Stijn Verheyden', phone: '0032 486 14 85 13', email: 'stijn@stinofix.com' },
+      { role: 'Stage Manager', name: 'Bjorn Lelegems', phone: '0032 478 71 34 90', email: 'bjorn@modemux.be' },
+      { role: 'Backstage Mgr (Day)', name: 'Heda Stoicescu', phone: '+40 745 490 112', email: 'hedda.stoicescu@gmail.com' },
+      { role: 'Backstage Mgr (Night)', name: 'Alexandra Buzas', phone: '+40 740 064 494', email: 'alexandra.buzas@electriccastle.ro' },
+    ],
+  },
+
+];
+
+// ══════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════
+let state = {
+  unlocked: false,
+  artist: null,
+  collapsed: {},
+};
+
+// ══════════════════════════════════════════════════════════════════════
+// HELPERS — missing field detection
+// ══════════════════════════════════════════════════════════════════════
+function isBlank(v) {
+  if (v === null || v === undefined) return true;
+  if (typeof v === 'string') {
+    const t = v.trim().toLowerCase();
+    return t === '' || t === 'tbc' || t === 'tbd' || t === 'n/a';
+  }
+  return false;
+}
+
+function countMissing(a) {
+  let n = 0;
+  const chk = (...vals) => vals.forEach(v => { if (isBlank(v)) n++; });
+  chk(a.showTime, a.changeover, a.setDuration, a.loadIn, a.loadOut,
+      a.soundcheckType, a.soundcheckTime, a.lightsCheck, a.dressingRoom,
+      a.angel?.name, a.angel?.phone,
+      a.hotelA?.name, a.hotelA?.checkInOut, a.hotelA?.breakfast,
+      a.mealsAtHotel, a.riderLink, a.mealsOnSite,
+      a.guestList, a.guestListDeadline, a.nightsTotal);
+  if (a.drivingIn) chk(a.ownVehicle, a.parking, a.regPlates);
+  a.transfers?.forEach(t => chk(t.time, t.driver, t.vehicle));
+  return n;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PASSPHRASE AUTH
+// ══════════════════════════════════════════════════════════════════════
+function onPassInput(val) {
+  document.getElementById('lock-error').textContent = '';
+  document.getElementById('passphrase-input').classList.remove('error');
+  const words = val.toLowerCase().replace(/[^a-z\-]/g, '').split('-').filter(w => w.length > 0);
+  for (let i = 0; i < 4; i++) {
+    const slot = document.getElementById('ws' + i);
+    if (!slot) continue;
+    if (words[i] !== undefined && words[i].length > 0) {
+      slot.textContent = words[i];
+      slot.className = 'word-slot ' + (i < words.length - 1 ? 'filled' : 'active');
+    } else {
+      slot.textContent = 'word';
+      slot.className = 'word-slot';
+    }
+  }
+}
+
+function attemptUnlock() {
+  const raw = document.getElementById('passphrase-input').value.trim().toLowerCase();
+  const artist = ARTISTS.find(a => a.passphrase === raw);
+  if (artist) {
+    state.artist = artist;
+    state.unlocked = true;
+    const btn = document.querySelector('.unlock-btn');
+    btn.textContent = 'Unlocked';
+    btn.style.background = '#679436';
+    setTimeout(() => {
+      document.getElementById('lock-screen').classList.add('hidden');
+      setTimeout(() => {
+        document.getElementById('lock-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        loadArtist(artist);
+      }, 500);
+    }, 500);
+  } else {
+    const input = document.getElementById('passphrase-input');
+    input.classList.add('error');
+    document.getElementById('lock-error').textContent =
+      raw.split('-').length < 4
+        ? 'Passphrase must be four words separated by hyphens'
+        : 'Passphrase not recognised — please check and try again';
+    setTimeout(() => input.classList.remove('error'), 600);
+  }
+}
+
+function lockScreen() {
+  state.unlocked = false; state.artist = null;
+  document.getElementById('app').style.display = 'none';
+  const ls = document.getElementById('lock-screen');
+  ls.style.display = 'flex';
+  ls.classList.remove('hidden');
+  const input = document.getElementById('passphrase-input');
+  input.value = ''; input.classList.remove('error');
+  document.getElementById('lock-error').textContent = '';
+  onPassInput('');
+  const btn = document.querySelector('.unlock-btn');
+  btn.textContent = 'Access My Itinerary';
+  btn.style.background = '';
+  setTimeout(() => input.focus(), 100);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => document.getElementById('passphrase-input').focus(), 200);
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// LOAD ARTIST
+// ══════════════════════════════════════════════════════════════════════
+
+// Section colour vars indexed 1-5
+const SEC_COLOURS = ['','#CA2E55','#337CA0','#FFD25A','#679436','#B3F2DD'];
+
+function loadArtist(a) {
+  document.getElementById('header-artist-name').textContent = a.name;
+  document.getElementById('meta-show-date').textContent = a.showDate || '—';
+  document.getElementById('meta-stage').textContent = a.stage || '—';
+  document.getElementById('hero-name').textContent = a.name;
+  document.getElementById('hero-date').textContent = a.showDateShort || '—';
+
+  // Date block colour — cycle through palette
+  document.getElementById('hero-date').style.color = 'var(--c1)';
+
+  // Tags
+  const heroTags = document.getElementById('hero-tags');
+  heroTags.innerHTML = `
+    <span class="tag tag-ink">${a.stage}</span>
+    <span class="tag tag-c2">EC11 &nbsp;·&nbsp; 2025</span>
+    ${a.drivingIn ? '<span class="tag tag-c4">Driving In</span>' : ''}
+  `;
+
+  // Alert bar
+  const missing = countMissing(a);
+  const alertBar = document.getElementById('alert-bar');
+  alertBar.classList.toggle('visible', missing > 0);
+  if (missing > 0) document.getElementById('missing-count-text').textContent = missing;
+
+  document.getElementById('no-artist').style.display = 'none';
+  document.getElementById('itinerary-view').style.display = 'block';
+  renderSections(a);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FIELD ROW + GROUP BUILDERS
+// ══════════════════════════════════════════════════════════════════════
+function row(label, value, opts = {}) {
+  const blank = isBlank(value);
+  const cls = blank ? 'field-row missing' : 'field-row';
+  const labelMark = blank ? `<span class="label-req">*</span>` : '';
+  const valHTML = blank
+    ? `<span class="missing-pill"><span class="missing-mark">!</span> Awaiting confirmation</span>`
+    : (opts.html || value);
+  return `<div class="${cls}">
+    <div class="field-label">${labelMark}${label}</div>
+    <div class="field-value">${valHTML}</div>
+  </div>`;
+}
+
+function grp(label) {
+  return `<div class="field-group-header">${label}</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SECTION SHELL — timeline node + card
+// ══════════════════════════════════════════════════════════════════════
+function makeSection(sNum, title, contentEl, missingCount) {
+  const cls = 's' + sNum;
+  const div = document.createElement('div');
+  div.className = `section-block ${cls}`;
+  div.id = `sb-${cls}`;
+
+  const badge = missingCount > 0
+    ? `<div class="node-badge visible">! ${missingCount}</div>`
+    : '';
+
+  div.innerHTML = `
+    <div class="section-node">
+      <div class="node-circle" onclick="toggleSection('${cls}')">
+        <span class="node-num">${String(sNum).padStart(2,'0')}</span>
+      </div>
+      ${badge}
+    </div>
+    <div class="section-card" id="sc-${cls}">
+      <div class="card-header" onclick="toggleSection('${cls}')">
+        <div class="card-title">${title}</div>
+        <div class="card-toggle">
+          <span id="ct-label-${cls}">Collapse</span>
+          <span class="toggle-chevron" id="ct-chev-${cls}">&#9660;</span>
+        </div>
+      </div>
+      <div class="card-body" id="cb-${cls}"></div>
+    </div>
+  `;
+
+  div.querySelector(`#cb-${cls}`).appendChild(contentEl);
+  return div;
+}
+
+function toggleSection(cls) {
+  state.collapsed[cls] = !state.collapsed[cls];
+  const card = document.getElementById(`sc-${cls}`);
+  const lbl  = document.getElementById(`ct-label-${cls}`);
+  const chev = document.getElementById(`ct-chev-${cls}`);
+  card.classList.toggle('collapsed', !!state.collapsed[cls]);
+  if (lbl)  lbl.textContent  = state.collapsed[cls] ? 'Expand'   : 'Collapse';
+  if (chev) chev.innerHTML   = state.collapsed[cls] ? '&#9654;' : '&#9660;';
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════════
+function renderSections(a) {
+  const c = document.getElementById('sections-container');
+  c.innerHTML = '';
+  c.appendChild(buildShow(a));
+  c.appendChild(buildHotel(a));
+  c.appendChild(buildHosp(a));
+  c.appendChild(buildTransfers(a));
+  c.appendChild(buildContacts(a));
+}
+
+// ── 01 SHOW & STAGE ───────────────────────────────────────────────
+function buildShow(a) {
+  const missing = [a.showTime, a.changeover, a.setDuration, a.loadIn, a.loadOut,
+    a.soundcheckType, a.soundcheckTime, a.lightsCheck, a.dressingRoom,
+    a.angel?.name, a.angel?.phone].filter(isBlank).length;
+
+  const scHTML = !isBlank(a.soundcheckType) && !isBlank(a.soundcheckTime)
+    ? `${a.soundcheckType} <span class="tag tag-c3" style="margin-left:6px;">${a.soundcheckTime}</span>`
+    : null;
+
+  const stageHTML = !isBlank(a.stage)
+    ? `${a.stage} <span class="tag tag-ink" style="margin-left:6px;">Cap. ${a.capacity}</span>`
+    : null;
+
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="field-group">
+      ${grp('Timings')}
+      ${row('Show Date', a.showDate)}
+      ${row('Show Time', a.showTime)}
+      ${row('Changeover', a.changeover)}
+      ${row('Set Duration', a.setDuration, { html: a.setDuration ? `${a.setDuration} min` : null })}
+      ${row('Load In', a.loadIn)}
+      ${row('Load Out', a.loadOut)}
+    </div>
+    <div class="field-group">
+      ${grp('Production')}
+      ${row('Stage', a.stage, { html: stageHTML })}
+      ${row('Soundcheck', a.soundcheckType, { html: scHTML })}
+      ${row('Lights Check', a.lightsCheck)}
+      ${row('Overnight Programming', a.overnightProgramming)}
+      ${row('Dressing Room', a.dressingRoom)}
+    </div>
+    <div class="field-group">
+      ${grp('Your Angel — Dedicated On-site Liaison')}
+      <div class="angel-block">
+        <div class="angel-strip"></div>
+        <div class="angel-inner">
+          <div>
+            <div class="angel-label">Angel</div>
+            <div class="angel-name-disp">${isBlank(a.angel?.name)
+              ? `<span class="missing-pill"><span class="missing-mark">!</span> * Not yet assigned</span>`
+              : a.angel.name}</div>
+          </div>
+          <div class="angel-phone-disp">${isBlank(a.angel?.phone)
+            ? `<span class="missing-pill" style="font-size:11px;"><span class="missing-mark">!</span> * Phone TBC</span>`
+            : a.angel.phone}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  return makeSection(1, 'Show &amp; Stage', div, missing);
+}
+
+// ── 02 HOTEL ──────────────────────────────────────────────────────
+function buildHotel(a) {
+  const hA = a.hotelA || {};
+  const hC = a.hotelCrew;
+
+  function hmRow(label, val) {
+    return `<div class="hmr">
+      <span class="hmr-l">${label}</span>
+      <span class="${isBlank(val) ? 'hmr-miss' : 'hmr-v'}">${isBlank(val) ? '* Awaiting' : val}</span>
+    </div>`;
+  }
+
+  function hotelCol(hotel, type) {
+    if (!hotel) return `<div class="hotel-col"><div class="hotel-col-type">${type}</div><div style="font-size:13px;color:var(--ink-soft);padding-top:4px;">No separate ${type.toLowerCase()} allocated.</div></div>`;
+    return `<div class="hotel-col">
+      <div class="hotel-col-type">${type}</div>
+      <div class="hotel-name-disp">${isBlank(hotel.name)
+        ? `<span class="missing-pill" style="font-size:11px;"><span class="missing-mark">!</span> * Not confirmed</span>`
+        : hotel.name}</div>
+      <div class="hotel-sub">${[hotel.type, hotel.address].filter(Boolean).join(' &mdash; ')}</div>
+      <div class="hotel-mini">
+        ${hmRow('Check In / Out', hotel.checkInOut)}
+        ${hmRow('Breakfast', hotel.breakfast)}
+        ${hmRow('Restaurant', hotel.restaurant)}
+        ${hmRow('Room Service', hotel.roomService)}
+        ${hmRow('Wellness', hotel.wellness)}
+        ${hmRow('Laundry', hotel.laundry)}
+      </div>
+    </div>`;
+  }
+
+  const missing = [hA.name, hA.checkInOut, hA.breakfast, a.nightsTotal, a.mealsAtHotel].filter(isBlank).length;
+
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="hotel-pair">
+      ${hotelCol(hA, 'A-Party Hotel')}
+      ${hotelCol(hC, 'Crew Hotel')}
+    </div>
+    <div class="field-group">
+      ${grp('Stay Details')}
+      ${row('Nights Total', a.nightsTotal)}
+      ${row('Nights Paid by EC', a.nightsPaid)}
+      ${row('Minibar', a.minibar)}
+      ${row('Meals at Hotel', a.mealsAtHotel)}
+      ${row('Incidentals', a.incidentals, { html: a.incidentals
+        ? `${a.incidentals} <span style="font-size:11px;color:var(--ink-soft);margin-left:6px;">Early check-in / late checkout unavailable during festival</span>`
+        : null })}
+      ${row('Hotel Liaison', FESTIVAL.hotelLiaison, { html:
+        `${FESTIVAL.hotelLiaison} &mdash; <a href="mailto:${FESTIVAL.hotelLiaisonEmail}" style="color:var(--c2);">${FESTIVAL.hotelLiaisonEmail}</a>` })}
+    </div>
+  `;
+  return makeSection(2, 'Hotel &amp; Accommodation', div, missing);
+}
+
+// ── 03 HOSPITALITY ────────────────────────────────────────────────
+function buildHosp(a) {
+  const missing = [a.riderLink, a.mealsOnSite, a.guestList, a.guestListDeadline].filter(isBlank).length;
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="field-group">
+      ${grp('Rider & Catering')}
+      ${row('Rider Alternatives Doc', a.riderLink, { html: a.riderLink
+        ? `<a href="${a.riderLink}" target="_blank" style="color:var(--c2);font-weight:600;">View Rider Doc &#8599;</a>`
+        : null })}
+      ${row('Meals On-site', a.mealsOnSite)}
+      ${row('Meals at Hotel', a.mealsAtHotel)}
+    </div>
+    <div class="field-group">
+      ${grp('Press & Media')}
+      ${row('Press / Interviews', a.interviews || 'None scheduled')}
+    </div>
+    <div class="field-group">
+      ${grp('Guest List')}
+      ${row('Guest List', a.guestList)}
+      ${row('Submission Deadline', a.guestListDeadline)}
+    </div>
+    <div class="field-group">
+      ${grp('Advancing Contacts')}
+      ${row('Advancing Lead', a.advancingContact, { html: a.advancingContact
+        ? `<strong>${a.advancingContact}</strong><span class="sub">${a.advancingEmail} &nbsp;·&nbsp; ${a.advancingPhone}</span>`
+        : null })}
+      ${row('Booking Contact', a.bookingContact, { html: a.bookingContact
+        ? `<strong>${a.bookingContact}</strong><span class="sub">${a.bookingEmail}</span>`
+        : null })}
+    </div>
+  `;
+  return makeSection(3, 'On-site Hospitality', div, missing);
+}
+
+// ── 04 TRANSFERS ──────────────────────────────────────────────────
+function buildTransfers(a) {
+  let missing = 0;
+  const tRows = (a.transfers || []).map((t, i) => {
+    const timeMiss = isBlank(t.time);
+    const driverMiss = isBlank(t.driver);
+    if (timeMiss) missing++;
+    if (driverMiss) missing++;
+    const legCls = (timeMiss || driverMiss) ? 'field-row missing' : 'field-row';
+    const labelMark = (timeMiss || driverMiss) ? '<span class="label-req">*</span>' : '';
+    const timeChip = timeMiss
+      ? `<span class="missing-pill" style="font-size:9px;"><span class="missing-mark">!</span> Time TBC</span>`
+      : `<span class="tag tag-ink" style="font-size:9px;margin-left:4px;">${t.time}</span>`;
+    return `<div class="${legCls}">
+      <div class="field-label">${labelMark}Leg ${i+1} ${timeChip}</div>
+      <div class="field-value" style="flex-direction:column;align-items:flex-start;gap:6px;">
+        <div class="route">
+          <div class="route-node">${t.from || '?'}</div>
+          <div class="route-arr">&#8594;</div>
+          <div class="route-node">${t.to || '?'}</div>
+          <div class="route-dur">~${t.duration || 'TBC'}</div>
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft);">
+          Driver:&nbsp;${driverMiss
+            ? `<span class="missing-pill" style="font-size:9px;"><span class="missing-mark">!</span> * Not yet assigned</span>`
+            : `<strong style="color:var(--ink);">${t.driver}</strong>`}
+          &nbsp;&mdash;&nbsp;
+          ${isBlank(t.vehicle)
+            ? `<span style="color:var(--alert);font-size:11px;">* Vehicle TBC</span>`
+            : t.vehicle}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const driveHTML = a.drivingIn ? `
+    <div class="field-group">
+      ${grp('Driving In — Details Required')}
+      ${row('Own Vehicle', a.ownVehicle)}
+      ${row('Parking', a.parking)}
+      ${row('Registration Plates', a.regPlates)}
+    </div>
+  ` : '';
+  if (a.drivingIn) [a.ownVehicle, a.parking, a.regPlates].forEach(v => { if(isBlank(v)) missing++; });
+
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="field-group">
+      ${grp('Scheduled Transfers')}
+      ${tRows}
+    </div>
+    ${driveHTML}
+    <div class="field-group">
+      ${grp('Transport Contacts')}
+      ${row('Transport Emergency', FESTIVAL.emergencyTransport, { html:
+        `<strong>${FESTIVAL.emergencyTransport}</strong><span style="font-size:11px;color:var(--ink-soft);margin-left:8px;">24h emergency line</span>` })}
+      ${row('Angel (after arrival)', a.angel?.name, { html: isBlank(a.angel?.name)
+        ? null
+        : `<strong>${a.angel.name}</strong>&nbsp;&nbsp;${a.angel.phone}` })}
+      ${row('Advancing Lead (pre-arrival)', a.advancingContact, { html: a.advancingContact
+        ? `${a.advancingContact}&nbsp;&mdash;&nbsp;${a.advancingPhone}` : null })}
+    </div>
+  `;
+  return makeSection(4, 'Ground Transfers', div, missing);
+}
+
+// ── 05 CONTACTS ───────────────────────────────────────────────────
+function buildContacts(a) {
+  const cHTML = (a.contacts || []).map(c => `
+    <div class="contact-block">
+      <div class="cb-role">${c.role}</div>
+      <div class="cb-name">${c.name || '—'}</div>
+      <div class="cb-phone">${c.phone || '—'}</div>
+      <div class="cb-email">${c.email || '—'}</div>
+    </div>
+  `).join('');
+
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="field-group">
+      ${grp('EC On-site Team — CC your advancing contact in all correspondence')}
+      <div class="contacts-grid">${cHTML}</div>
+    </div>
+    <div class="field-group">
+      ${grp('Festival Information')}
+      ${row('Website', 'electriccastle.ro', { html: '<a href="https://electriccastle.ro" target="_blank" style="color:var(--c2);font-weight:600;">electriccastle.ro &#8599;</a>' })}
+      ${row('Location', FESTIVAL.location, { html: `${FESTIVAL.location}&nbsp;&nbsp;<a href="https://maps.google.com/?q=Banffy+Castle+Bontida" target="_blank" style="color:var(--c2);">Open in Maps &#8599;</a>` })}
+      ${row('Airport', FESTIVAL.airport)}
+      ${row('Artist Pack (Google Drive)', '—', { html: '<span style="color:var(--ink-soft);font-style:italic;font-weight:300;">Link provided by your advancing contact</span>' })}
+    </div>
+  `;
+  return makeSection(5, 'Contacts', div, 0);
+}
+</script>
+</body>
+</html>

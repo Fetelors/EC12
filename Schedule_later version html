@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Electric Castle 2026 — Programme</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;}
+html,body{height:100%;overflow:hidden;background:#F5F0E8;font-family:'DM Sans',sans-serif;color:#111;}
+
+/* ── TOP BAR ── */
+.topbar{height:56px;background:#111;display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;}
+.logo{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:3px;color:#F5F0E8;white-space:nowrap;}
+.day-nav{display:flex;gap:4px;}
+.nav-btn{width:28px;height:28px;border:1.5px solid rgba(255,255,255,0.3);background:transparent;cursor:pointer;color:#F5F0E8;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.nav-btn:hover{background:rgba(255,255,255,0.12);}
+.day-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff;white-space:nowrap;}
+.day-dots{display:flex;gap:5px;align-items:center;margin-left:4px;}
+.dot{width:6px;height:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.3);cursor:pointer;transition:all .12s;}
+.dot.active{background:#fff;border-color:#fff;}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.tbtn{padding:7px 16px;border:1.5px solid rgba(255,255,255,0.25);background:transparent;color:rgba(255,255,255,0.7);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;letter-spacing:0.8px;text-transform:uppercase;cursor:pointer;transition:all .15s;}
+.tbtn:hover{background:rgba(255,255,255,0.1);color:#fff;}
+.tbtn.pending{background:#C45B00;border-color:#C45B00;color:#fff;}
+.tbtn.saving{opacity:0.5;cursor:wait;}
+.cbubble{min-width:17px;height:17px;border-radius:9px;background:#fff;color:#C45B00;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;margin-left:4px;}
+.save-hint{font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;}
+
+/* ── LAYER BAR ── */
+.layer-bar{height:36px;background:#1A1A1A;border-bottom:1px solid #333;display:flex;align-items:center;padding:0 16px;gap:8px;flex-shrink:0;overflow-x:auto;}
+.layer-toggle{display:flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.15);background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);letter-spacing:0.5px;text-transform:uppercase;}
+.layer-toggle:hover{border-color:rgba(255,255,255,0.35);color:rgba(255,255,255,0.7);}
+.layer-toggle.on{border-color:rgba(255,255,255,0.6);color:#fff;background:rgba(255,255,255,0.08);}
+.layer-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.layer-check{font-size:10px;margin-left:1px;}
+.layer-divider{width:1px;height:16px;background:rgba(255,255,255,0.12);flex-shrink:0;margin:0 2px;}
+.all-toggle{padding:4px 11px;border-radius:20px;border:1.5px solid rgba(255,255,255,0.2);background:transparent;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:10px;font-weight:700;color:rgba(255,255,255,0.5);letter-spacing:0.6px;text-transform:uppercase;transition:all .15s;white-space:nowrap;}
+.all-toggle:hover{color:#fff;border-color:rgba(255,255,255,0.4);}
+
+/* ── SCROLL + GRID ── */
+.scroll-outer{flex:1;overflow:auto;position:relative;}
+.col-headers{display:flex;flex-shrink:0;border-bottom:2px solid rgba(0,0,0,0.15);background:#F5F0E8;position:sticky;top:0;z-index:70;min-width:max-content;}
+.ch-gutter{width:58px;min-width:58px;flex-shrink:0;}
+.ch-stage{width:168px;min-width:168px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:9px 6px;border-left:1px solid rgba(0,0,0,0.1);}
+.ch-stage .sname{font-size:10px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#fff;text-align:center;line-height:1.2;}
+.grid-wrap{display:flex;position:relative;min-width:max-content;}
+.gutter{width:58px;min-width:58px;flex-shrink:0;position:relative;background:#F5F0E8;border-right:1.5px solid rgba(0,0,0,0.12);}
+.t-label{position:absolute;right:7px;font-size:9.5px;color:#bbb;transform:translateY(-50%);white-space:nowrap;}
+.t-label.hr{color:#888;font-weight:600;}
+.t-label.midnight{color:#111;font-weight:700;font-size:10px;}
+.stage-col{width:168px;min-width:168px;flex-shrink:0;position:relative;border-left:1px solid rgba(0,0,0,0.09);}
+.gl{position:absolute;left:0;right:0;border-top:1px solid rgba(0,0,0,0.055);pointer-events:none;}
+.gl.hr{border-top:1px solid rgba(0,0,0,0.12);}
+.gl.midnight{border-top:2px dashed rgba(0,0,0,0.18);}
+.midnight-lbl{position:absolute;right:5px;font-size:7.5px;font-weight:700;color:rgba(0,0,0,0.25);letter-spacing:0.5px;pointer-events:none;z-index:3;}
+
+/* ── ACT BLOCKS ── */
+.act{position:absolute;left:3px;right:3px;border-radius:4px;padding:5px 6px 11px;cursor:grab;overflow:hidden;z-index:2;display:flex;flex-direction:column;transition:box-shadow .1s,filter .1s;}
+.act:hover{box-shadow:0 3px 12px rgba(0,0,0,0.25);z-index:6;filter:brightness(1.06);}
+.act.dragging{cursor:grabbing;opacity:0.85;box-shadow:0 8px 24px rgba(0,0,0,0.3);z-index:200;transition:none;}
+.act.changed{outline:2.5px solid rgba(255,255,255,0.9);outline-offset:-2px;}
+.a-name{font-size:11px;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.a-time{font-size:9px;color:rgba(255,255,255,0.6);margin-top:2px;white-space:nowrap;}
+.a-sfx{font-size:8px;color:rgba(255,255,255,0.35);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.resize-h{position:absolute;bottom:0;left:0;right:0;height:8px;cursor:ns-resize;border-radius:0 0 4px 4px;background:linear-gradient(transparent,rgba(0,0,0,0.22));}
+.ghost{position:absolute;left:3px;right:3px;border-radius:4px;border:2px dashed rgba(0,0,0,0.2);background:rgba(0,0,0,0.04);pointer-events:none;z-index:1;display:none;}
+
+/* ── CHANGEOVER STYLE ── */
+.act-changeover{background:rgba(230,73,128,0.1)!important;border:2px solid #E64980;}
+.act-changeover .a-name{color:#E64980!important;font-weight:800;font-size:10px;}
+.act-changeover .a-time{color:rgba(230,73,128,0.7)!important;}
+.act[data-layer="changeover"]{z-index:4;}
+.layer-badge{position:absolute;top:3px;right:4px;font-size:7px;font-weight:800;letter-spacing:0.5px;color:rgba(255,255,255,0.5);text-transform:uppercase;}
+
+/* ── TOOLTIP ── */
+.tip{position:fixed;background:#111;border-radius:6px;padding:9px 12px;font-size:11px;max-width:200px;z-index:999;pointer-events:none;opacity:0;transition:opacity .1s;box-shadow:0 4px 16px rgba(0,0,0,0.3);}
+.tip.on{opacity:1;}
+.tip-name{font-weight:700;color:#fff;margin-bottom:3px;}
+.tip-time{color:#aaa;font-size:10px;}
+.tip-sfx{color:#666;font-size:9.5px;margin-top:3px;font-style:italic;}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;padding:9px 15px;border-radius:4px;font-size:12px;font-weight:600;z-index:999;pointer-events:none;opacity:0;transform:translateY(5px);transition:opacity .18s,transform .18s;}
+.toast.on{opacity:1;transform:translateY(0);}
+.toast.ok{background:#6A9D2D;color:#fff;}
+.toast.err{background:#C0392B;color:#fff;}
+.toast.warn{background:#C45B00;color:#fff;}
+
+/* ── LOADER ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(20,20,20,0.72);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity .2s;}
+.loading-overlay.on{opacity:1;pointer-events:all;}
+.spinner{width:36px;height:36px;border-radius:50%;border:3px solid rgba(255,255,255,0.15);border-top-color:#6A9D2D;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-msg{color:rgba(255,255,255,0.7);font-size:13px;margin-top:14px;}
+
+/* ── SAVE MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);display:flex;align-items:center;justify-content:center;z-index:800;opacity:0;pointer-events:none;transition:opacity .18s;}
+.modal-overlay.on{opacity:1;pointer-events:all;}
+.modal{background:#F5F0E8;border-radius:6px;width:92%;max-width:420px;overflow:hidden;transform:translateY(8px);transition:transform .18s;}
+.modal-overlay.on .modal{transform:translateY(0);}
+.modal-header{background:#111;padding:16px 20px;font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.5px;color:#fff;}
+.modal-body{padding:18px 20px 8px;}
+.modal-desc{font-size:12px;color:#666;margin-bottom:14px;line-height:1.5;}
+.modal-opts{display:flex;flex-direction:column;gap:8px;}
+.modal-opt{padding:12px 14px;border-radius:4px;border:2px solid #D8CEB5;background:#fff;cursor:pointer;transition:all .12s;text-align:left;width:100%;}
+.modal-opt:hover{border-color:#111;}
+.modal-opt.sel{border-color:#111;background:#111;color:#fff;}
+.modal-opt.sel .opt-desc{color:rgba(255,255,255,0.6);}
+.opt-label{font-weight:700;font-size:13px;margin-bottom:3px;}
+.opt-desc{font-size:11px;color:#888;line-height:1.4;}
+.modal-footer{padding:12px 20px 16px;display:flex;justify-content:flex-end;gap:8px;border-top:1px solid #E8E0CC;margin-top:12px;}
+.modal-cancel{padding:8px 16px;border:1.5px solid #ccc;background:transparent;color:#666;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;border-radius:3px;transition:all .12s;}
+.modal-cancel:hover{border-color:#888;color:#333;}
+.modal-confirm{padding:8px 18px;border:none;background:#111;color:#fff;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;cursor:pointer;border-radius:3px;}
+.modal-confirm:hover{background:#333;}
+</style>
+</head>
+<body style="display:flex;flex-direction:column;height:100vh;">
+
+<div class="topbar">
+  <div class="logo">ELECTRIC CASTLE 2026</div>
+  <div class="day-nav">
+    <button class="nav-btn" onclick="prevDay()">&#8592;</button>
+    <button class="nav-btn" onclick="nextDay()">&#8594;</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:3px;">
+    <div id="dt" style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff;white-space:nowrap;line-height:1;"></div>
+    <div id="dots" class="day-dots"></div>
+  </div>
+  <div class="topbar-right">
+    <span id="sh" class="save-hint"></span>
+    <button class="tbtn" onclick="refreshData()" style="border-color:rgba(255,255,255,0.15);font-size:10px;">&#8635; Refresh</button>
+    <button class="tbtn" onclick="testConn()" id="tbtn" style="border-color:rgba(255,255,255,0.15);font-size:10px;">Test connection</button>
+    <button class="tbtn" id="sbtn" onclick="save()">
+      Save <span id="cb" class="cbubble" style="display:none"></span>
+    </button>
+  </div>
+</div>
+
+<div id="layer-bar" class="layer-bar"></div>
+
+<div id="scrl" class="scroll-outer">
+  <div id="hdr" class="col-headers"></div>
+  <div id="wrap" class="grid-wrap"></div>
+</div>
+
+<div class="tip" id="tip">
+  <div class="tip-name" id="tn"></div>
+  <div class="tip-time" id="tt"></div>
+  <div class="tip-sfx"  id="ts"></div>
+</div>
+<div class="toast" id="tst"></div>
+
+<div class="modal-overlay" id="save-modal">
+  <div class="modal">
+    <div class="modal-header">Save changes</div>
+    <div class="modal-body">
+      <p class="modal-desc" id="modal-desc"></p>
+      <div class="modal-opts">
+        <button class="modal-opt sel" id="opt-cascade" onclick="selOpt('cascade')">
+          <div class="opt-label">Move all following acts</div>
+          <div class="opt-desc">Everything after this slot shifts by the same amount. No gaps added or removed.</div>
+        </button>
+        <button class="modal-opt" id="opt-isolated" onclick="selOpt('isolated')">
+          <div class="opt-label">This slot only</div>
+          <div class="opt-desc">Following acts stay where they are. A changeover fills the gap if one opens.</div>
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmSave()">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loader">
+  <div style="display:flex;flex-direction:column;align-items:center;gap:12px;">
+    <div class="spinner"></div>
+    <div class="loading-msg" id="loader-msg">Loading schedule…</div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────
+const ACTS  = [];
+const DAYS  = [
+  {date:'2026-07-15', label:'WEDNESDAY 15 JULY'},
+  {date:'2026-07-16', label:'THURSDAY 16 JULY'},
+  {date:'2026-07-17', label:'FRIDAY 17 JULY'},
+  {date:'2026-07-18', label:'SATURDAY 18 JULY'},
+  {date:'2026-07-19', label:'SUNDAY 19 JULY'},
+];
+const STAGES = [
+  {id:'MAINSTAGE',       color:'#1B5E20', label:'MAINSTAGE'},
+  {id:'HANGAR',          color:'#0D47A1', label:'HANGAR'},
+  {id:'Backyard',        color:'#6A1B9A', label:'BACKYARD'},
+  {id:'BOOHA',           color:'#B71C1C', label:'BOOHA'},
+  {id:'Hideout',         color:'#006064', label:'HIDEOUT'},
+  {id:'The Beach',       color:'#1565C0', label:'THE BEACH'},
+  {id:'Ping Pong Stage', color:'#E65100', label:'PING PONG'},
+  {id:'Stables',         color:'#4E342E', label:'STABLES'},
+  {id:'Camping',         color:'#2E7D32', label:'CAMPING'},
+];
+const LAYERS = [
+  {id:'live',       label:'Live Timings', color:'#4CAF50', active:true},
+  {id:'changeover', label:'Changeovers',  color:'#E64980', active:false},
+  {id:'soundcheck', label:'Soundchecks',  color:'#0288D1', active:false},
+  {id:'overnight',  label:'Overnight',    color:'#6A1B9A', active:false},
+];
+
+// ── CONSTANTS ─────────────────────────────────────────────────
+const PX = 1.6, D_START = 540, D_END = 1920, SNAP = 5;
+const G_H = (D_END - D_START) * PX;
+
+// ── STATE ─────────────────────────────────────────────────────
+let dayIdx = 0, drag = null;
+const mods = {};
+const layerState = {};
+LAYERS.forEach(l => { layerState[l.id] = l.active; });
+
+// ── HELPERS ───────────────────────────────────────────────────
+const fmt  = m => { const v = ((m % 1440) + 1440) % 1440; return String(Math.floor(v/60)).padStart(2,'0') + ':' + String(v%60).padStart(2,'0'); };
+const toY  = m => (m - D_START) * PX;
+const toM  = y => y / PX + D_START;
+const snp  = m => Math.round(m / SNAP) * SNAP;
+const clmp = (v,a,b) => Math.max(a, Math.min(b, v));
+
+// ── LAYER BAR ─────────────────────────────────────────────────
+function buildLayerBar() {
+  const bar = document.getElementById('layer-bar');
+  bar.innerHTML = '';
+  const all = document.createElement('button');
+  all.className = 'all-toggle';
+  all.textContent = 'All';
+  all.onclick = () => {
+    const anyOff = LAYERS.some(l => !layerState[l.id]);
+    LAYERS.forEach(l => { layerState[l.id] = anyOff; });
+    buildLayerBar(); render();
+  };
+  bar.appendChild(all);
+  const div = document.createElement('div'); div.className = 'layer-divider'; bar.appendChild(div);
+  LAYERS.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = 'layer-toggle' + (layerState[l.id] ? ' on' : '');
+    btn.innerHTML = `<span class="layer-dot" style="background:${l.color}"></span>${l.label}<span class="layer-check">${layerState[l.id] ? ' ✓' : ''}</span>`;
+    btn.onclick = () => { layerState[l.id] = !layerState[l.id]; buildLayerBar(); render(); };
+    bar.appendChild(btn);
+  });
+}
+
+// ── RENDER ────────────────────────────────────────────────────
+function render() {
+  const day = DAYS[dayIdx];
+  document.getElementById('dt').textContent = day.label;
+
+  // Day dots
+  const dotsEl = document.getElementById('dots');
+  dotsEl.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const el = document.createElement('div');
+    el.className = 'dot' + (i === dayIdx ? ' active' : '');
+    el.onclick = () => { dayIdx = i; render(); };
+    dotsEl.appendChild(el);
+  });
+
+  const dayActs = ACTS.filter(a => a.date === day.date);
+  const stages  = STAGES.filter(s => dayActs.some(a => a.stage === s.id));
+
+  // Headers
+  const hdr = document.getElementById('hdr');
+  hdr.innerHTML = '';
+  const g0 = document.createElement('div'); g0.className = 'ch-gutter'; hdr.appendChild(g0);
+  stages.forEach(s => {
+    const ch = document.createElement('div');
+    ch.className = 'ch-stage';
+    ch.style.background = s.color;
+    ch.innerHTML = `<div class="sname">${s.label}</div>`;
+    hdr.appendChild(ch);
+  });
+
+  // Grid
+  const wrap = document.getElementById('wrap');
+  wrap.innerHTML = ''; wrap.style.height = G_H + 'px';
+
+  // Gutter
+  const gut = document.createElement('div');
+  gut.className = 'gutter'; gut.style.height = G_H + 'px';
+  for (let m = D_START; m <= D_END; m += 30) {
+    const isHr = m % 60 === 0, isMid = m % 1440 === 0;
+    const lb = document.createElement('div');
+    lb.className = 't-label' + (isMid ? ' midnight' : isHr ? ' hr' : '');
+    lb.style.top = toY(m) + 'px';
+    lb.textContent = fmt(m);
+    gut.appendChild(lb);
+  }
+  wrap.appendChild(gut);
+
+  // Stage columns
+  stages.forEach(s => {
+    const col = document.createElement('div');
+    col.className = 'stage-col'; col.style.height = G_H + 'px';
+    col.style.background = s.color + '12';
+
+    for (let m = D_START; m <= D_END; m += 30) {
+      const isHr = m % 60 === 0, isMid = m % 1440 === 0;
+      const gl = document.createElement('div');
+      gl.className = 'gl' + (isMid ? ' midnight' : isHr ? ' hr' : '');
+      gl.style.top = toY(m) + 'px';
+      col.appendChild(gl);
+      if (isMid) {
+        const ml = document.createElement('div');
+        ml.className = 'midnight-lbl'; ml.style.top = (toY(m) + 3) + 'px';
+        ml.textContent = '▸ MIDNIGHT'; col.appendChild(ml);
+      }
+    }
+
+    const gh = document.createElement('div'); gh.className = 'ghost'; col.appendChild(gh);
+
+    dayActs
+      .filter(a => a.stage === s.id && layerState[a.layer || 'live'])
+      .sort((a, b) => a.start - b.start)
+      .forEach(act => {
+        const sc = Math.max(act.start, D_START), ec = Math.min(act.end, D_END);
+        if (ec <= sc) return;
+        const top = toY(sc), h = Math.max((ec - sc) * PX, 16);
+
+        const bl = document.createElement('div');
+        const layerKey = act.layer || 'live';
+
+        const actColor = layerKey === 'changeover' ? '#E64980'
+                       : layerKey === 'soundcheck'  ? '#0288D1'
+                       : layerKey === 'overnight'   ? '#6A1B9A'
+                       : s.color;
+
+        bl.className  = 'act' + (mods[act._id] ? ' changed' : '') + ' act-' + layerKey;
+        bl.dataset.layer = layerKey;
+        bl.dataset.id    = act._id;
+        bl.style.cssText = `top:${top}px;height:${h}px;background:${actColor};`;
+
+        bl.innerHTML = `<div class="a-name">${act.artist}</div>` +
+          (h > 26 ? `<div class="a-time">${fmt(act.start)}–${fmt(act.end)}</div>` : '') +
+          (act.sfx && h > 40 ? `<div class="a-sfx">✦ ${act.sfx}</div>` : '');
+
+        if (layerKey !== 'live') {
+          const badge = document.createElement('div');
+          badge.className = 'layer-badge';
+          badge.textContent = layerKey;
+          bl.appendChild(badge);
+        }
+
+        const rh = document.createElement('div'); rh.className = 'resize-h'; bl.appendChild(rh);
+
+        bl.addEventListener('mouseenter', () => {
+          document.getElementById('tn').textContent = act.artist;
+          document.getElementById('tt').textContent = `${fmt(act.start)} – ${fmt(act.end)} (${act.end - act.start}min)`;
+          const sf = document.getElementById('ts'); sf.textContent = act.sfx || ''; sf.style.display = act.sfx ? 'block' : 'none';
+          document.getElementById('tip').classList.add('on');
+        });
+        bl.addEventListener('mouseleave', () => document.getElementById('tip').classList.remove('on'));
+        col.appendChild(bl);
+      });
+
+    wrap.appendChild(col);
+  });
+}
+
+// ── DRAG ──────────────────────────────────────────────────────
+const scrl = () => document.getElementById('scrl');
+
+document.addEventListener('mousedown', e => {
+  const bl = e.target.closest('.act'); if (!bl) return;
+  const act = ACTS.find(a => a._id === bl.dataset.id); if (!act) return;
+  e.preventDefault();
+  const sc = scrl();
+  drag = {bl, act: Object.assign({}, act), col: bl.parentElement, sc,
+    sy: e.clientY + sc.scrollTop, t0: parseFloat(bl.style.top), h0: parseFloat(bl.style.height),
+    mode: e.target.classList.contains('resize-h') ? 'resize' : 'move'};
+  bl.classList.add('dragging');
+  const gh = bl.parentElement.querySelector('.ghost');
+  if (gh) gh.style.cssText = `display:block;top:${bl.style.top};height:${bl.style.height};`;
+}, {passive: false});
+
+document.addEventListener('mousemove', e => {
+  if (!drag) return; e.preventDefault();
+  const dy = (e.clientY + drag.sc.scrollTop) - drag.sy;
+  const gh = drag.col.querySelector('.ghost');
+  if (drag.mode === 'move') {
+    const rt = clmp(drag.t0 + dy, 0, G_H - drag.h0); drag.bl.style.top = rt + 'px';
+    if (gh) { const sm = clmp(snp(toM(rt)), D_START, D_END - 5); gh.style.top = toY(sm) + 'px'; gh.style.height = drag.h0 + 'px'; }
+  } else {
+    const rh = Math.max(drag.h0 + dy, SNAP * PX); drag.bl.style.height = rh + 'px';
+    if (gh) { gh.style.top = drag.bl.style.top; gh.style.height = Math.max(snp(rh / PX), SNAP) * PX + 'px'; }
+  }
+}, {passive: false});
+
+document.addEventListener('mouseup', () => {
+  if (!drag) return;
+  const {bl, act, col, mode} = drag;
+  bl.classList.remove('dragging');
+  const gh = col.querySelector('.ghost'); if (gh) gh.style.display = 'none';
+  let ns = act.start, ne = act.end;
+  if (mode === 'move') {
+    ns = clmp(snp(toM(parseFloat(bl.style.top))), D_START, D_END - 5);
+    ne = ns + (act.end - act.start); bl.style.top = toY(ns) + 'px';
+  } else {
+    const dur = Math.max(snp(parseFloat(bl.style.height) / PX), SNAP);
+    ne = act.start + dur; bl.style.height = dur * PX + 'px';
+  }
+  const live = ACTS.find(a => a._id === act._id);
+  if (live) { live.start = ns; live.end = ne; }
+  const tEl = bl.querySelector('.a-time'); if (tEl) tEl.textContent = fmt(ns) + '–' + fmt(ne);
+  mods[act._id] = {stage: act.stage, date: act.date, artist: act.artist,
+    newStartMins: ns, newEndMins: ne, origStartMins: act.start, layer: act.layer || 'live'};
+  bl.classList.add('changed');
+  updateSave(); drag = null;
+});
+
+document.addEventListener('mousemove', e => {
+  const t = document.getElementById('tip');
+  t.style.left = (e.clientX + 14) + 'px'; t.style.top = (e.clientY - 8) + 'px';
+});
+
+// ── UPDATE SAVE BUTTON ────────────────────────────────────────
+function updateSave() {
+  const n  = Object.keys(mods).length;
+  const cb = document.getElementById('cb');
+  cb.textContent = n; cb.style.display = n ? 'flex' : 'none';
+  document.getElementById('sbtn').className = 'tbtn' + (n ? ' pending' : '');
+  document.getElementById('sh').textContent = n ? `${n} unsaved change${n > 1 ? 's' : ''}` : '';
+}
+
+// ── DATA LOADING ──────────────────────────────────────────────
+function setLoader(on, msg) {
+  document.getElementById('loader').classList.toggle('on', on);
+  if (msg) document.getElementById('loader-msg').textContent = msg;
+}
+
+function loadData(isRefresh) {
+  const rbtn = document.getElementById('tbtn');
+  setLoader(true, isRefresh ? 'Refreshing…' : 'Loading schedule…');
+  if (rbtn) { rbtn.textContent = '↻ Loading…'; rbtn.disabled = true; }
+
+  if (typeof google === 'undefined' || !google.script) {
+    setLoader(false);
+    toast('Open via Apps Script web app URL to load live data', 'warn');
+    if (rbtn) { rbtn.textContent = 'Test connection'; rbtn.disabled = false; }
+    return;
+  }
+
+  google.script.run
+    .withSuccessHandler(function(result) {
+      setLoader(false);
+      if (rbtn) { rbtn.textContent = 'Test connection'; rbtn.disabled = false; }
+      if (!result || !result.ok) { toast('Load failed: ' + (result && result.error || 'unknown'), 'err'); return; }
+      ACTS.length = 0;
+      result.acts.forEach(a => ACTS.push(a));
+      Object.keys(mods).forEach(k => delete mods[k]);
+      updateSave(); buildLayerBar(); render();
+      if (isRefresh) toast('Refreshed ✓  (' + result.count + ' acts)', 'ok');
+    })
+    .withFailureHandler(function(err) {
+      setLoader(false);
+      if (rbtn) { rbtn.textContent = 'Test connection'; rbtn.disabled = false; }
+      toast('Load failed: ' + String(err), 'err');
+    })
+    .getActs();
+}
+
+function refreshData() {
+  if (Object.keys(mods).length > 0 && !confirm('Unsaved changes will be lost. Continue?')) return;
+  loadData(true);
+}
+
+// ── TEST CONNECTION ───────────────────────────────────────────
+function testConn() {
+  const btn = document.getElementById('tbtn');
+  btn.textContent = 'Testing…'; btn.disabled = true;
+  if (typeof google === 'undefined' || !google.script) {
+    toast('Not running via Apps Script — open the web app URL', 'warn');
+    btn.textContent = 'Test connection'; btn.disabled = false; return;
+  }
+  google.script.run
+    .withSuccessHandler(r => {
+      toast(r && r.ok ? 'Connected ✓  ' + r.sheet + ' (' + r.rows + ' rows) [' + r.version + ']' : 'Sheet not found', r && r.ok ? 'ok' : 'err');
+      btn.textContent = 'Test connection'; btn.disabled = false;
+    })
+    .withFailureHandler(err => {
+      toast('Connection failed: ' + String(err), 'err');
+      btn.textContent = 'Test connection'; btn.disabled = false;
+    })
+    .testConnection();
+}
+
+// ── NAV ───────────────────────────────────────────────────────
+const prevDay = () => { if (dayIdx > 0) { dayIdx--; render(); } };
+const nextDay = () => { if (dayIdx < DAYS.length - 1) { dayIdx++; render(); } };
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft') prevDay();
+  if (e.key === 'ArrowRight') nextDay();
+});
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _ti = null;
+function toast(msg, type) {
+  const t = document.getElementById('tst');
+  t.textContent = msg; t.className = 'toast on ' + (type || '');
+  clearTimeout(_ti); _ti = setTimeout(() => t.classList.remove('on'), 3200);
+}
+
+// ── SAVE MODAL (cascade / isolated) ──────────────────────────
+let _saveOpt = 'cascade';
+
+function selOpt(opt) {
+  _saveOpt = opt;
+  document.getElementById('opt-cascade').classList.toggle('sel', opt === 'cascade');
+  document.getElementById('opt-isolated').classList.toggle('sel', opt === 'isolated');
+}
+
+function closeModal() {
+  document.getElementById('save-modal').classList.remove('on');
+}
+
+function save() {
+  const changes = Object.values(mods);
+  if (!changes.length) return;
+
+  // Changeovers: save immediately without modal
+  if (changes.every(c => c.layer === 'changeover')) {
+    _doSave('cascade'); return;
+  }
+
+  const n = changes.length;
+  const ch = changes.find(c => c.layer === 'live') || changes[0];
+  const day = DAYS.find(d => d.date === ch.date) || {label: ch.date};
+  document.getElementById('modal-desc').textContent =
+    n + ' unsaved change' + (n > 1 ? 's' : '') + ' — ' + ch.stage + ' · ' + day.label;
+
+  selOpt('cascade');
+  document.getElementById('save-modal').classList.add('on');
+}
+
+function confirmSave() {
+  closeModal();
+  _doSave(_saveOpt);
+}
+
+function _doSave(option) {
+  const changes = Object.values(mods);
+  if (!changes.length) return;
+  const btn = document.getElementById('sbtn');
+  btn.className = 'tbtn saving'; btn.disabled = true;
+
+  const ok   = () => { btn.disabled = false; toast('Saved — refreshing…', 'ok'); loadData(true); };
+  const fail = msg => { toast('Save failed: ' + (msg || 'unknown'), 'err'); btn.disabled = false; updateSave(); };
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(r => r && r.ok ? ok() : fail(r && r.error))
+      .withFailureHandler(e => fail(String(e)))
+      .updateActs(changes, option);
+  } else {
+    toast('Open via Apps Script web app URL', 'warn');
+    btn.disabled = false; btn.className = 'tbtn pending';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+buildLayerBar();
+render();
+loadData(false);
+</script>
+</body>
+</html>

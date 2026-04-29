@@ -1,0 +1,2262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>EC12 — Artist Overview</title>
+
+  <!--
+    Google Fonts — loaded before our CSS so fonts are ready when styles apply.
+    Inter            = clean UI font, sits between Helvetica and Barlow.
+    Barlow Condensed = used only for the EC12 logo wordmark.
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+
+  <!-- Shared design system — colours, typography, component styles -->
+  <link rel="stylesheet" href="../shared/theme.css"/>
+
+  <!--
+    Shared Monday.com config — defines board IDs and column IDs.
+    Must load BEFORE monday-client.js, which references MONDAY_CONFIG.
+  -->
+  <script src="../../config/monday-columns.js"></script>
+
+  <!-- Shared Monday.com API client — all fetch/write logic lives here -->
+  <script src="../shared/monday-client.js"></script>
+
+  <!-- ── COMPONENT STYLES ──────────────────────────────────────────────────
+       Styles specific to this component only.
+       If a style belongs to the global system, it goes in theme.css instead.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <style>
+
+    /* ── PAGE LAYOUT ─────────────────────────────────────────────────────── */
+
+    /* The overall page structure is three horizontal bands stacked top to bottom:
+       1. Nav bar (sticky)
+       2. Sub-nav / filter bar (sticky, just below nav)
+       3. Main content area (scrollable) */
+
+    .page-wrap {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;                   /* grows to fill remaining height */
+      padding: var(--space-6);
+      max-width: 1600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* ── PIPELINE TABLE WRAPPER ───────────────────────────────────────────── */
+
+    /* This wraps the table and adds the header row above it */
+    .pipeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-4);
+    }
+
+    .pipeline-title {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semi);
+      color: var(--color-text);
+    }
+
+    .pipeline-count {
+      font-size: var(--text-sm);
+      color: var(--color-text-muted);
+      font-weight: var(--weight-regular);
+      margin-left: var(--space-2);
+    }
+
+    /* ── STEP HEADER COLUMNS ─────────────────────────────────────────────── */
+
+    /* Each of the 8 step columns in the table header has two lines:
+       the step number and the short name below it */
+    .step-header {
+      text-align: center;
+      min-width: 52px;
+    }
+
+    .step-header-num {
+      font-size: var(--text-xs);
+      color: var(--color-text-disabled);
+      display: block;
+    }
+
+    .step-header-name {
+      font-size: 10px;
+      color: var(--color-text-muted);
+      display: block;
+      font-weight: var(--weight-medium);
+      letter-spacing: var(--tracking-wide);
+    }
+
+    /* EC = Electric Castle owns this step, TM = Tour Manager owns it.
+       We colour-code the header to make ownership visible at a glance. */
+    .step-header.owner-ec .step-header-name { color: var(--palette-stormy-teal); }
+    .step-header.owner-tm .step-header-name { color: var(--palette-amber-flame); }
+
+    /* ── STATUS STEP DOTS ────────────────────────────────────────────────── */
+
+    /* Each cell in the step columns holds one dot. The dot colour tells you
+       the status of that advancing step for that artist. */
+
+    .step-cell {
+      text-align: center;
+    }
+
+    .step-dot {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: var(--radius-full);
+      cursor: help;              /* shows the tooltip cursor so users know to hover */
+      transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .step-dot:hover { transform: scale(1.4); }
+
+    /* Five states mapped to our colour system.
+       s0 = idle (not started), s1 = asked (waiting), s2 = partial (some done),
+       s3 = confirmed (complete), s4 = blocked (stuck — pulses to grab attention) */
+    .step-dot.s0 { background: var(--color-status-idle); }
+    .step-dot.s1 { background: var(--color-status-pending);   box-shadow: var(--glow-gold);  }
+    .step-dot.s2 { background: var(--color-status-partial);   }
+    .step-dot.s3 { background: var(--color-status-confirmed); box-shadow: var(--glow-green); }
+    .step-dot.s4 { background: var(--color-status-needed);    box-shadow: var(--glow-pink);  animation: pulse-glow 2s ease-in-out infinite; }
+
+    /* ── ARTIST NAME CELL ────────────────────────────────────────────────── */
+
+    .artist-name {
+      font-weight: var(--weight-semi);
+      color: var(--color-text);
+      cursor: pointer;
+      transition: color var(--transition-fast);
+    }
+
+    .artist-name:hover { color: var(--color-action); }
+
+    /* ── BLOCKER INDICATOR ───────────────────────────────────────────────── */
+
+    /* A small icon column showing if an artist has critical missing data.
+       If any of: rider, party size, hotel, dietary is missing — shows a pink dot.
+       If all present — shows a green dot. */
+    .blocker-cell {
+      text-align: center;
+    }
+
+    .blocker-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: var(--radius-full);
+    }
+
+    .blocker-dot.clear    { background: var(--color-status-confirmed); }
+    .blocker-dot.has-issue { background: var(--color-status-needed); box-shadow: var(--glow-pink); }
+
+    /* ── MONDAY LINK ─────────────────────────────────────────────────────── */
+
+    .monday-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: var(--radius-sm);
+      color: var(--color-text-disabled);
+      text-decoration: none;
+      font-size: 14px;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .monday-link:hover {
+      background: var(--palette-grey-100);
+      color: var(--color-action);
+    }
+
+    /* ── FILTER BAR ──────────────────────────────────────────────────────── */
+
+    /* The sub-nav holds filter dropdowns and the search input */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      padding: var(--space-3) var(--space-6);
+      background: var(--color-nav-secondary);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      overflow-x: auto;
+      flex-wrap: nowrap;
+    }
+
+    .filter-bar::-webkit-scrollbar { display: none; }
+
+    .filter-label {
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-widest);
+      white-space: nowrap;
+      font-weight: var(--weight-medium);
+    }
+
+    /* Filter dropdowns — sit inside the dark sub-nav so they're styled to match */
+    .filter-select {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-family: var(--font-body);
+      font-weight: var(--weight-medium);
+      padding: var(--space-1) var(--space-3);
+      cursor: pointer;
+      outline: none;
+      white-space: nowrap;
+    }
+
+    .filter-select:focus {
+      border-color: rgba(255,255,255,0.4);
+    }
+
+    /* Search box */
+    .search-input {
+      background: rgba(255,255,255,0.1);
+      color: rgba(255,255,255,0.9);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-sm);
+      font-size: var(--text-xs);
+      font-family: var(--font-body);
+      padding: var(--space-1) var(--space-3);
+      width: 180px;
+      outline: none;
+    }
+
+    .search-input::placeholder { color: rgba(255,255,255,0.35); }
+    .search-input:focus { border-color: rgba(255,255,255,0.4); }
+
+    /* Divider between filter groups */
+    .filter-divider {
+      width: 1px;
+      height: 18px;
+      background: rgba(255,255,255,0.15);
+      flex-shrink: 0;
+    }
+
+    /* Sync status indicator — small dot + text showing last data refresh */
+    .sync-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,0.4);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .sync-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: var(--radius-full);
+    }
+
+    .sync-dot.live    { background: var(--palette-neon-green); box-shadow: var(--glow-green); }
+    .sync-dot.offline { background: var(--color-status-idle); }
+    .sync-dot.error   { background: var(--palette-neon-pink); box-shadow: var(--glow-pink); }
+
+    /* ── SETTINGS BUTTON (cog icon in nav) ───────────────────────────────── */
+
+    .btn-settings {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      color: rgba(255,255,255,0.6);
+      border-radius: var(--radius-sm);
+      padding: var(--space-1) var(--space-3);
+      font-size: var(--text-xs);
+      font-family: var(--font-body);
+      font-weight: var(--weight-medium);
+      cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
+    }
+
+    .btn-settings:hover {
+      background: rgba(255,255,255,0.15);
+      color: white;
+    }
+
+    /* ── SETTINGS MODAL ──────────────────────────────────────────────────── */
+
+    /* A modal is an overlay panel that appears on top of the page.
+       It has two parts: the backdrop (dark overlay behind) and the panel itself. */
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;                  /* shorthand for top:0 right:0 bottom:0 left:0 */
+      background: rgba(0,56,68,0.7);
+      z-index: 200;
+      display: none;
+      align-items: flex-start;
+      justify-content: flex-end;
+    }
+
+    .modal-backdrop.open { display: flex; }
+
+    .modal-panel {
+      background: var(--color-surface);
+      width: 420px;
+      min-height: 100vh;
+      padding: var(--space-6);
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: var(--space-6);
+    }
+
+    .modal-title {
+      font-size: var(--text-lg);
+      font-weight: var(--weight-semi);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--color-text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: var(--space-1);
+      border-radius: var(--radius-sm);
+      line-height: 1;
+    }
+
+    .modal-close:hover { background: var(--palette-grey-100); color: var(--color-text); }
+
+    .settings-group {
+      margin-bottom: var(--space-6);
+    }
+
+    .settings-group-title {
+      font-size: var(--text-xs);
+      font-weight: var(--weight-semi);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-widest);
+      color: var(--color-text-muted);
+      margin-bottom: var(--space-4);
+      padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .settings-field {
+      margin-bottom: var(--space-4);
+    }
+
+    .settings-hint {
+      font-size: var(--text-xs);
+      color: var(--color-text-muted);
+      margin-top: var(--space-1);
+    }
+
+    /* ── ARTIST DETAIL PANEL ─────────────────────────────────────────────── */
+
+    /* Slides in from the right when you click on an artist row.
+       Uses a CSS transform to animate in — translating from 100% (off-screen right)
+       to 0 (fully visible). */
+
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 520px;
+      max-width: 95vw;           /* on small screens, don't take up more than 95% of width */
+      height: 100vh;
+      background: var(--color-surface);
+      box-shadow: var(--shadow-xl);
+      z-index: 150;
+      transform: translateX(100%);   /* starts off-screen to the right */
+      transition: transform var(--transition-slow);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .detail-panel.open {
+      transform: translateX(0);      /* slides in to visible position */
+    }
+
+    .detail-panel-header {
+      background: var(--color-nav);
+      padding: var(--space-5) var(--space-6);
+      flex-shrink: 0;               /* header doesn't shrink if content is tall */
+    }
+
+    .detail-panel-close {
+      color: rgba(255,255,255,0.5);
+      font-size: 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      float: right;
+      margin-top: -2px;
+      transition: color var(--transition-fast);
+    }
+
+    .detail-panel-close:hover { color: white; }
+
+    .detail-artist-name {
+      font-family: var(--font-display);
+      font-size: var(--text-2xl);
+      color: var(--color-text-inverse);
+      margin-bottom: var(--space-2);
+    }
+
+    .detail-tags {
+      display: flex;
+      gap: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .detail-panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: var(--space-6);
+    }
+
+    /* Each advancing step shown in the detail panel */
+    .step-section {
+      margin-bottom: var(--space-6);
+    }
+
+    .step-section-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      margin-bottom: var(--space-3);
+      padding-bottom: var(--space-2);
+      border-bottom: 1px solid var(--color-border);
+    }
+
+    .step-section-num {
+      width: 22px;
+      height: 22px;
+      border-radius: var(--radius-full);
+      background: var(--palette-grey-100);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: var(--text-xs);
+      font-weight: var(--weight-bold);
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+
+    .step-section-num.s1 { background: var(--color-status-pending-bg);   color: var(--color-status-pending-text); }
+    .step-section-num.s2 { background: var(--color-status-confirmed-bg); color: var(--color-status-confirmed-text); }
+    .step-section-num.s3 { background: var(--color-status-needed-bg);    color: var(--color-status-needed-text); }
+
+    .step-section-name {
+      font-weight: var(--weight-semi);
+      font-size: var(--text-sm);
+      flex: 1;
+    }
+
+    .step-owner-tag {
+      font-size: 10px;
+      font-weight: var(--weight-semi);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-wide);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+    }
+
+    .step-owner-tag.ec {
+      background: rgba(0,108,103,0.12);
+      color: var(--palette-stormy-teal);
+    }
+
+    .step-owner-tag.tm {
+      background: rgba(255,177,0,0.15);
+      color: #7a5500;
+    }
+
+    /* Individual action checklist items within a step */
+    .action-item {
+      display: flex;
+      align-items: flex-start;
+      gap: var(--space-3);
+      padding: var(--space-2) 0;
+      font-size: var(--text-sm);
+      color: var(--color-text);
+    }
+
+    .action-item + .action-item {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .action-check {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1.5px solid var(--color-border-strong);
+      flex-shrink: 0;
+      margin-top: 1px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+    }
+
+    .action-check.done {
+      background: var(--color-status-confirmed);
+      border-color: var(--color-status-confirmed);
+      color: var(--palette-dark-teal);
+    }
+
+    .action-check.asked {
+      background: var(--color-status-pending-bg);
+      border-color: var(--color-status-pending);
+      color: var(--color-status-pending-text);
+    }
+
+    .action-check.partial {
+      background: var(--color-status-partial-bg);
+      border-color: var(--color-status-partial);
+      color: var(--color-status-partial-text);
+    }
+
+    .action-check.not-asked {
+      border-color: var(--color-status-needed);
+    }
+
+    .action-label {
+      flex: 1;
+      line-height: var(--leading-normal);
+    }
+
+    /* Small hint showing which Monday.com column drives this action */
+    .action-col-name {
+      display: block;
+      font-size: 10px;
+      color: var(--color-text-disabled);
+      margin-top: 2px;
+      font-style: italic;
+    }
+
+    /* Source tag: monday / email / manual */
+    .action-source {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      font-weight: var(--weight-medium);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .action-source.monday { background: rgba(0,108,103,0.12); color: var(--palette-stormy-teal); }
+    .action-source.email  { background: rgba(255,177,0,0.15); color: #7a5500; }
+    .action-source.manual { background: var(--palette-grey-100); color: var(--color-text-muted); }
+
+    /* ── ADVANCED FILTER PANEL ──────────────────────────────────────────────
+       Drops down below the filter bar when you click "Filters".
+       Groups dimensions by category (Travel, Accommodation, Rider, Contact).
+       Each dimension shows a row of clickable option pills.
+    ────────────────────────────────────────────────────────────────────────── */
+
+    .filter-panel {
+      background: var(--palette-dark-teal);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      padding: var(--space-4) var(--space-6);
+      display: none;  /* shown via JS when "Filters" button is clicked */
+    }
+
+    .filter-panel.open { display: block; }
+
+    /* Groups sit side by side on wide screens, stack on narrow */
+    .filter-groups {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-6);
+    }
+
+    .filter-group {
+      min-width: 200px;
+      flex: 1;
+    }
+
+    .filter-group-title {
+      font-size: 10px;
+      font-weight: var(--weight-semi);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-widest);
+      color: rgba(255,255,255,0.35);
+      margin-bottom: var(--space-3);
+    }
+
+    .filter-dimension {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      margin-bottom: var(--space-2);
+      flex-wrap: wrap;
+    }
+
+    .filter-dimension-label {
+      font-size: var(--text-xs);
+      color: rgba(255,255,255,0.5);
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+
+    /* Individual option pills within a filter dimension */
+    .filter-pill {
+      font-size: 10px;
+      font-weight: var(--weight-medium);
+      padding: 2px var(--space-2);
+      border-radius: var(--radius-full);
+      border: 1px solid rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      background: transparent;
+      font-family: var(--font-body);
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .filter-pill:hover {
+      border-color: rgba(255,255,255,0.4);
+      color: rgba(255,255,255,0.9);
+    }
+
+    /* Active pill — highlighted using the relevant state colour */
+    .filter-pill.active-confirmed { background: rgba(185,241,140,0.2); border-color: var(--palette-neon-green);  color: var(--palette-neon-green); }
+    .filter-pill.active-partial   { background: rgba(202,204,144,0.2); border-color: var(--palette-dry-sage);    color: var(--palette-dry-sage); }
+    .filter-pill.active-asked     { background: rgba(243,182,31, 0.2); border-color: var(--palette-neon-gold);   color: var(--palette-neon-gold); }
+    .filter-pill.active-not_asked { background: rgba(247,37, 133,0.2); border-color: var(--palette-neon-pink);   color: var(--palette-neon-pink); }
+    .filter-pill.active-value     { background: rgba(202,204,144,0.2); border-color: var(--palette-dry-sage);    color: var(--palette-dry-sage); }
+
+    /* ── ACTIVE FILTER CHIPS ─────────────────────────────────────────────────
+       Shown in a strip below the filter bar when any advanced filter is active.
+       Each chip names the filter and its value, with an ✕ to clear it.
+    ────────────────────────────────────────────────────────────────────────── */
+
+    .chips-bar {
+      background: rgba(0,56,68,0.6);
+      padding: var(--space-2) var(--space-6);
+      display: none;
+      flex-wrap: wrap;
+      gap: var(--space-2);
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .chips-bar.has-chips { display: flex; }
+
+    .chips-label {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      letter-spacing: var(--tracking-widest);
+      margin-right: var(--space-1);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: var(--radius-full);
+      padding: 2px var(--space-2) 2px var(--space-3);
+      font-size: 10px;
+      color: rgba(255,255,255,0.8);
+      font-weight: var(--weight-medium);
+    }
+
+    .chip-remove {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 0 2px;
+      line-height: 1;
+      font-family: inherit;
+    }
+
+    .chip-remove:hover { color: rgba(255,255,255,0.9); }
+
+    .chip-clear-all {
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0 var(--space-2);
+      text-decoration: underline;
+    }
+
+    .chip-clear-all:hover { color: rgba(255,255,255,0.7); }
+
+    /* Filters toggle button — sits in the filter bar */
+    .btn-filters {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: var(--radius-sm);
+      color: rgba(255,255,255,0.6);
+      font-size: var(--text-xs);
+      font-family: var(--font-body);
+      font-weight: var(--weight-medium);
+      padding: var(--space-1) var(--space-3);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      white-space: nowrap;
+    }
+
+    .btn-filters:hover, .btn-filters.active {
+      background: rgba(255,255,255,0.15);
+      color: white;
+      border-color: rgba(255,255,255,0.3);
+    }
+
+    /* Badge showing how many advanced filters are active */
+    .filter-count-badge {
+      background: var(--palette-neon-pink);
+      color: white;
+      border-radius: var(--radius-full);
+      font-size: 9px;
+      font-weight: var(--weight-bold);
+      width: 14px;
+      height: 14px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      display: none;
+    }
+
+    .filter-count-badge.visible { display: inline-flex; }
+
+    /* ── NO DATA / OFFLINE STATE ─────────────────────────────────────────── */
+
+    .offline-banner {
+      background: var(--color-status-pending-bg);
+      border: 1px solid var(--color-status-pending);
+      border-radius: var(--radius-md);
+      padding: var(--space-4) var(--space-6);
+      display: flex;
+      align-items: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+      font-size: var(--text-sm);
+    }
+
+    .offline-banner-icon { font-size: 20px; }
+
+    /* ── TOOLTIP ─────────────────────────────────────────────────────────── */
+
+    /* Simple CSS tooltip on the status dots — appears on hover */
+    [data-tip] { position: relative; }
+
+    [data-tip]::after {
+      content: attr(data-tip);      /* reads the data-tip attribute as the tooltip text */
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--palette-black);
+      color: white;
+      font-size: var(--text-xs);
+      white-space: nowrap;
+      padding: 3px 8px;
+      border-radius: var(--radius-sm);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition-fast);
+      z-index: 50;
+    }
+
+    [data-tip]:hover::after { opacity: 1; }
+
+  </style>
+</head>
+
+<body>
+<div class="page-wrap">
+
+  <!-- ── LOADING OVERLAY ─────────────────────────────────────────────────────
+       Shown while waiting for Monday.com to respond.
+       Hidden via JS once data arrives (or times out).
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div class="loader-overlay" id="loader" style="display:none;">
+    <div class="spinner"></div>
+    <p class="loader-text">Syncing with Monday.com…</p>
+  </div>
+
+
+  <!-- ── NAVIGATION BAR ─────────────────────────────────────────────────────
+       The sticky top bar. Uses our .nav-bar class from theme.css.
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <header>
+    <nav class="nav-bar">
+      <div>
+        <span class="nav-logo">EC12</span>
+        <span class="nav-subtitle" style="margin-left:12px;" id="event-subtitle">Electric Castle · Hospitality</span>
+      </div>
+
+      <!-- Component navigation — links to other EC12 tools.
+           These will be wired up as each component is built. -->
+      <a href="#" class="nav-link active">Pipeline</a>
+      <a href="#" class="nav-link">Email</a>
+      <a href="#" class="nav-link">Schedule</a>
+      <a href="#" class="nav-link">Arrivals</a>
+      <a href="#" class="nav-link">Itinerary</a>
+
+      <!-- Settings button — opens the API key / column config panel -->
+      <button class="btn-settings" onclick="openSettings()">⚙ Settings</button>
+    </nav>
+
+
+    <!-- ── FILTER BAR ──────────────────────────────────────────────────────
+         The second sticky row: filter dropdowns + search + sync status.
+    ──────────────────────────────────────────────────────────────────────── -->
+    <div class="filter-bar">
+
+      <span class="filter-label">Filter</span>
+
+      <!-- Tier filter: Headliner / Sub-headliner / Support / Local -->
+      <select class="filter-select" id="filter-tier" onchange="applyFilters()">
+        <option value="all">All Tiers</option>
+        <option value="Headliner">Headliner</option>
+        <option value="Sub-headliner">Sub-headliner</option>
+        <option value="Support">Support</option>
+        <option value="Local">Local</option>
+      </select>
+
+      <!-- Origin filter: where the artist is from -->
+      <select class="filter-select" id="filter-origin" onchange="applyFilters()">
+        <option value="all">All Origins</option>
+        <option value="Int">International</option>
+        <option value="RO">Romania</option>
+        <option value="Local">Local</option>
+      </select>
+
+      <!-- Status filter: overall advancing status of the artist -->
+      <select class="filter-select" id="filter-status" onchange="applyFilters()">
+        <option value="all">All Statuses</option>
+        <option value="blocked">Blocked</option>
+        <option value="in-progress">In Progress</option>
+        <option value="complete">Complete</option>
+        <option value="idle">Not Started</option>
+      </select>
+
+      <!-- Lead filter: populated dynamically from actual data -->
+      <select class="filter-select" id="filter-lead" onchange="applyFilters()">
+        <option value="all">All Leads</option>
+      </select>
+
+      <div class="filter-divider"></div>
+
+      <!-- Search — filters by artist name as you type -->
+      <input
+        class="search-input"
+        id="search-input"
+        type="text"
+        placeholder="Search artist…"
+        oninput="applyFilters()"
+      />
+
+      <div class="filter-divider"></div>
+
+      <!-- Advanced filters toggle — opens the full filter panel -->
+      <button class="btn-filters" id="btn-filters" onclick="toggleFilterPanel()">
+        ⚙ Filters
+        <span class="filter-count-badge" id="filter-count-badge"></span>
+      </button>
+
+      <!-- Sync status — shows whether we're live, offline, or errored -->
+      <div class="sync-status">
+        <div class="sync-dot offline" id="sync-dot"></div>
+        <span id="sync-label">Not connected</span>
+        <button
+          onclick="syncNow()"
+          style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);
+                 color:rgba(255,255,255,0.6);border-radius:4px;padding:2px 8px;
+                 font-size:11px;cursor:pointer;font-family:inherit;"
+        >↻ Sync</button>
+      </div>
+
+    </div>
+
+    <!-- Advanced filter panel — populated by JS from FILTER_DIMENSIONS -->
+    <div class="filter-panel" id="filter-panel">
+      <div class="filter-groups" id="filter-groups">
+        <!-- Injected by renderFilterPanel() -->
+      </div>
+    </div>
+
+    <!-- Active filter chips strip — only visible when filters are active -->
+    <div class="chips-bar" id="chips-bar">
+      <span class="chips-label">Active</span>
+      <div id="chips-container" style="display:contents;"></div>
+      <button class="chip-clear-all" onclick="clearAllFilters()">Clear all</button>
+    </div>
+
+  </header>
+
+
+  <!-- ── MAIN CONTENT ────────────────────────────────────────────────────────
+       The scrollable pipeline table area.
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <main class="main-content">
+
+    <!-- Offline / no-config banner — shown when not connected to Monday.com -->
+    <div class="offline-banner" id="offline-banner" style="display:none;">
+      <span class="offline-banner-icon">⚠</span>
+      <div>
+        <strong>Showing demo data.</strong> Open <button onclick="openSettings()" style="background:none;border:none;color:var(--color-action);font-weight:600;cursor:pointer;font-size:inherit;padding:0;">Settings</button> and enter your Monday.com API key and Board ID to load live data.
+      </div>
+    </div>
+
+    <!-- Header: title + live count + add artist -->
+    <div class="pipeline-header">
+      <div>
+        <span class="pipeline-title">Artist Tracker</span>
+        <span class="pipeline-count" id="artist-count"></span>
+      </div>
+      <div style="display:flex;gap:var(--space-3);">
+        <button class="btn btn-sm btn-secondary" onclick="syncNow()">↻ Refresh</button>
+        <button class="btn btn-sm btn-primary" onclick="openCreateArtist()">+ New Artist</button>
+      </div>
+    </div>
+
+    <!-- Pipeline table -->
+    <div class="table-wrap">
+      <table class="table" id="pipeline-table">
+        <thead>
+          <tr>
+            <!-- Fixed columns on the left -->
+            <th class="col-sticky" style="min-width:180px;">Artist</th>
+            <th style="min-width:110px;">Tier</th>
+            <th style="min-width:70px;">Origin</th>
+            <th style="min-width:120px;">Lead</th>
+            <th style="min-width:120px;">Booked By</th>
+
+            <!-- 8 advancing step columns — generated by JS below -->
+            <!-- Each step has a number + short name header -->
+            <th class="step-header owner-ec" data-tip="Step 0 — owned by EC">
+              <span class="step-header-num">0</span>
+              <span class="step-header-name">KO</span>
+            </th>
+            <th class="step-header owner-ec" data-tip="Step 1 — owned by EC">
+              <span class="step-header-num">1</span>
+              <span class="step-header-name">Intro</span>
+            </th>
+            <th class="step-header owner-tm" data-tip="Step 2 — owned by TM">
+              <span class="step-header-num">2</span>
+              <span class="step-header-name">TM Reply</span>
+            </th>
+            <th class="step-header owner-ec" data-tip="Step 3 — owned by EC">
+              <span class="step-header-num">3</span>
+              <span class="step-header-name">Confirm</span>
+            </th>
+            <th class="step-header owner-tm" data-tip="Step 4 — owned by TM">
+              <span class="step-header-num">4</span>
+              <span class="step-header-name">Travel</span>
+            </th>
+            <th class="step-header owner-ec" data-tip="Step 5 — owned by EC">
+              <span class="step-header-num">5</span>
+              <span class="step-header-name">On-site</span>
+            </th>
+            <th class="step-header owner-tm" data-tip="Step 6 — owned by TM">
+              <span class="step-header-num">6</span>
+              <span class="step-header-name">TM Final</span>
+            </th>
+            <th class="step-header owner-ec" data-tip="Step 7 — owned by EC">
+              <span class="step-header-num">7</span>
+              <span class="step-header-name">Handover</span>
+            </th>
+
+            <!-- Final columns -->
+            <th style="min-width:50px;text-align:center;" data-tip="Blockers: rider, party size, hotel, dietary">⚑</th>
+            <th style="min-width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="pipeline-body">
+          <!-- Rows are injected here by renderPipeline() -->
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+
+
+  <!-- ── ARTIST DETAIL PANEL ────────────────────────────────────────────────
+       Slides in from the right when you click an artist row.
+       Shows the full action checklist for that artist.
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div class="detail-panel" id="detail-panel">
+    <div class="detail-panel-header">
+      <button class="detail-panel-close" onclick="closeDetail()">✕</button>
+      <div class="detail-artist-name" id="detail-name">—</div>
+      <div class="detail-tags" id="detail-tags"></div>
+    </div>
+    <div class="detail-panel-body" id="detail-body">
+      <!-- Populated by openDetail() -->
+    </div>
+  </div>
+
+
+  <!-- ── SETTINGS MODAL ─────────────────────────────────────────────────────
+       Opens when you click the ⚙ Settings button.
+       Lets you enter your Monday.com API key and board ID.
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div class="modal-backdrop" id="settings-modal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">Settings</span>
+        <button class="modal-close" onclick="closeSettings()">✕</button>
+      </div>
+
+      <!-- Connection settings -->
+      <div class="settings-group">
+        <div class="settings-group-title">Monday.com Connection</div>
+
+        <div class="settings-field">
+          <label class="label" for="cfg-apikey">API Key</label>
+          <input class="input" id="cfg-apikey" type="password" placeholder="eyJhbGci…"/>
+          <p class="settings-hint">Monday.com → Profile → API → Generate Token</p>
+        </div>
+
+        <div class="settings-field">
+          <label class="label" for="cfg-boardid">Artists Board ID</label>
+          <input class="input" id="cfg-boardid" type="text" placeholder="1234567890"/>
+          <p class="settings-hint">The number in the URL: monday.com/boards/<strong>ID</strong></p>
+        </div>
+
+        <div class="settings-field">
+          <label class="label" for="cfg-workspace">Workspace URL</label>
+          <input class="input" id="cfg-workspace" type="text" placeholder="yourorg.monday.com"/>
+        </div>
+
+        <div class="settings-field">
+          <label class="label" for="cfg-eventname">Event Name</label>
+          <input class="input" id="cfg-eventname" type="text" placeholder="Electric Castle · EC12"/>
+        </div>
+      </div>
+
+      <!-- Save + test buttons -->
+      <div style="display:flex;gap:var(--space-3);">
+        <button class="btn btn-md btn-primary" onclick="saveSettings()" style="flex:1;">Save & Sync</button>
+        <button class="btn btn-md btn-secondary" onclick="closeSettings()">Cancel</button>
+      </div>
+
+      <p class="settings-hint" style="margin-top:var(--space-4);">
+        Your API key is stored only in your browser's localStorage.
+        It is never sent anywhere other than api.monday.com.
+      </p>
+    </div>
+  </div>
+
+
+  <!-- ── CREATE ARTIST MODAL ────────────────────────────────────────────────
+       Opens when you click "+ New Artist".
+       On save, creates the item in Monday.com and adds it to the local list.
+  ──────────────────────────────────────────────────────────────────────────── -->
+  <div class="modal-backdrop" id="create-modal">
+    <div class="modal-panel">
+      <div class="modal-header">
+        <span class="modal-title">New Artist</span>
+        <button class="modal-close" onclick="closeCreateArtist()">✕</button>
+      </div>
+
+      <div id="create-error" style="display:none;background:var(--color-status-needed-bg);
+           color:var(--color-status-needed-text);border-radius:var(--radius-sm);
+           padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);
+           font-size:var(--text-sm);"></div>
+
+      <div class="settings-field">
+        <label class="label" for="new-name">Artist Name <span style="color:var(--palette-neon-pink)">*</span></label>
+        <input class="input" id="new-name" type="text" placeholder="e.g. Fred Again.."/>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="settings-field">
+          <label class="label" for="new-tier">Tier</label>
+          <select class="input" id="new-tier">
+            <option value="Headliner">Headliner</option>
+            <option value="Sub-headliner">Sub-headliner</option>
+            <option value="Support" selected>Support</option>
+            <option value="Local">Local</option>
+          </select>
+        </div>
+        <div class="settings-field">
+          <label class="label" for="new-origin">Origin</label>
+          <select class="input" id="new-origin">
+            <option value="Int" selected>International</option>
+            <option value="RO">Romania</option>
+            <option value="Local">Local</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="settings-field">
+          <label class="label" for="new-lead">Advancing Lead</label>
+          <input class="input" id="new-lead" type="text" placeholder="e.g. Andrei M."/>
+        </div>
+        <div class="settings-field">
+          <label class="label" for="new-bookedby">Booked By</label>
+          <input class="input" id="new-bookedby" type="text" placeholder="e.g. Diana P."/>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4);">
+        <div class="settings-field">
+          <label class="label" for="new-stage">Stage</label>
+          <input class="input" id="new-stage" type="text" placeholder="e.g. Main Stage"/>
+        </div>
+        <div class="settings-field">
+          <label class="label" for="new-date">Performance Date</label>
+          <input class="input" id="new-date" type="date"/>
+        </div>
+      </div>
+
+      <div class="settings-field">
+        <label class="label" for="new-notes">Notes</label>
+        <textarea class="input" id="new-notes" rows="2"
+                  placeholder="Any early notes…"
+                  style="resize:vertical;"></textarea>
+      </div>
+
+      <div style="display:flex;gap:var(--space-3);margin-top:var(--space-2);">
+        <button class="btn btn-md btn-primary" id="create-save-btn"
+                onclick="createArtist()" style="flex:1;">
+          Create Artist
+        </button>
+        <button class="btn btn-md btn-secondary" onclick="closeCreateArtist()">Cancel</button>
+      </div>
+
+      <!-- Shown only when not connected to Monday — warns the user it's local only -->
+      <p id="create-offline-note" class="settings-hint" style="margin-top:var(--space-4);display:none;">
+        ⚠ Not connected to Monday.com — artist will be added locally only. Connect in Settings to sync.
+      </p>
+    </div>
+  </div>
+
+</div><!-- end .page-wrap -->
+
+
+<!-- ════════════════════════════════════════════════════════════════════════════
+     COMPONENT JAVASCRIPT
+     ════════════════════════════════════════════════════════════════════════════
+
+     This script runs in the browser after the HTML has loaded.
+     It handles all the dynamic behaviour: fetching data, rendering rows,
+     filtering, opening panels, etc.
+
+     HOW THE DATA FLOWS:
+       1. Page loads → init() runs → loads saved config from localStorage
+       2. If API key exists → fetchArtists() calls MondayClient.fetchBoard()
+       3. Monday.com responds → parseArtist() turns each item into a clean JS object
+       4. renderPipeline() builds the HTML table rows from those objects
+       5. User interacts (filter, search, click) → applyFilters() / openDetail()
+-->
+<script>
+
+// ── STEP METADATA ─────────────────────────────────────────────────────────────
+// The 8 advancing steps. STATIC — matches the EC Hospitality advancing document.
+// Each step is either owned by EC (us) or TM (the artist's tour manager).
+
+const STEPS = [
+  { num: 0, name: 'KO Meeting',        short: 'KO',       owner: 'ec' },
+  { num: 1, name: 'Intro Email & RFI', short: 'Intro',    owner: 'ec' },
+  { num: 2, name: 'TM Response',       short: 'TM Reply', owner: 'tm' },
+  { num: 3, name: 'Confirmations',     short: 'Confirm',  owner: 'ec' },
+  { num: 4, name: 'Travel Details',    short: 'Travel',   owner: 'tm' },
+  { num: 5, name: 'On-site Intro',     short: 'On-site',  owner: 'ec' },
+  { num: 6, name: 'TM Final Reply',    short: 'TM Final', owner: 'tm' },
+  { num: 7, name: 'Handover Complete', short: 'Handover', owner: 'ec' },
+];
+
+// ── STATUS MAP ─────────────────────────────────────────────────────────────────
+// Monday.com status columns return text like 'Done' or 'Working on it'.
+// We map these to numbers that represent the four advancing states + blocked:
+//   0 = idle       (not started — grey)
+//   1 = asked      (requested, waiting — gold)
+//   2 = partial    (some confirmed, more needed — sage)
+//   3 = confirmed  (fully complete — green)
+//   4 = blocked    (stuck — pink, pulses)
+//
+// To use the partial state in Monday.com, create a status column option
+// called "Partial" or "Some confirmed" and it will map to state 2.
+
+const STATUS_MAP = {
+  'done': 3, 'complete': 3, 'completed': 3,
+  'partial': 2, 'some confirmed': 2, 'in progress': 1,
+  'working on it': 1, 'started': 1, 'asked': 1, 'requested': 1,
+  'stuck': 4, 'blocked': 4,
+  '': 0, 'not started': 0, '-': 0,
+};
+
+// ── ACTION STEPS ───────────────────────────────────────────────────────────────
+// The detailed checklist of actions within each of the 8 steps.
+// Used in the artist detail panel.
+//
+// Each action has a source:
+//   'monday' — automatically ticked when a Monday.com column has a value
+//   'email'  — automatically ticked when the Email tool sends that email module
+//   'manual' — manually ticked by the advancing team in this tool
+
+const ACTION_STEPS = [
+  {
+    num: 0, name: 'KO Meeting', owner: 'ec',
+    actions: [
+      { label: 'Hospitality KO meeting held',                        source: 'manual' },
+      { label: 'Intro to EC Hospitality Advancing Team sent by ED',  source: 'email',  emailModule: 'step0_ko' },
+    ]
+  },
+  {
+    num: 1, name: 'Intro Email & RFI', owner: 'ec',
+    actions: [
+      { label: 'Cluj & festival description included',               source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Advancing process explained',                        source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Timeline attached (what we need by when)',           source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Party size confirmation requested',                  source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Hotel requirements requested',                       source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Flight details requested',                           source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Ground transport requirements requested',            source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Rider requested (incl. dietary)',                    source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Merch procedure attached',                           source: 'monday', columnId: 'link_mkry702c', columnName: 'Link to Merch Requests' },
+      { label: 'Brochure attached',                                  source: 'email',  emailModule: 'step1_intro' },
+      { label: 'Monday artist item CC\'d',                           source: 'monday', columnId: 'text54__1',    columnName: 'Record Email to CC' },
+    ]
+  },
+  {
+    num: 2, name: 'TM Response', owner: 'tm',
+    // These are fields the TM must provide. Each one has:
+    //   columnId      — the Monday column that holds the actual confirmed value
+    //   askedColId    — a date column we stamp when we send the request
+    //   confirmedColId — a date column we stamp when they reply with the value
+    // This powers the three-state display: not asked → asked → confirmed
+    actions: [
+      { label: 'Party size confirmed (A-Party)',     source: 'monday', columnId: 'numbers',           columnName: 'A-Party',                askedColId: 'date_party_asked',  confirmedColId: 'date_party_conf'  },
+      { label: 'Hotel requirements provided',        source: 'monday', columnId: 'hotel_notes',        columnName: 'Hotel Notes',            askedColId: 'date_hotel_asked',  confirmedColId: 'date_hotel_conf'  },
+      { label: 'Flight details provided',            source: 'monday', columnId: 'connect_boards3__1', columnName: 'Arrivals (linked)',       askedColId: 'date_flight_asked', confirmedColId: 'date_flight_conf' },
+      { label: 'Ground transfer requirements',       source: 'monday', columnId: 'long_text1__1',      columnName: 'Transport Requested',    askedColId: 'date_trans_asked',  confirmedColId: 'date_trans_conf'  },
+      { label: 'Hospitality rider submitted',        source: 'monday', columnId: 'files__1',           columnName: 'Initial Rider',          askedColId: 'date_rider_asked',  confirmedColId: 'date_rider_conf'  },
+      { label: 'Dietary requirements confirmed',     source: 'monday', columnId: 'long_text02__1',     columnName: 'Allergies',              askedColId: 'date_diet_asked',   confirmedColId: 'date_diet_conf'   },
+      { label: 'Tour Manager contact confirmed',     source: 'monday', columnId: 'email_tm',           columnName: 'TM Email',               askedColId: 'date_tm_asked',     confirmedColId: 'date_tm_conf'     },
+    ]
+  },
+  {
+    num: 3, name: 'Confirmations', owner: 'ec',
+    actions: [
+      { label: 'Hotel confirmed with dates & room types',            source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Rider alternatives sheet shared',                    source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Sponsor exclusions explained (beer / water)',        source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Distances & journey times shared',                   source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Angel system explained',                             source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Dressing room allocated (even if TBC)',              source: 'manual' },
+      { label: 'Ground transfer overview sent',                      source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Catering amenities described',                       source: 'email',  emailModule: 'step3_confirm' },
+    ]
+  },
+  {
+    num: 4, name: 'Travel Details', owner: 'tm',
+    actions: [
+      { label: 'Exact flight numbers confirmed',                     source: 'monday', columnId: 'connect_boards3__1', columnName: 'Arrivals (linked flight)' },
+      { label: 'Arrival time confirmed',                             source: 'monday', columnId: 'connect_boards3__1', columnName: 'Arrivals (linked flight)' },
+      { label: 'Departure time confirmed',                           source: 'monday', columnId: 'connect_boards4__1', columnName: 'Departures (linked flight)' },
+      { label: 'Ground transfer details agreed',                     source: 'manual' },
+    ]
+  },
+  {
+    num: 5, name: 'On-site Intro', owner: 'ec',
+    actions: [
+      { label: 'Route request form link sent',                       source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Itinerary V1 shared',                                source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'À la carte menu shared',                             source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Dressing room details confirmed',                    source: 'manual' },
+      { label: 'Guest list process & deadline explained',            source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Angel allocated — name + contact shared',            source: 'manual' },
+    ]
+  },
+  {
+    num: 6, name: 'TM Final Reply', owner: 'tm',
+    actions: [
+      { label: 'Guest list received (if requested)',                 source: 'manual' },
+      { label: 'Press / media scheduled (if applicable)',            source: 'manual' },
+      { label: 'Meal times confirmed',                               source: 'manual' },
+      { label: 'Final party & vehicle count confirmed',              source: 'manual' },
+    ]
+  },
+  {
+    num: 7, name: 'Handover Complete', owner: 'ec',
+    actions: [
+      { label: 'Final itinerary sent to TM',                         source: 'email',  emailModule: 'step7_handover' },
+      { label: 'Angel briefed',                                      source: 'manual' },
+      { label: 'Backstage manager briefed',                          source: 'manual' },
+      { label: 'All documents filed in Monday',                      source: 'monday', columnId: 'status7__1', columnName: 'Handover Status' },
+    ]
+  },
+];
+
+// ── FILTER DIMENSIONS ─────────────────────────────────────────────────────────
+// Defines every filterable dimension shown in the advanced filter panel.
+// Two types:
+//   'twostate' — filter by the asked/confirmed state of a field
+//                Options: not_asked / asked / confirmed
+//   'value'    — filter by a specific column value
+//                Options: defined in the `options` array
+//
+// The `mockField` property is used in demo mode (no Monday.com connection)
+// to filter against a field added directly to the mock artist objects.
+
+const FILTER_DIMENSIONS = [
+
+  // ── TRAVEL ─────────────────────────────────────────────────────────────────
+  {
+    id: 'travelMode', label: 'Travel Mode', group: 'Travel',
+    type: 'value',
+    options: ['Flying', 'Nightliner', 'Self-driving', 'Mixed'],
+    valueCol: 'status_travel_mode',   // Monday column ID (set in monday-columns.js)
+    mockField: 'travelMode',          // field name on mock artist objects
+  },
+  {
+    id: 'flights', label: 'Flights', group: 'Travel',
+    type: 'twostate',
+    askedCol:    'date_flight_asked',
+    partialCol:  'date_flight_partial', // e.g. arrival confirmed, departure still pending
+    confirmedCol:'date_flight_conf',
+    mockField: '_flights',
+  },
+  {
+    id: 'transfers', label: 'Ground Transfers', group: 'Travel',
+    type: 'twostate',
+    askedCol:    'date_trans_asked',
+    partialCol:  'date_trans_partial',  // e.g. arrival transfer sorted, departure not yet
+    confirmedCol:'date_trans_conf',
+    mockField: '_transfers',
+  },
+
+  // ── ACCOMMODATION ────────────────────────────────────────────────────────────
+  {
+    id: 'hotel', label: 'Hotel', group: 'Accommodation',
+    type: 'twostate',
+    askedCol:    'date_hotel_asked',
+    partialCol:  'date_hotel_partial',  // e.g. A-party confirmed, crew hotel still pending
+    confirmedCol:'date_hotel_conf',
+    mockField: '_hotel',
+  },
+  {
+    id: 'partySize', label: 'Party Size', group: 'Accommodation',
+    type: 'twostate',
+    askedCol:    'date_party_asked',
+    partialCol:  null,                  // party size is a single value — no partial state
+    confirmedCol:'date_party_conf',
+    mockField: '_partySize',
+  },
+
+  // ── RIDER & DIETARY ─────────────────────────────────────────────────────────
+  {
+    id: 'rider', label: 'Rider', group: 'Rider & Dietary',
+    type: 'twostate',
+    askedCol:    'date_rider_asked',
+    partialCol:  'date_rider_partial',  // e.g. tech rider received, hospitality rider pending
+    confirmedCol:'date_rider_conf',
+    mockField: '_rider',
+  },
+  {
+    id: 'dietary', label: 'Dietary', group: 'Rider & Dietary',
+    type: 'twostate',
+    askedCol:    'date_diet_asked',
+    partialCol:  null,                  // dietary is a single text field — no partial
+    confirmedCol:'date_diet_conf',
+    mockField: '_dietary',
+  },
+
+  // ── CONTACT ─────────────────────────────────────────────────────────────────
+  {
+    id: 'tmContact', label: 'TM Contact', group: 'Contact',
+    type: 'twostate',
+    askedCol:    'date_tm_asked',
+    partialCol:  null,
+    confirmedCol:'date_tm_conf',
+    mockField: '_tmContact',
+  },
+];
+
+// ── MOCK DATA ──────────────────────────────────────────────────────────────────
+// Shown when there's no Monday.com connection.
+// Lets you see the UI working without any setup.
+// The structure matches exactly what parseArtist() returns from real data.
+
+// Mock artists include _fields for each FILTER_DIMENSION mockField,
+// so advanced filters work in demo mode without a Monday.com connection.
+// twostate mock values: 'confirmed' | 'asked' | 'not_asked'
+const MOCK_ARTISTS = [
+  {
+    id: 'mock-1', name: 'Fred Again..',
+    tier: 'Headliner', origin: 'Int', lead: 'Andrei M.', bookedBy: 'Diana P.',
+    steps: [3, 3, 3, 1, 0, 0, 0, 0],
+    rider: true, partySize: 6, hotel: true, dietary: true,
+    travelMode: 'Flying',
+    _flights: 'partial',   // arrival confirmed, departure not yet
+    _transfers: 'asked', _hotel: 'confirmed',
+    _partySize: 'confirmed', _rider: 'confirmed', _dietary: 'confirmed', _tmContact: 'confirmed',
+  },
+  {
+    id: 'mock-2', name: 'Jamie xx',
+    tier: 'Headliner', origin: 'Int', lead: 'Andrei M.', bookedBy: 'Diana P.',
+    steps: [3, 3, 1, 0, 0, 0, 0, 0],
+    rider: false, partySize: null, hotel: false, dietary: false,
+    travelMode: 'Nightliner',
+    _flights: 'not_asked', _transfers: 'not_asked', _hotel: 'asked',
+    _partySize: 'asked', _rider: 'asked', _dietary: 'not_asked', _tmContact: 'confirmed',
+  },
+  {
+    id: 'mock-3', name: 'Peggy Gou',
+    tier: 'Sub-headliner', origin: 'Int', lead: 'Ioana S.', bookedBy: 'Diana P.',
+    steps: [3, 3, 3, 3, 1, 0, 0, 0],
+    rider: true, partySize: 4, hotel: true, dietary: false,
+    travelMode: 'Flying',
+    _flights: 'asked', _transfers: 'not_asked',
+    _hotel: 'partial',  // A-party hotel confirmed, crew still pending
+    _partySize: 'confirmed', _rider: 'confirmed', _dietary: 'asked', _tmContact: 'confirmed',
+  },
+  {
+    id: 'mock-4', name: 'Bonobo',
+    tier: 'Sub-headliner', origin: 'Int', lead: 'Ioana S.', bookedBy: 'Alex T.',
+    steps: [3, 1, 4, 0, 0, 0, 0, 0],
+    rider: false, partySize: null, hotel: false, dietary: false,
+    travelMode: 'Nightliner',
+    _flights: 'not_asked', _transfers: 'not_asked', _hotel: 'not_asked',
+    _partySize: 'not_asked', _rider: 'not_asked', _dietary: 'not_asked', _tmContact: 'asked',
+  },
+  {
+    id: 'mock-5', name: 'Subcarpați',
+    tier: 'Support', origin: 'RO', lead: 'Radu C.', bookedBy: 'Radu C.',
+    steps: [3, 3, 3, 3, 3, 1, 0, 0],
+    rider: true, partySize: 8, hotel: true, dietary: true,
+    travelMode: 'Self-driving',
+    _flights: 'not_asked', _transfers: 'confirmed', _hotel: 'confirmed',
+    _partySize: 'confirmed',
+    _rider: 'partial',  // initial rider received, alternatives still being approved
+    _dietary: 'confirmed', _tmContact: 'confirmed',
+  },
+  {
+    id: 'mock-6', name: 'DJ EKO',
+    tier: 'Local', origin: 'Local', lead: 'Radu C.', bookedBy: 'Radu C.',
+    steps: [3, 3, 3, 3, 3, 3, 3, 3],
+    rider: true, partySize: 2, hotel: true, dietary: true,
+    travelMode: 'Self-driving',
+    _flights: 'not_asked', _transfers: 'confirmed', _hotel: 'confirmed',
+    _partySize: 'confirmed', _rider: 'confirmed', _dietary: 'confirmed', _tmContact: 'confirmed',
+  },
+];
+
+
+// ── APPLICATION STATE ──────────────────────────────────────────────────────────
+// All dynamic data lives here. Components read and write to this object.
+// We never store data in the DOM itself (that would make it hard to filter/search).
+
+const ST = {
+  artists:       [],        // full list from Monday.com (or mock)
+  filtered:      [],        // list after filters applied
+  config:        {},        // API key, board ID, etc. from localStorage
+  sync:          'offline', // 'live' | 'offline' | 'error'
+  lastSync:      null,      // Date of last successful sync
+  activeFilters: {},        // { dimensionId: selectedValue } — advanced filter state
+};
+
+
+// ── INITIALISATION ─────────────────────────────────────────────────────────────
+// Runs once when the page loads.
+
+window.addEventListener('DOMContentLoaded', init);
+
+async function init() {
+  loadConfig();    // read saved settings from localStorage
+  populateSettingsForm();
+
+  // Update the event name in the nav subtitle
+  document.getElementById('event-subtitle').textContent =
+    ST.config.eventName || 'Electric Castle · Hospitality';
+
+  // Try to fetch live data. Falls back to mock if not configured.
+  await syncNow();
+}
+
+
+// ── CONFIG ─────────────────────────────────────────────────────────────────────
+// Read/write the saved config (API key, board ID) from localStorage.
+
+function loadConfig() {
+  try {
+    ST.config = JSON.parse(localStorage.getItem('ec12_cfg') || '{}');
+  } catch {
+    ST.config = {};
+  }
+}
+
+function saveConfig() {
+  localStorage.setItem('ec12_cfg', JSON.stringify(ST.config));
+}
+
+
+// ── SETTINGS PANEL ─────────────────────────────────────────────────────────────
+
+function openSettings() {
+  populateSettingsForm();
+  document.getElementById('settings-modal').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-modal').classList.remove('open');
+}
+
+function populateSettingsForm() {
+  document.getElementById('cfg-apikey').value    = ST.config.apiKey     || '';
+  document.getElementById('cfg-boardid').value   = ST.config.boardId    || '';
+  document.getElementById('cfg-workspace').value = ST.config.workspaceUrl || '';
+  document.getElementById('cfg-eventname').value = ST.config.eventName  || '';
+}
+
+function saveSettings() {
+  ST.config.apiKey       = document.getElementById('cfg-apikey').value.trim();
+  ST.config.boardId      = document.getElementById('cfg-boardid').value.trim();
+  ST.config.workspaceUrl = document.getElementById('cfg-workspace').value.trim().replace(/^https?:\/\//,'');
+  ST.config.eventName    = document.getElementById('cfg-eventname').value.trim() || 'Electric Castle · Hospitality';
+
+  saveConfig();
+  closeSettings();
+
+  document.getElementById('event-subtitle').textContent = ST.config.eventName;
+
+  // Re-sync with new credentials
+  syncNow();
+}
+
+
+// ── DATA FETCH ─────────────────────────────────────────────────────────────────
+
+async function syncNow() {
+  // Show loader only if we actually have credentials to try
+  if (ST.config.apiKey && ST.config.boardId) {
+    showLoader(true);
+  }
+
+  try {
+    const cols = MONDAY_CONFIG?.ARTIST_COLS || {};
+    const colIds = Object.values(cols).filter(v => v && typeof v === 'string');
+
+    // Use our shared MondayClient — passes the API key from localStorage automatically
+    const items = await MondayClient.fetchBoard(ST.config.boardId, colIds);
+    ST.artists = items.map(parseArtist);
+    setSyncStatus('live');
+    hideBanner();
+
+  } catch (err) {
+    console.warn('Monday.com sync failed:', err.message);
+
+    // Fall back to mock data so the UI is still usable
+    ST.artists = MOCK_ARTISTS;
+
+    if (!ST.config.apiKey || !ST.config.boardId) {
+      setSyncStatus('offline');
+      showBanner(); // "you're seeing demo data"
+    } else {
+      setSyncStatus('error');
+      showBanner();
+    }
+  }
+
+  showLoader(false);
+  applyFilters();
+  buildLeadFilter();
+}
+
+
+// ── PARSING ────────────────────────────────────────────────────────────────────
+// Turn a raw Monday.com item into a clean, typed JS object.
+// This is the single place where we map Monday column IDs to our field names.
+// If a column ID changes in Monday, we only update it here (and in monday-columns.js).
+
+function parseArtist(item) {
+  const cv   = MondayClient.colMap(item);    // { colId: { text, value }, ... }
+  const cols = MONDAY_CONFIG?.ARTIST_COLS || {};
+
+  // Maps Monday status text to our 0/1/2/3 number
+  const statusNum = (colId) => {
+    const text = (MondayClient.read(cv, colId) || '').toLowerCase().trim();
+    return STATUS_MAP.hasOwnProperty(text) ? STATUS_MAP[text] : 0;
+  };
+
+  return {
+    id:        item.id,
+    name:      item.name,
+    tier:      MondayClient.read(cv, cols.tier)     || 'Support',
+    lead:      MondayClient.readPerson(cv, cols.lead)     || '—',
+    bookedBy:  MondayClient.readPerson(cv, cols.bookedBy) || '—',
+    origin:    MondayClient.read(cv, cols.origin)   || 'Int',
+    partySize: MondayClient.readNum(cv, cols.partySize),
+    dietary:   !!(MondayClient.read(cv, cols.dietary)),
+    rider:     !!(MondayClient.read(cv, cols.riderFile)),
+    hotel:     !!(MondayClient.read(cv, cols.hotelsLink)),
+
+    // Map the 8 step columns to an array of status numbers: [s0, s1, s2, s3, s4, s5, s6, s7]
+    steps: [0,1,2,3,4,5,6,7].map(i => statusNum(cols['s'+i])),
+
+    // Keep raw column values for the detail panel's action checklist
+    rawColumns: cv,
+  };
+}
+
+
+// ── OVERALL STATUS ─────────────────────────────────────────────────────────────
+// Derives the artist's overall status from their step array.
+// Step values: 0=idle, 1=asked, 2=partial, 3=confirmed, 4=blocked
+// Used for the status filter dropdown and table row colouring.
+
+function overallStatus(artist) {
+  if (artist.steps.includes(4))        return 'blocked';     // any blocked step = blocked
+  if (artist.steps[7] === 3)           return 'complete';    // final step confirmed = done
+  if (artist.steps.some(s => s === 2)) return 'in-progress'; // any partial = in progress
+  if (artist.steps.some(s => s === 1)) return 'in-progress'; // any asked = in progress
+  return 'idle';
+}
+
+// hasBlockers: true if any critical data point is missing
+function hasBlockers(artist) {
+  return !artist.rider || artist.partySize === null || !artist.hotel || !artist.dietary;
+}
+
+
+// ── FILTERS ────────────────────────────────────────────────────────────────────
+
+// applyFilters: runs all active filters (simple dropdowns + advanced dimensions)
+// against ST.artists and stores the result in ST.filtered, then re-renders.
+
+function applyFilters() {
+  const tier   = document.getElementById('filter-tier').value;
+  const origin = document.getElementById('filter-origin').value;
+  const status = document.getElementById('filter-status').value;
+  const lead   = document.getElementById('filter-lead').value;
+  const search = document.getElementById('search-input').value.toLowerCase().trim();
+
+  ST.filtered = ST.artists.filter(a => {
+    // Simple dropdown filters
+    if (tier   !== 'all' && a.tier   !== tier)            return false;
+    if (origin !== 'all' && a.origin !== origin)          return false;
+    if (lead   !== 'all' && a.lead   !== lead)            return false;
+    if (status !== 'all' && overallStatus(a) !== status)  return false;
+    if (search && !a.name.toLowerCase().includes(search)) return false;
+
+    // Advanced dimension filters — each active dimension must pass
+    for (const [dimId, selectedValue] of Object.entries(ST.activeFilters)) {
+      if (!selectedValue || selectedValue === 'all') continue;
+      const dim = FILTER_DIMENSIONS.find(d => d.id === dimId);
+      if (!dim) continue;
+      if (!evalDimension(a, dim, selectedValue)) return false;
+    }
+
+    return true;
+  });
+
+  renderPipeline();
+  renderChips();
+}
+
+// evalDimension: tests whether an artist matches one filter dimension + selected value.
+//
+// For 'twostate' dimensions:
+//   If we have Monday.com data (rawColumns populated), use the two-state date columns.
+//   Otherwise fall back to the mockField on the artist object (for demo mode).
+//
+// For 'value' dimensions:
+//   Read the value column from Monday.com, or the mockField in demo mode.
+
+function evalDimension(artist, dim, selectedValue) {
+  const cv = artist.rawColumns || {};
+  const hasMonday = Object.keys(cv).length > 0;
+
+  if (dim.type === 'twostate') {
+    let state;
+    if (hasMonday && dim.askedCol && dim.confirmedCol) {
+      // Pass the optional partialCol — twoStateStatus handles null gracefully
+      state = MondayClient.twoState.status(cv, dim.askedCol, dim.confirmedCol, dim.partialCol);
+    } else {
+      state = artist[dim.mockField] || 'not_asked';
+    }
+    return state === selectedValue;
+  }
+
+  if (dim.type === 'value') {
+    let val;
+    if (hasMonday && dim.valueCol) {
+      val = MondayClient.read(cv, dim.valueCol) || '';
+    } else {
+      val = artist[dim.mockField] || '';
+    }
+    return val.toLowerCase() === selectedValue.toLowerCase();
+  }
+
+  return true;
+}
+
+// Populate the Lead dropdown from unique lead names in the data
+function buildLeadFilter() {
+  const leads = [...new Set(ST.artists.map(a => a.lead).filter(l => l && l !== '—'))].sort();
+  const select = document.getElementById('filter-lead');
+  select.innerHTML = '<option value="all">All Leads</option>' +
+    leads.map(l => `<option value="${esc(l)}">${esc(l)}</option>`).join('');
+}
+
+
+// ── ADVANCED FILTER PANEL ──────────────────────────────────────────────────────
+
+function toggleFilterPanel() {
+  const panel = document.getElementById('filter-panel');
+  const btn   = document.getElementById('btn-filters');
+  const isOpen = panel.classList.toggle('open');
+  btn.classList.toggle('active', isOpen);
+
+  // Build the panel content the first time it opens
+  if (isOpen && !panel.dataset.built) {
+    renderFilterPanel();
+    panel.dataset.built = '1';
+  }
+}
+
+// renderFilterPanel: builds the grouped filter UI from FILTER_DIMENSIONS.
+// Groups dimensions by their `group` property and renders them as columns.
+
+function renderFilterPanel() {
+  // Collect unique groups in the order they appear in FILTER_DIMENSIONS
+  const groups = [...new Map(FILTER_DIMENSIONS.map(d => [d.group, d.group])).keys()];
+
+  const html = groups.map(groupName => {
+    const dims = FILTER_DIMENSIONS.filter(d => d.group === groupName);
+
+    const dimRows = dims.map(dim => {
+      // Build the option pills for this dimension
+      // For twostate dimensions: always show not_asked / asked / confirmed.
+      // Show 'partial' only when the dimension supports it (partialCol is defined).
+      const options = dim.type === 'twostate'
+        ? ['not_asked', 'asked', ...(dim.partialCol ? ['partial'] : []), 'confirmed']
+        : dim.options;
+
+      const optionLabels = {
+        not_asked: '○ Not requested',
+        asked:     '~ Asked',
+        partial:   '◑ Partial',
+        confirmed: '✓ Confirmed',
+      };
+
+      const pills = options.map(opt => {
+        const label  = optionLabels[opt] || opt;
+        const active = ST.activeFilters[dim.id] === opt;
+        const activeCls = active
+          ? (dim.type === 'twostate' ? `active-${opt}` : 'active-value')
+          : '';
+
+        return `<button class="filter-pill ${activeCls}"
+                         onclick="setFilter('${dim.id}','${opt}')">${esc(label)}</button>`;
+      }).join('');
+
+      return `
+        <div class="filter-dimension">
+          <span class="filter-dimension-label">${esc(dim.label)}</span>
+          ${pills}
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="filter-group">
+        <div class="filter-group-title">${esc(groupName)}</div>
+        ${dimRows}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('filter-groups').innerHTML = html;
+}
+
+// setFilter: activates or toggles a dimension filter value.
+// Clicking the same pill again clears that filter (toggle behaviour).
+
+function setFilter(dimId, value) {
+  if (ST.activeFilters[dimId] === value) {
+    delete ST.activeFilters[dimId];  // clicking active pill = clear it
+  } else {
+    ST.activeFilters[dimId] = value;
+  }
+
+  // Re-render the filter panel pills to show updated active state
+  renderFilterPanel();
+  updateFilterBadge();
+  applyFilters();
+}
+
+function clearAllFilters() {
+  ST.activeFilters = {};
+  renderFilterPanel();
+  updateFilterBadge();
+  applyFilters();
+}
+
+// updateFilterBadge: shows/hides the pink count badge on the Filters button.
+function updateFilterBadge() {
+  const count = Object.keys(ST.activeFilters).filter(k => ST.activeFilters[k]).length;
+  const badge = document.getElementById('filter-count-badge');
+  badge.textContent = count;
+  badge.classList.toggle('visible', count > 0);
+}
+
+// renderChips: builds the active-filter chips strip below the filter bar.
+function renderChips() {
+  const active = Object.entries(ST.activeFilters).filter(([,v]) => v);
+  const bar    = document.getElementById('chips-bar');
+  const container = document.getElementById('chips-container');
+
+  bar.classList.toggle('has-chips', active.length > 0);
+  if (!active.length) { container.innerHTML = ''; return; }
+
+  const optionLabels = { not_asked: 'Not requested', asked: 'Asked', partial: 'Partial', confirmed: 'Confirmed' };
+
+  container.innerHTML = active.map(([dimId, value]) => {
+    const dim   = FILTER_DIMENSIONS.find(d => d.id === dimId);
+    const label = dim ? dim.label : dimId;
+    const valLabel = optionLabels[value] || value;
+    return `
+      <span class="chip">
+        ${esc(label)}: ${esc(valLabel)}
+        <button class="chip-remove" onclick="setFilter('${dimId}', '${value}')"
+                title="Remove filter">✕</button>
+      </span>
+    `;
+  }).join('');
+}
+
+
+// ── RENDERING ──────────────────────────────────────────────────────────────────
+// Build the HTML table rows from the filtered artist list.
+// We build HTML strings and set innerHTML — faster than creating DOM nodes one by one.
+
+function renderPipeline() {
+  const tbody = document.getElementById('pipeline-body');
+  const count = document.getElementById('artist-count');
+
+  count.textContent = `${ST.filtered.length} artist${ST.filtered.length !== 1 ? 's' : ''}`;
+
+  if (!ST.filtered.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="16">
+          <div class="empty-state">
+            <div class="empty-state-icon">🎵</div>
+            <h3>No artists match</h3>
+            <p>Try adjusting the filters or search above.</p>
+          </div>
+        </td>
+      </tr>`;
+    return;
+  }
+
+  // Labels for each step dot state — shown in the tooltip on hover
+  const STATUS_LABEL = ['Not started', 'Asked — waiting', 'Partial — more needed', 'Confirmed', 'Blocked'];
+
+  tbody.innerHTML = ST.filtered.map(artist => {
+    const status  = overallStatus(artist);
+    const blocked = hasBlockers(artist);
+
+    // Build the 8 step dot cells
+    const stepCells = artist.steps.map((s, i) => `
+      <td class="step-cell">
+        <span class="step-dot s${s}"
+              data-tip="${STEPS[i].name}: ${STATUS_LABEL[s]}">
+        </span>
+      </td>
+    `).join('');
+
+    // Tier badge — uses the brand accent badges, not neons (tier isn't a status)
+    const tierBadgeClass = {
+      'Headliner':     'badge-plum',
+      'Sub-headliner': 'badge-teal',
+      'Support':       'badge-sage',
+      'Local':         'badge-amber',
+    }[artist.tier] || 'badge-sage';
+
+    // Origin badge
+    const originBadgeClass = {
+      'Int':   'badge-teal',
+      'RO':    'badge-amber',
+      'Local': 'badge-sage',
+    }[artist.origin] || 'badge-sage';
+
+    // Link to Monday.com item (only if we have workspace URL + board ID)
+    const mondayUrl = buildMondayUrl(artist.id);
+
+    return `
+      <tr onclick="openDetail('${artist.id}')" style="cursor:pointer;">
+        <td class="col-sticky">
+          <span class="artist-name">${esc(artist.name)}</span>
+        </td>
+        <td><span class="badge ${tierBadgeClass}">${esc(artist.tier)}</span></td>
+        <td><span class="badge ${originBadgeClass}">${esc(artist.origin)}</span></td>
+        <td class="text-muted">${esc(artist.lead)}</td>
+        <td class="text-muted">${esc(artist.bookedBy)}</td>
+        ${stepCells}
+        <td class="blocker-cell">
+          <span class="blocker-dot ${blocked ? 'has-issue' : 'clear'}"
+                data-tip="${blocked ? 'Missing: ' + blockerList(artist) : 'All clear'}">
+          </span>
+        </td>
+        <td>
+          <a href="${mondayUrl}" target="_blank" class="monday-link"
+             onclick="event.stopPropagation()" title="Open in Monday.com">↗</a>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// List which blocker fields are missing — shown in the tooltip
+function blockerList(artist) {
+  const missing = [];
+  if (!artist.rider)            missing.push('Rider');
+  if (artist.partySize === null) missing.push('Party size');
+  if (!artist.hotel)            missing.push('Hotel');
+  if (!artist.dietary)          missing.push('Dietary');
+  return missing.join(', ');
+}
+
+// Build the Monday.com item URL from config + item ID
+function buildMondayUrl(itemId) {
+  if (!ST.config.workspaceUrl || !ST.config.boardId || !itemId || itemId.startsWith('mock')) return '#';
+  const base = ST.config.workspaceUrl.replace(/^https?:\/\//, '');
+  return `https://${base}/boards/${ST.config.boardId}/items/${itemId}`;
+}
+
+
+// ── DETAIL PANEL ───────────────────────────────────────────────────────────────
+// Slides in from the right when you click an artist row.
+// Shows the full action checklist for all 8 steps, with four-state indicators
+// per action: not asked → asked → partial → confirmed.
+
+function openDetail(artistId) {
+  const artist = ST.artists.find(a => a.id === artistId);
+  if (!artist) return;
+
+  const cv = artist.rawColumns || {};
+
+  // Header: name + key tags + Monday link
+  document.getElementById('detail-name').textContent = artist.name;
+  document.getElementById('detail-tags').innerHTML = `
+    <span class="badge badge-plum">${esc(artist.tier)}</span>
+    <span class="badge badge-teal">${esc(artist.origin)}</span>
+    <span class="badge badge-sage">Lead: ${esc(artist.lead)}</span>
+    ${buildMondayUrl(artist.id) !== '#' ? `
+      <a href="${buildMondayUrl(artist.id)}" target="_blank"
+         style="margin-left:auto;font-size:var(--text-xs);color:rgba(255,255,255,0.5);
+                text-decoration:none;padding:2px 8px;border:1px solid rgba(255,255,255,0.2);
+                border-radius:4px;">↗ Monday</a>` : ''}
+  `;
+
+  // Map step number → dot class for the section header indicator
+  const DOT_CLASS  = ['dot-idle', 'dot-pending', 'dot-partial', 'dot-confirmed', 'dot-needed'];
+  const STEP_LABEL = ['Not started', 'Asked', 'Partial', 'Confirmed', 'Blocked'];
+  // Number bubble colours match the dot system
+  const NUM_CLASS  = ['', 's1', 's2', 's3', 's3']; // s3 re-used for confirmed+blocked (both non-grey)
+
+  document.getElementById('detail-body').innerHTML = ACTION_STEPS.map((step, i) => {
+    const stepStatus = artist.steps[i] || 0;
+    const dotCls     = DOT_CLASS[stepStatus]  || 'dot-idle';
+    const stepLbl    = STEP_LABEL[stepStatus] || 'Not started';
+
+    const actions = step.actions.map(action => renderActionItem(action, cv)).join('');
+
+    return `
+      <div class="step-section">
+        <div class="step-section-header">
+          <div class="step-section-num ${NUM_CLASS[stepStatus] || ''}">${step.num}</div>
+          <span class="step-section-name">${esc(step.name)}</span>
+          <span class="step-owner-tag ${step.owner}">${step.owner.toUpperCase()}</span>
+          <span class="dot ${dotCls}" style="margin-left:auto;" data-tip="${stepLbl}"></span>
+        </div>
+        ${actions}
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+// renderActionItem — builds one row with a four-state indicator.
+//
+// States:
+//   confirmed  → green check   "Confirmed"
+//   partial    → sage half-dot "Partial"          (some sub-fields confirmed, not all)
+//   asked      → gold clock    "Asked N days ago" (requested, awaiting)
+//   not_asked  → pink circle   "Not requested"    (nothing done yet)
+//
+// State is derived differently by source:
+//   monday + askedColId/confirmedColId  → MondayClient.twoState.status()
+//   monday + columnId only              → column has value = confirmed, else not_asked
+//   email                               → localStorage emailModules key
+//   manual                              → localStorage manualActions key
+
+function renderActionItem(action, cv) {
+  let state  = 'not_asked';
+  let detail = '';
+
+  if (action.source === 'monday') {
+    if (action.askedColId && action.confirmedColId) {
+      // Full two-state tracking via date columns
+      state = MondayClient.twoState.status(cv, action.askedColId, action.confirmedColId);
+      if (state === 'asked') {
+        const days = MondayClient.twoState.daysSince(
+          MondayClient.readDate(cv, action.askedColId)
+        );
+        detail = days !== null ? `Asked ${days}d ago` : 'Asked';
+      }
+    } else if (action.columnId) {
+      // Simple presence check — column has any value = confirmed
+      state = MondayClient.read(cv, action.columnId) ? 'confirmed' : 'not_asked';
+    }
+  } else if (action.source === 'email') {
+    const sent = getEmailModuleState(action.emailModule);
+    if      (sent === 'sent')  state = 'confirmed';
+    else if (sent === 'draft') state = 'asked';
+    else                       state = 'not_asked';
+  } else if (action.source === 'manual') {
+    state = getManualState(action.label) ? 'confirmed' : 'not_asked';
+  }
+
+  // Note: 'partial' state is not set at the individual action level —
+  // it's a computed state at the STEP level (some actions confirmed, some not).
+  // Individual actions are always not_asked / asked / confirmed.
+
+  const CFG = {
+    confirmed: { checkCls: 'done',      icon: '✓', badgeCls: 'badge-confirmed', badgeLbl: 'Confirmed'       },
+    asked:     { checkCls: 'asked',     icon: '~', badgeCls: 'badge-pending',   badgeLbl: detail || 'Asked' },
+    not_asked: { checkCls: 'not-asked', icon: '○', badgeCls: 'badge-needed',    badgeLbl: 'Not requested'   },
+  };
+
+  const c = CFG[state] || CFG.not_asked;
+
+  return `
+    <div class="action-item">
+      <div class="action-check ${c.checkCls}">${c.icon}</div>
+      <div class="action-label">
+        ${esc(action.label)}
+        ${action.columnName
+          ? `<span class="action-col-name">Monday: ${esc(action.columnName)}</span>`
+          : ''}
+      </div>
+      <span class="badge ${c.badgeCls}" style="flex-shrink:0;">${c.badgeLbl}</span>
+      <span class="action-source ${action.source}">${action.source}</span>
+    </div>
+  `;
+}
+
+// Read email module send state from localStorage (written by Email Draft Center)
+function getEmailModuleState(moduleKey) {
+  if (!moduleKey) return null;
+  try {
+    const modules = JSON.parse(localStorage.getItem('ec12_email_modules') || '{}');
+    return modules[moduleKey] || null;
+  } catch { return null; }
+}
+
+// Read manual action tick state from localStorage (written by this panel)
+function getManualState(label) {
+  try {
+    const manual = JSON.parse(localStorage.getItem('ec12_manual_actions') || '{}');
+    return !!manual[label];
+  } catch { return false; }
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('detail-panel');
+  if (panel.classList.contains('open') && !panel.contains(e.target)) {
+    if (!e.target.closest('tr')) closeDetail();
+  }
+});
+
+
+// ── CREATE ARTIST ───────────────────────────────────────────────────────────────
+// Handles the "+ New Artist" flow: form → Monday.com (if connected) → local state.
+// If not connected, artist is added locally with a temp ID and synced on next connection.
+
+function openCreateArtist() {
+  // Clear all form fields before opening
+  ['new-name','new-lead','new-bookedby','new-stage','new-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('new-date').value   = '';
+  document.getElementById('new-tier').value   = 'Support';
+  document.getElementById('new-origin').value = 'Int';
+  document.getElementById('create-error').style.display = 'none';
+
+  // Warn if not connected — artist will be local-only until synced
+  document.getElementById('create-offline-note').style.display =
+    ST.sync === 'live' ? 'none' : 'block';
+
+  document.getElementById('create-modal').classList.add('open');
+}
+
+function closeCreateArtist() {
+  document.getElementById('create-modal').classList.remove('open');
+}
+
+async function createArtist() {
+  const name = document.getElementById('new-name').value.trim();
+  if (!name) {
+    showCreateError('Artist name is required.');
+    return;
+  }
+
+  const tier     = document.getElementById('new-tier').value;
+  const origin   = document.getElementById('new-origin').value;
+  const lead     = document.getElementById('new-lead').value.trim();
+  const bookedBy = document.getElementById('new-bookedby').value.trim();
+
+  // Show loading state on the button
+  const btn = document.getElementById('create-save-btn');
+  btn.textContent = 'Creating…';
+  btn.disabled    = true;
+
+  let mondayId = null;
+
+  if (ST.config.apiKey && ST.config.boardId) {
+    try {
+      const cols = MONDAY_CONFIG?.ARTIST_COLS || {};
+
+      // Build Monday.com column values.
+      // We only set columns where we have a configured column ID.
+      // Lead/bookedBy need Monday user IDs (not names), so we skip those for now —
+      // the user can set them directly in Monday once the item exists.
+      const columnValues = {};
+      if (cols.tier   && tier)   columnValues[cols.tier]   = MondayClient.val.status(tier);
+      if (cols.origin && origin) columnValues[cols.origin] = MondayClient.val.text(origin);
+
+      const result = await MondayClient.createItem(
+        ST.config.boardId,
+        name,
+        columnValues
+      );
+
+      mondayId = result?.create_item?.id || null;
+
+    } catch (err) {
+      console.warn('Monday.com create failed:', err.message);
+      // Don't block the user — show a warning but still add locally
+      showCreateError(`Saved locally. Monday.com error: ${err.message}`);
+    }
+  }
+
+  // Add to local state immediately so the table updates without waiting for a sync
+  const newArtist = {
+    id:        mondayId || ('local-' + Date.now()),
+    name:      name,
+    tier:      tier,
+    origin:    origin,
+    lead:      lead     || '—',
+    bookedBy:  bookedBy || '—',
+    steps:     [0,0,0,0,0,0,0,0],   // all steps: not started
+    rider:     false,
+    partySize: null,
+    hotel:     false,
+    dietary:   false,
+    rawColumns:{},
+  };
+
+  ST.artists.unshift(newArtist);  // add to top of list
+  applyFilters();
+  buildLeadFilter();
+
+  btn.textContent = 'Create Artist';
+  btn.disabled    = false;
+
+  closeCreateArtist();
+
+  // Open the detail panel immediately for the newly created artist
+  if (mondayId || newArtist.id) {
+    setTimeout(() => openDetail(newArtist.id), 200);
+  }
+}
+
+function showCreateError(msg) {
+  const el = document.getElementById('create-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+
+// ── UI HELPERS ─────────────────────────────────────────────────────────────────
+
+function showLoader(show) {
+  document.getElementById('loader').style.display = show ? 'flex' : 'none';
+}
+
+function showBanner() {
+  document.getElementById('offline-banner').style.display = 'flex';
+}
+
+function hideBanner() {
+  document.getElementById('offline-banner').style.display = 'none';
+}
+
+function setSyncStatus(status) {
+  ST.sync = status;
+  const dot   = document.getElementById('sync-dot');
+  const label = document.getElementById('sync-label');
+  dot.className = `sync-dot ${status}`;
+  if (status === 'live') {
+    label.textContent = 'Live · ' + new Date().toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+  } else if (status === 'error') {
+    label.textContent = 'Sync failed';
+  } else {
+    label.textContent = 'Demo mode';
+  }
+}
+
+// esc: escapes HTML characters to prevent XSS.
+// Always use this when inserting user data or Monday.com data into innerHTML.
+// XSS (cross-site scripting) is when malicious content in data gets executed as code.
+function esc(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+</script>
+</body>
+</html>

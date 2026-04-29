@@ -1,0 +1,14 @@
+# Run this in the Monday.com API Explorer to get all column IDs for a board.
+# URL: https://monday.com/graphql
+# Replace BOARD_ID with your actual board ID (visible in the board URL).
+
+{
+  boards(ids: [BOARD_ID]) {
+    name
+    columns {
+      id
+      title
+      type
+    }
+  }
+}

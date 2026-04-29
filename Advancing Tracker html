@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EC12 — Field Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --primary:#1B4332; --primary-mid:#2D6A4F; --primary-light:#52B788;
+    --cream:#F8F9FC; --cream-dark:#E8EDF3;
+    --text:#1A1A1A; --text-mid:#4A4A4A; --text-soft:#717171;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--cream); font-family:'DM Sans',sans-serif; color:var(--text); min-height:100vh; }
+
+  header { background:var(--primary); padding:18px 32px; display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-family:'Playfair Display',serif; color:white; font-size:20px; }
+  header p  { color:rgba(255,255,255,0.5); font-size:11px; margin-top:2px; }
+  .nav-pill { font-size:11px; color:rgba(255,255,255,0.65); text-decoration:none; padding:5px 12px; border:1px solid rgba(255,255,255,0.2); border-radius:6px; transition:all 0.15s; }
+  .nav-pill:hover { color:white; border-color:rgba(255,255,255,0.5); }
+
+  .context-bar { background:var(--primary-mid); padding:9px 32px; display:flex; gap:24px; align-items:center; }
+  .ctx-item { font-size:12px; color:rgba(255,255,255,0.7); }
+  .ctx-item strong { color:white; }
+
+  .field-mode-bar { background:white; border-bottom:2px solid var(--cream-dark); padding:10px 28px; display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .mode-label { font-size:10px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.6px; margin-right:4px; }
+  .btn-mode { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; padding:6px 18px; border-radius:20px; border:2px solid var(--cream-dark); cursor:pointer; background:white; color:var(--text-mid); display:flex; align-items:center; gap:6px; transition:all 0.18s; }
+  .btn-mode:hover { border-color:var(--primary-light); color:var(--primary); }
+  .btn-mode.active { background:var(--primary); border-color:var(--primary); color:white; }
+  .mode-sep { width:1px; height:22px; background:var(--cream-dark); margin:0 4px; }
+
+  .sub-bar { background:var(--primary); border-top:1px solid rgba(255,255,255,0.08); padding:7px 28px; display:flex; gap:8px; align-items:center; }
+  .ctrl-label { font-size:11px; color:rgba(255,255,255,0.45); }
+  .btn-ctrl { font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600; padding:4px 12px; border-radius:6px; border:none; cursor:pointer; background:rgba(255,255,255,0.1); color:rgba(255,255,255,0.75); transition:all 0.15s; }
+  .btn-ctrl:hover { background:rgba(255,255,255,0.18); color:white; }
+  .btn-ctrl.active { background:var(--primary-light); color:white; }
+
+  .field-legend { background:white; border-bottom:1px solid var(--cream-dark); padding:7px 28px; display:none; align-items:center; gap:18px; flex-wrap:wrap; font-size:11px; color:var(--text-soft); }
+  .field-legend.visible { display:flex; }
+  .fl-chip { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:10px; font-size:10px; font-weight:700; letter-spacing:0.3px; }
+
+  .instructions { text-align:center; font-size:11px; color:var(--text-soft); padding:6px 32px 4px; font-style:italic; background:var(--cream); border-bottom:1px solid var(--cream-dark); }
+
+  .canvas-wrap { position:relative; overflow:hidden; width:100%; height:calc(100vh - 220px); min-height:500px; background:var(--cream); cursor:grab; user-select:none; }
+  .canvas-wrap.panning { cursor:grabbing; }
+  #zoom-surface { position:absolute; top:0; left:0; transform-origin:0 0; will-change:transform; }
+  svg#diagram { display:block; width:1600px; height:auto; }
+
+  .zoom-controls { position:absolute; top:14px; right:14px; display:flex; flex-direction:row; align-items:center; gap:5px; z-index:900; background:white; border:1.5px solid var(--cream-dark); border-radius:10px; padding:5px 8px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+  .btn-zoom { width:30px; height:30px; border-radius:7px; border:1.5px solid var(--cream-dark); background:white; color:var(--text); font-size:17px; font-weight:300; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.15s; font-family:'DM Sans',sans-serif; }
+  .btn-zoom:hover { background:var(--primary); color:white; border-color:var(--primary); }
+  .btn-zoom.reset    { font-size:10px; font-weight:700; }
+  .btn-zoom.font-btn { font-size:11px; font-weight:700; }
+  .zoom-sep   { width:1px; height:20px; background:var(--cream-dark); margin:0 2px; }
+  .zoom-level { font-size:10px; font-weight:600; min-width:34px; text-align:center; color:var(--text-soft); font-family:'DM Sans',sans-serif; }
+
+  .node-label-main { font-family:'DM Sans',sans-serif; font-weight:600; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .node-label-sub  { font-family:'DM Sans',sans-serif; font-weight:400; text-anchor:middle; dominant-baseline:middle; pointer-events:none; opacity:0.6; }
+  .node-count      { font-family:'DM Sans',sans-serif; font-weight:700; text-anchor:middle; dominant-baseline:middle; pointer-events:none; }
+  .node-wrap { cursor:pointer; }
+
+  #tooltip { position:fixed; pointer-events:none; background:var(--primary); color:white; border-radius:8px; padding:8px 12px; font-size:11px; line-height:1.6; max-width:280px; opacity:0; transition:opacity 0.15s; z-index:999; box-shadow:0 4px 24px rgba(0,0,0,0.3); }
+  #tooltip.visible { opacity:1; }
+  #tooltip strong { display:block; color:var(--primary-light); font-weight:700; margin-bottom:2px; }
+  #tooltip .tt-sub { display:block; color:rgba(255,255,255,0.7); font-size:10px; }
+  #tooltip .tt-fid { display:block; color:rgba(255,255,255,0.35); font-size:9px; font-family:monospace; margin-top:2px; }
+
+  #aat-card { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:white; border-radius:14px; border:2px solid var(--cream-dark); box-shadow:0 8px 40px rgba(0,0,0,0.18); padding:0; width:720px; max-width:96vw; z-index:1000; display:none; flex-direction:column; overflow:hidden; font-family:'DM Sans',sans-serif; }
+  #aat-card.visible { display:flex; }
+  .aat-card-header { background:var(--primary); padding:16px 20px; display:flex; justify-content:space-between; align-items:center; }
+  .aat-card-header h2 { font-family:'Playfair Display',serif; color:white; font-size:18px; margin:0; }
+  .aat-card-header p  { color:rgba(255,255,255,0.55); font-size:11px; margin:3px 0 0; }
+  .aat-card-close { background:rgba(255,255,255,0.12); border:none; border-radius:6px; color:white; font-size:16px; width:30px; height:30px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+  .aat-card-close:hover { background:rgba(255,255,255,0.22); }
+  .aat-card-nav { padding:10px 20px; background:#F8F9FC; border-bottom:1px solid var(--cream-dark); display:flex; align-items:center; gap:12px; }
+  .aat-back-btn { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:600; background:white; border:1.5px solid var(--cream-dark); border-radius:8px; padding:5px 12px; cursor:pointer; color:var(--text-mid); transition:all 0.12s; }
+  .aat-back-btn:hover { background:var(--primary); color:white; border-color:var(--primary); }
+  .aat-drill-title { font-size:13px; font-weight:700; }
+  .aat-card-body { padding:16px 20px 20px; display:grid; grid-template-columns:1fr 1fr; gap:10px; overflow-y:auto; max-height:60vh; }
+  .aat-cat-row { display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border-radius:10px; border:1.5px solid var(--cream-dark); transition:background 0.12s; }
+  .aat-cat-clickable { cursor:pointer; }
+  .aat-cat-clickable:hover { background:#F8F9FC; }
+  .aat-cat-name  { font-size:13px; font-weight:600; color:var(--text-mid); }
+  .aat-cat-count { font-size:13px; font-weight:700; padding:3px 10px; border-radius:12px; min-width:30px; text-align:center; }
+  .aat-field-table { width:100%; }
+  .aft-head, .aft-row { display:grid; grid-template-columns:1.6fr 28px 1.6fr 1.4fr 80px; align-items:center; }
+  .aft-head { padding:6px 10px; background:#F8F9FC; border-bottom:2px solid var(--cream-dark); font-size:10px; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:0.5px; border-radius:6px 6px 0 0; position:sticky; top:0; }
+  .aft-row  { padding:9px 10px; border-bottom:1px solid #F0F0F0; }
+  .aft-row:hover { background:#F8F9FC; }
+  .aft-aat   { font-weight:600; color:#1B4332; }
+  .aft-arrow { text-align:center; font-size:14px; }
+  .aft-board { font-weight:500; }
+  .aft-fid   { font-family:monospace; font-size:10px; color:#9CA3AF; }
+  .aft-type  { font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:8px; text-align:center; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>EC12 — Artist Advancing Tracker</h1>
+    <p>Field map · board connections · page 2 of 2</p>
+  </div>
+  <a href="ec12-sketch.html" class="nav-pill">← Overview (Page 1)</a>
+</header>
+
+<div class="context-bar">
+  <div class="ctx-item"><strong>3</strong> field views</div>
+  <div class="ctx-item">Click any board to expand · fields show on both ends simultaneously</div>
+  <div class="ctx-item">Hover lines for field IDs</div>
+</div>
+
+<div class="field-mode-bar">
+  <span class="mode-label">Show fields:</span>
+  <button class="btn-mode active" data-mode="connected" onclick="setFieldMode('connected')">↔ Connected Fields</button>
+  <button class="btn-mode" data-mode="input" onclick="setFieldMode('input')">✏ Input Fields</button>
+  <button class="btn-mode" data-mode="all" onclick="setFieldMode('all')">⊞ All Fields</button>
+  <div class="mode-sep"></div>
+  <button class="btn-mode" data-mode="none" onclick="setFieldMode('none')">○ Overview only</button>
+</div>
+
+<div class="field-legend" id="field-legend">
+  <span>Field types:</span>
+  <div><span class="fl-chip" style="background:#E8F0FE;color:#3D6FD4">↔ Key</span> board relation</div>
+  <div><span class="fl-chip" style="background:#F0E8FF;color:#8B5CC8">⟵ Mirror</span> pulled from source</div>
+  <div><span class="fl-chip" style="background:#DCFAF0;color:#2A9574">✏ Input</span> direct entry</div>
+  <div><span class="fl-chip" style="background:#FFF3DC;color:#C07A1A">ƒ Formula</span> calculated</div>
+  <div><span class="fl-chip" style="background:#FFE8F5;color:#C0549A">◉ Status</span> dropdown / label</div>
+</div>
+
+<div class="instructions" id="instructions">
+  Click any board to expand its connected fields — both AAT and the linked board unfurl simultaneously
+</div>
+
+<div class="sub-bar">
+  <span class="ctrl-label">Filter:</span>
+  <button class="btn-ctrl active" id="btn-all"      onclick="setFilter('all')">All boards</button>
+  <button class="btn-ctrl"        id="btn-existing" onclick="setFilter('existing')">Existing only</button>
+  <button class="btn-ctrl"        id="btn-new"      onclick="setFilter('new')">New boards</button>
+  <div style="flex:1"></div>
+  <button class="btn-ctrl" onclick="collapseAll()">✕ Collapse</button>
+</div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <div id="zoom-surface">
+    <svg id="diagram" viewBox="-400 -400 2800 2800" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+      <defs>
+        <filter id="sh-sm" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="rgba(0,0,0,0.09)"/>
+        </filter>
+        <filter id="sh-aat" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="6" stdDeviation="14" flood-color="rgba(27,67,50,0.22)"/>
+        </filter>
+      </defs>
+      <g id="base-connectors"></g>
+      <g id="field-connectors"></g>
+      <g id="field-pills"></g>
+      <g id="nodes"></g>
+    </svg>
+  </div>
+  <div class="zoom-controls">
+    <button class="btn-zoom" onclick="zoomBy(0.8)"   title="Zoom out">−</button>
+    <div class="zoom-level" id="zoom-label">100%</div>
+    <button class="btn-zoom" onclick="zoomBy(1.25)"  title="Zoom in">+</button>
+    <button class="btn-zoom reset" onclick="zoomReset()" title="Fit">FIT</button>
+    <div class="zoom-sep"></div>
+    <button class="btn-zoom font-btn" onclick="setFS(FS-2)" title="Smaller text">A−</button>
+    <div class="zoom-level" id="font-label">24px</div>
+    <button class="btn-zoom font-btn" onclick="setFS(FS+2)" title="Larger text">A+</button>
+  </div>
+</div>
+
+<div id="aat-card">
+  <div class="aat-card-header">
+    <div><h2>Artist Advancing Tracker</h2><p>Central hub · 150 fields across all categories</p></div>
+    <button class="aat-card-close" onclick="hideAATCard()">✕</button>
+  </div>
+  <div id="aat-card-nav" class="aat-card-nav" style="display:none"></div>
+  <div class="aat-card-body" id="aat-card-body"></div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════════
+const CENTRE = { x: 1000, y: 900 };
+
+let FS = 24;
+const FS_MIN = 12, FS_MAX = 40;
+// All sizing scales with FS — preserving exact proportions from the working version
+function pillW()    { return Math.round(FS * 8.75); }  // ~210 at FS=24
+function pillH()    { return Math.round(FS * 1.58); }  // ~38  at FS=24
+function pillStep() { return Math.round(FS * 5.0);  }  // ~120 at FS=24 (generous vertical gap)
+function pillGap()  { return Math.round(FS * 1.17); }  // ~28  at FS=24
+function bpDist()   { return Math.round(FS * 27.5); }  // ~660 at FS=24 — distance from node CENTRE to pill column centre
+
+function setFS(n) {
+  FS = Math.max(FS_MIN, Math.min(FS_MAX, n));
+  document.getElementById('font-label').textContent = FS + 'px';
+  renderBase();
+  if (expandedBoard) renderFieldLayer();
+}
+
+const CLUSTERS = {
+  performance: { color:'#5B8FF9', light:'#E8F0FE', mid:'#A8C4FC', label:'Performance' },
+  people:      { color:'#B07FE8', light:'#F0E8FF', mid:'#D4B8F5', label:'People' },
+  logistics:   { color:'#F4A940', light:'#FFF3DC', mid:'#FAD08A', label:'Logistics' },
+  accom:       { color:'#45C9A0', light:'#DCFAF0', mid:'#8EDEC5', label:'Accommodation' },
+  inventory:   { color:'#F47F6B', light:'#FFE8E4', mid:'#F9B5A8', label:'Inventory' },
+};
+
+const FT = {
+  key:     { bg:'#E8F0FE', text:'#3D6FD4', icon:'↔' },
+  mirror:  { bg:'#F0E8FF', text:'#8B5CC8', icon:'⟵' },
+  input:   { bg:'#DCFAF0', text:'#2A9574', icon:'✏' },
+  formula: { bg:'#FFF3DC', text:'#C07A1A', icon:'ƒ' },
+  status:  { bg:'#FFE8F5', text:'#C0549A', icon:'◉' },
+  date:    { bg:'#E8F4FF', text:'#3070B8', icon:'🗓' },
+  people:  { bg:'#F0E8FF', text:'#8B5CC8', icon:'👤' },
+};
+
+const BOARDS = [
+  { id:'team_members',     label:'Team Members',         cluster:'people',      isNew:false, fields:19 },
+  { id:'accommodation',    label:'Accommodation',        cluster:'accom',       isNew:false, fields:30 },
+  { id:'hotel_rooms',      label:'Hotel Rooms',          cluster:'accom',       isNew:true,  fields:10 },
+  { id:'flights',          label:'Flights',              cluster:'logistics',   isNew:false, fields:18 },
+  { id:'artist_party',     label:'Artist Party',         cluster:'people',      isNew:true,  fields:15 },
+  { id:'transfers',        label:'Transfers',            cluster:'logistics',   isNew:false, fields:30 },
+  { id:'artist_vehicles',  label:'Artist Vehicles',      cluster:'logistics',   isNew:true,  fields:12 },
+  { id:'stages',           label:'Stages',               cluster:'performance', isNew:false, fields:24 },
+  { id:'stage_timings',    label:'Live Stage\nTimings',  cluster:'performance', isNew:false, fields:28 },
+  { id:'load_in',          label:'Load In',              cluster:'performance', isNew:true,  fields:9  },
+  { id:'soundchecks',      label:'Soundchecks',          cluster:'performance', isNew:true,  fields:11 },
+  { id:'line_checks',      label:'Line Checks',          cluster:'performance', isNew:true,  fields:9  },
+  { id:'dressing_rooms',   label:'Dressing\nRooms',      cluster:'people',      isNew:false, fields:5  },
+  { id:'top_inventory',    label:'Top Level\nInventory', cluster:'inventory',   isNew:true,  fields:7  },
+  { id:'detail_inventory', label:'Detailed\nInventory',  cluster:'inventory',   isNew:true,  fields:10 },
+  { id:'meals',            label:'Meals',                cluster:'accom',       isNew:true,  fields:11 },
+];
+
+// EXACT radii from the working reference — DO NOT CHANGE
+const POS = {
+  team_members:     { angle:  30, r:430 },
+  accommodation:    { angle:  50, r:430 },
+  hotel_rooms:      { angle:  70, r:425 },
+  flights:          { angle:  90, r:430 },
+  artist_party:     { angle: 110, r:425 },
+  transfers:        { angle: 130, r:430 },
+  artist_vehicles:  { angle: 150, r:425 },
+  stages:           { angle: 170, r:430 },
+  stage_timings:    { angle: 190, r:425 },
+  load_in:          { angle: 210, r:425 },
+  soundchecks:      { angle: 230, r:430 },
+  line_checks:      { angle: 250, r:425 },
+  dressing_rooms:   { angle: 270, r:430 },
+  top_inventory:    { angle: 290, r:425 },
+  detail_inventory: { angle: 310, r:425 },
+  meals:            { angle: 330, r:430 },
+};
+
+const BASE_CONNECTIONS = [
+  // AAT spokes
+  { from:'aat', to:'team_members' },    { from:'aat', to:'accommodation' },
+  { from:'aat', to:'hotel_rooms' },     { from:'aat', to:'flights' },
+  { from:'aat', to:'artist_party' },    { from:'aat', to:'transfers' },
+  { from:'aat', to:'artist_vehicles' }, { from:'aat', to:'stages' },
+  { from:'aat', to:'stage_timings' },   { from:'aat', to:'load_in' },
+  { from:'aat', to:'soundchecks' },     { from:'aat', to:'line_checks' },
+  { from:'aat', to:'dressing_rooms' },  { from:'aat', to:'top_inventory' },
+  { from:'aat', to:'meals' },           { from:'aat', to:'detail_inventory' },
+  // Board-to-board
+  { from:'accommodation',    to:'hotel_rooms' },
+  { from:'artist_party',     to:'hotel_rooms' },
+  { from:'artist_party',     to:'meals' },
+  { from:'stages',           to:'team_members' },
+  { from:'stages',           to:'stage_timings' },
+  { from:'stages',           to:'soundchecks' },
+  { from:'stages',           to:'load_in' },
+  { from:'stages',           to:'line_checks' },
+  { from:'top_inventory',    to:'stages' },
+  { from:'detail_inventory', to:'top_inventory' },
+  { from:'flights',          to:'artist_party' },
+  { from:'transfers',        to:'artist_party' },
+  { from:'transfers',        to:'flights' },
+  { from:'transfers',        to:'stages' },
+  { from:'artist_party',     to:'team_members' },
+  { from:'meals',            to:'stages' },
+  { from:'artist_vehicles',  to:'stages' },
+];
+
+const FIELD_CONNECTIONS = [
+  { aatName:'Booked by',             aatFid:'connect_boards5',       boardId:'team_members',  boardName:'Booking - INT',           boardFid:'link_to_ec10___stages2__1', type:'key' },
+  { aatName:'Angel',                 aatFid:'connect_boards7__1',    boardId:'team_members',  boardName:'Angel',                   boardFid:'board_relation__1',         type:'key' },
+  { aatName:'DOS Contact',           aatFid:'connect_boards8__1',    boardId:'team_members',  boardName:'Artist',                  boardFid:'board_relation_mkschse8',   type:'key' },
+  { aatName:'Party Members',         aatFid:'connect_boards4__1',    boardId:'team_members',  boardName:'Artist',                  boardFid:'board_relation_mkschse8',   type:'key' },
+  { aatName:'Booking contact email', aatFid:'mirror50__1',           boardId:'team_members',  boardName:'Email',                   boardFid:'email2__1',                 type:'mirror' },
+  { aatName:'Angel Phone Number',    aatFid:'mirror1__1',            boardId:'team_members',  boardName:'Mobile No',               boardFid:'text7__1',                  type:'mirror' },
+  { aatName:'Email',                 aatFid:'mirror3__1',            boardId:'team_members',  boardName:'Email',                   boardFid:'email2__1',                 type:'mirror' },
+  { aatName:'Phone',                 aatFid:'mirror6__1',            boardId:'team_members',  boardName:'Mobile No',               boardFid:'text7__1',                  type:'mirror' },
+  { aatName:'DOS Role',              aatFid:'mirror__1',             boardId:'team_members',  boardName:'Role',                    boardFid:'text1__1',                  type:'mirror' },
+  { aatName:'Person Role',           aatFid:'mirror4__1',            boardId:'team_members',  boardName:'Role',                    boardFid:'text1__1',                  type:'mirror' },
+  { aatName:'A Party Hotel',         aatFid:'board_relation7',       boardId:'accommodation', boardName:'A-Party Hotel',           boardFid:'connect_boards54',          type:'key' },
+  { aatName:'Crew Hotel',            aatFid:'board_relation35',      boardId:'accommodation', boardName:'Crew Hotel',              boardFid:'connect_boards3',           type:'key' },
+  { aatName:'Artist Party (link)',   aatFid:'— new —',               boardId:'hotel_rooms',   boardName:'Occupants',               boardFid:'— new —',                   type:'key' },
+  { aatName:'Arrivals',              aatFid:'connect_boards3__1',    boardId:'flights',       boardName:'Arriving',                boardFid:'board_relation__1',         type:'key' },
+  { aatName:'Departures',            aatFid:'connect_boards23__1',   boardId:'flights',       boardName:'Departing',               boardFid:'board_relation1__1',        type:'key' },
+  { aatName:'Flight Time @ CLJ',     aatFid:'mirror26__1',           boardId:'flights',       boardName:'Time @ CLJ',              boardFid:'hour__1',                   type:'mirror' },
+  { aatName:'Arr: Departure Time',   aatFid:'mirror08__1',           boardId:'flights',       boardName:'Departure Time',          boardFid:'hour5__1',                  type:'mirror' },
+  { aatName:'Arr: Arrival Time',     aatFid:'mirror39__1',           boardId:'flights',       boardName:'Arrival Time',            boardFid:'hour52__1',                 type:'mirror' },
+  { aatName:'Airline',               aatFid:'mirror51__1',           boardId:'flights',       boardName:'Airline',                 boardFid:'label__1',                  type:'mirror' },
+  { aatName:'Arrival Date',          aatFid:'mirror00__1',           boardId:'flights',       boardName:'Flight Date',             boardFid:'date__1',                   type:'mirror' },
+  { aatName:'Dep: Departure Time',   aatFid:'mirror09__1',           boardId:'flights',       boardName:'Departure Time',          boardFid:'hour5__1',                  type:'mirror' },
+  { aatName:'Dep: Arrival Time',     aatFid:'mirror46__1',           boardId:'flights',       boardName:'Arrival Time',            boardFid:'hour52__1',                 type:'mirror' },
+  { aatName:'Departure Date',        aatFid:'mirror5__1',            boardId:'flights',       boardName:'Flight Date',             boardFid:'date__1',                   type:'mirror' },
+  { aatName:'Artist Party (link)',   aatFid:'— new —',               boardId:'artist_party',  boardName:'Artist',                  boardFid:'— new —',                   type:'key' },
+  { aatName:'Transfers',             aatFid:'connect_boards2__1',    boardId:'transfers',     boardName:'Artist requiring route',  boardFid:'board_relation__1',         type:'key' },
+  { aatName:'Route Date',            aatFid:'mirror17__1',           boardId:'transfers',     boardName:'Route Date',              boardFid:'date__1',                   type:'mirror' },
+  { aatName:'Route Types',           aatFid:'mirror35__1',           boardId:'transfers',     boardName:'Route Type',              boardFid:'label__1',                  type:'mirror' },
+  { aatName:'Route Notes',           aatFid:'mirror9__1',            boardId:'transfers',     boardName:'Route notes',             boardFid:'long_text__1',              type:'mirror' },
+  { aatName:'Pickup',                aatFid:'mirror_18__1',          boardId:'transfers',     boardName:'Pickup',                  boardFid:'label7__1',                 type:'mirror' },
+  { aatName:'Dropoff',               aatFid:'mirror71__1',           boardId:'transfers',     boardName:'Dropoff',                 boardFid:'label70__1',                type:'mirror' },
+  { aatName:'Passengers',            aatFid:'mirror7__1',            boardId:'transfers',     boardName:'Passengers',              boardFid:'numbers__1',                type:'mirror' },
+  { aatName:'Artist Vehicles (link)',aatFid:'— new —',               boardId:'artist_vehicles',boardName:'Artist',                boardFid:'— new —',                   type:'key' },
+  { aatName:'Stage',                 aatFid:'board_relation3',       boardId:'stages',        boardName:'Artist Advancing Tracker',boardFid:'connect_boards',            type:'key' },
+  { aatName:'Festival Gate',         aatFid:'mirror2__1',            boardId:'stages',        boardName:'Festival Gate',           boardFid:'text4__1',                  type:'mirror' },
+  { aatName:'Stage Index',           aatFid:'mirror0__1',            boardId:'stages',        boardName:'Stage Index',             boardFid:'numbers__1',                type:'mirror' },
+  { aatName:'Transport coord',       aatFid:'mirror002__1',          boardId:'stages',        boardName:'Transport Coord phone',   boardFid:'mirror0__1',                type:'mirror' },
+  { aatName:'Live Show Slot Name',   aatFid:'board_relation__1',     boardId:'stage_timings', boardName:'Artist Name',             boardFid:'connect_boards__1',         type:'key' },
+  { aatName:'Soundcheck Slot',       aatFid:'connect_boards235__1',  boardId:'stage_timings', boardName:'Artist @ Soundcheck',     boardFid:'board_relation__1',         type:'key' },
+  { aatName:'Load in Slot',          aatFid:'board_relation0__1',    boardId:'stage_timings', boardName:'Artist @ Load in',        boardFid:'connect_boards9__1',        type:'key' },
+  { aatName:'Duration (m)',          aatFid:'mirror64__1',           boardId:'stage_timings', boardName:'Duration',                boardFid:'numbers__1',                type:'mirror' },
+  { aatName:'Show Start Time',       aatFid:'mirror45__1',           boardId:'stage_timings', boardName:'Start Time',              boardFid:'date__1',                   type:'mirror' },
+  { aatName:'Show End Time',         aatFid:'mirror901__1',          boardId:'stage_timings', boardName:'End Time',                boardFid:'formula_19__1',             type:'mirror' },
+  { aatName:'Stage Name (Timings)',  aatFid:'lookup_mksehn57',       boardId:'stage_timings', boardName:'Stage Name',              boardFid:'color_mksewb5q',            type:'mirror' },
+  { aatName:'Stage Slot Type',       aatFid:'mirror57__1',           boardId:'stage_timings', boardName:'Stage Slot Type',         boardFid:'label__1',                  type:'mirror' },
+  { aatName:'Soundcheck (m)',        aatFid:'mirror8__1',            boardId:'stage_timings', boardName:'Soundcheck (m)',          boardFid:'dup__of_duration__1',       type:'mirror' },
+  { aatName:'Soundcheck Starts',     aatFid:'mirror761__1',          boardId:'stage_timings', boardName:'Soundcheck Start',        boardFid:'dup__of_start_time__1',     type:'mirror' },
+  { aatName:'Load in (m)',           aatFid:'mirror19__1',           boardId:'stage_timings', boardName:'Load in (m)',             boardFid:'dup__of_soundcheck__m___1', type:'mirror' },
+  { aatName:'Load In Starts',        aatFid:'mirror_12__1',          boardId:'stage_timings', boardName:'Load in Starts',          boardFid:'date4__1',                  type:'mirror' },
+  { aatName:'Load in Ends',          aatFid:'mirror12__1',           boardId:'stage_timings', boardName:'Load in Ends',            boardFid:'dup__of_soundcheck_ends__1',type:'mirror' },
+  { aatName:'Load In (link)',        aatFid:'— new —',               boardId:'load_in',       boardName:'Artist',                  boardFid:'— new —',                   type:'key' },
+  { aatName:'Soundchecks (link)',    aatFid:'— new —',               boardId:'soundchecks',   boardName:'Artist',                  boardFid:'— new —',                   type:'key' },
+  { aatName:'Line Checks (link)',    aatFid:'— new —',               boardId:'line_checks',   boardName:'Artist',                  boardFid:'— new —',                   type:'key' },
+  { aatName:'DR Allocated',          aatFid:'connect_boards0__1',    boardId:'dressing_rooms',boardName:'Artist',                  boardFid:'board_relation__1',         type:'key' },
+  { aatName:'DR Requested',          aatFid:'dropdown32__1',         boardId:'dressing_rooms',boardName:'DR Requested',            boardFid:'mirror1__1',                type:'mirror' },
+  { aatName:'Stage',                 aatFid:'board_relation3',       boardId:'top_inventory', boardName:'Stage / Area',            boardFid:'— new —',                   type:'key' },
+  { aatName:'Meals (link)',          aatFid:'— new —',               boardId:'meals',         boardName:'Artist',                  boardFid:'— new —',                   type:'key' },
+];
+
+const BOARD_FIELDS = {
+  team_members:[
+    {name:'Name',fid:'name',type:'input'},{name:'Team',fid:'label',type:'status'},
+    {name:'Mobile No',fid:'text7__1',type:'input'},{name:'Email',fid:'email2__1',type:'input'},
+    {name:'Role',fid:'text1__1',type:'input'},{name:'Nickname',fid:'text__1',type:'input'},
+    {name:'Role based at',fid:'text16__1',type:'input'},
+    {name:'Backstage Hospitality',fid:'link_to_ec10___stages9__1',type:'key'},
+    {name:'Stage Management',fid:'link_to_ec10___stages0__1',type:'key'},
+    {name:'Booking - INT',fid:'link_to_ec10___stages2__1',type:'key'},
+    {name:'Angel',fid:'board_relation__1',type:'key'},{name:'Artist',fid:'board_relation_mkschse8',type:'key'},
+    {name:'Hotel Dates',fid:'lookup_mksqx7jh',type:'mirror'},{name:'Time tracking',fid:'time_tracking__1',type:'input'},
+    {name:'Item ID',fid:'item_id__1',type:'input'},
+  ],
+  accommodation:[
+    {name:'Name',fid:'name',type:'input'},{name:'Hotel Type',fid:'label__1',type:'status'},
+    {name:'Hotel Address',fid:'long_text__1',type:'input'},{name:'Front Desk Phone',fid:'text5__1',type:'input'},
+    {name:'Front Desk Email',fid:'text7__1',type:'input'},{name:'Check-in Time',fid:'text8__1',type:'input'},
+    {name:'Check-out Time',fid:'text2__1',type:'input'},{name:'Breakfast available',fid:'text3__1',type:'input'},
+    {name:'Hotel Website',fid:'link__1',type:'input'},{name:'Crew Hotel',fid:'connect_boards3',type:'key'},
+    {name:'A-Party Hotel',fid:'connect_boards54',type:'key'},{name:'Crew',fid:'mirror87',type:'mirror'},
+    {name:'Hotel Notes',fid:'mirror7',type:'mirror'},{name:'Rooming List',fid:'mirror96',type:'mirror'},
+    {name:'A-Party',fid:'mirror83',type:'mirror'},{name:'Travel Party',fid:'mirror5',type:'mirror'},
+    {name:'Hotel Dates',fid:'mirror8',type:'mirror'},
+  ],
+  hotel_rooms:[
+    {name:'Room Name / Number',fid:'— new —',type:'input'},{name:'Hotel',fid:'— new —',type:'key'},
+    {name:'Occupants',fid:'— new —',type:'key'},{name:'Room Type',fid:'— new —',type:'status'},
+    {name:'Check-in Date',fid:'— new —',type:'date'},{name:'Check-out Date',fid:'— new —',type:'date'},
+    {name:'Nights',fid:'— new —',type:'formula'},{name:'Hotel Notes',fid:'— new —',type:'input'},
+    {name:'Booking Status',fid:'— new —',type:'status'},{name:'Item ID',fid:'— new —',type:'input'},
+  ],
+  flights:[
+    {name:'Name',fid:'name',type:'input'},{name:'Status',fid:'status',type:'status'},
+    {name:'Flight Date',fid:'date__1',type:'date'},{name:'Departure Time',fid:'hour5__1',type:'input'},
+    {name:'Arrival Time',fid:'hour52__1',type:'input'},{name:'Time @ CLJ',fid:'hour__1',type:'input'},
+    {name:'Airline',fid:'label__1',type:'status'},{name:'To/From',fid:'text__1',type:'input'},
+    {name:'Route Type',fid:'label8__1',type:'status'},{name:'Arriving',fid:'board_relation__1',type:'key'},
+    {name:'Departing',fid:'board_relation1__1',type:'key'},{name:'Passengers',fid:'— new —',type:'key'},
+    {name:'Flight Notes',fid:'long_text__1',type:'input'},{name:'Flight Number',fid:'— new —',type:'input'},
+    {name:'Revised Arrival Time',fid:'hour_mkrynmed',type:'input'},
+  ],
+  artist_party:[
+    {name:'Full Name',fid:'— new —',type:'input'},{name:'Artist',fid:'— new —',type:'key'},
+    {name:'Party Level',fid:'— new —',type:'status'},{name:'Role / Job Title',fid:'— new —',type:'input'},
+    {name:'Email',fid:'— new —',type:'input'},{name:'Phone',fid:'— new —',type:'input'},
+    {name:'Hotel Room',fid:'— new —',type:'key'},{name:'Hotel',fid:'— new —',type:'mirror'},
+    {name:'Hotel Dates',fid:'— new —',type:'mirror'},{name:'Dietary Requirements',fid:'— new —',type:'input'},
+    {name:'Meals',fid:'— new —',type:'key'},{name:'Accreditation Type',fid:'— new —',type:'status'},
+    {name:'Angel',fid:'— new —',type:'key'},{name:'Angel Phone',fid:'— new —',type:'mirror'},
+    {name:'Item ID',fid:'— new —',type:'input'},
+  ],
+  transfers:[
+    {name:'Name',fid:'name',type:'input'},{name:'Transfer Status',fid:'status__1',type:'status'},
+    {name:'Artist requiring route',fid:'board_relation__1',type:'key'},{name:'Route Type',fid:'label__1',type:'status'},
+    {name:'Route Date',fid:'date__1',type:'date'},{name:'Passengers (manual)',fid:'numbers__1',type:'input'},
+    {name:'Route notes',fid:'long_text__1',type:'input'},{name:'Pickup',fid:'label7__1',type:'status'},
+    {name:'Dropoff',fid:'label70__1',type:'status'},{name:'Festival Gate',fid:'mirror7__1',type:'mirror'},
+    {name:'Show Day',fid:'mirror120__1',type:'mirror'},{name:'Stage',fid:'mirror3__1',type:'mirror'},
+    {name:'Angel',fid:'mirror12__1',type:'mirror'},{name:'Cargo',fid:'mirror__1',type:'mirror'},
+    {name:'Vehicle Preference',fid:'mirror9__1',type:'mirror'},
+    {name:'Assigned Passengers',fid:'— new —',type:'key'},{name:'Pax Count (effective)',fid:'— new —',type:'formula'},
+  ],
+  artist_vehicles:[
+    {name:'Registration Number',fid:'— new —',type:'input'},{name:'Status',fid:'— new —',type:'status'},
+    {name:'Vehicle Type',fid:'— new —',type:'status'},{name:'Date',fid:'— new —',type:'date'},
+    {name:'Vehicle in Cluj',fid:'— new —',type:'input'},{name:'Vehicle on Site',fid:'— new —',type:'date'},
+    {name:'Artist',fid:'— new —',type:'key'},{name:'Car Park Notes',fid:'— new —',type:'input'},
+    {name:'Vehicle parked at',fid:'— new —',type:'input'},{name:'Person / Owner',fid:'— new —',type:'people'},
+  ],
+  stages:[
+    {name:'Name',fid:'name',type:'input'},{name:'Artist Advancing Tracker',fid:'connect_boards',type:'key'},
+    {name:'Stage Sponsored by',fid:'text',type:'input'},{name:'Capacity',fid:'numbers',type:'input'},
+    {name:'Backstage Managers',fid:'connect_boards7__1',type:'key'},{name:'Stage Managers',fid:'connect_boards3__1',type:'key'},
+    {name:'Backstage Hosp. Phone',fid:'mirror5__1',type:'mirror'},{name:'Stage Manager Phone',fid:'mirror6__1',type:'mirror'},
+    {name:'Stage Manager Email',fid:'mirror02__1',type:'mirror'},{name:'Stage Index',fid:'numbers__1',type:'input'},
+    {name:'Festival Gate',fid:'text4__1',type:'input'},{name:'Transport Coord phone',fid:'mirror0__1',type:'mirror'},
+    {name:'A la carte menu',fid:'a_la_carte_menu',type:'status'},{name:'2025 Details',fid:'color_mkpgw72a',type:'status'},
+  ],
+  stage_timings:[
+    {name:'Name',fid:'name',type:'input'},{name:'Stage Slot Status',fid:'status',type:'status'},
+    {name:'Stage Slot Type',fid:'label__1',type:'status'},{name:'Stage Name',fid:'color_mksewb5q',type:'status'},
+    {name:'Artist Name',fid:'connect_boards__1',type:'key'},{name:'Artist @ Soundcheck',fid:'board_relation__1',type:'key'},
+    {name:'Artist @ Load in',fid:'connect_boards9__1',type:'key'},{name:'Stage',fid:'mirror__1',type:'mirror'},
+    {name:'Show Day',fid:'mirror1__1',type:'mirror'},{name:'Start Time',fid:'date__1',type:'date'},
+    {name:'Duration',fid:'numbers__1',type:'input'},{name:'End Time',fid:'formula_19__1',type:'formula'},
+    {name:'Soundcheck Start',fid:'dup__of_start_time__1',type:'date'},{name:'Soundcheck (m)',fid:'dup__of_duration__1',type:'input'},
+    {name:'Load in (m)',fid:'dup__of_soundcheck__m___1',type:'input'},{name:'Load in Starts',fid:'date4__1',type:'date'},
+  ],
+  load_in:[
+    {name:'Load In Name',fid:'— new —',type:'input'},{name:'Artist',fid:'— new —',type:'key'},
+    {name:'Stage',fid:'— new —',type:'key'},{name:'Load In Start',fid:'— new —',type:'date'},
+    {name:'Duration (m)',fid:'— new —',type:'input'},{name:'Load In Ends',fid:'— new —',type:'formula'},
+    {name:'Status',fid:'— new —',type:'status'},{name:'Notes',fid:'— new —',type:'input'},
+  ],
+  soundchecks:[
+    {name:'Soundcheck Name',fid:'— new —',type:'input'},{name:'Artist',fid:'— new —',type:'key'},
+    {name:'Stage',fid:'— new —',type:'key'},{name:'Stage Name',fid:'— new —',type:'mirror'},
+    {name:'Show Day',fid:'— new —',type:'mirror'},{name:'Soundcheck Start',fid:'— new —',type:'date'},
+    {name:'Duration (m)',fid:'— new —',type:'input'},{name:'Soundcheck Ends',fid:'— new —',type:'formula'},
+    {name:'Status',fid:'— new —',type:'status'},
+  ],
+  line_checks:[
+    {name:'Line Check Name',fid:'— new —',type:'input'},{name:'Artist',fid:'— new —',type:'key'},
+    {name:'Stage',fid:'— new —',type:'key'},{name:'Start Time',fid:'— new —',type:'date'},
+    {name:'Duration (m)',fid:'— new —',type:'input'},{name:'Ends',fid:'— new —',type:'formula'},
+    {name:'Status',fid:'— new —',type:'status'},
+  ],
+  dressing_rooms:[
+    {name:'Name',fid:'name',type:'input'},{name:'Artist',fid:'board_relation__1',type:'key'},
+    {name:'Stage',fid:'mirror6__1',type:'mirror'},{name:'DR Requested',fid:'mirror1__1',type:'mirror'},
+    {name:'Show Day',fid:'mirror__1',type:'mirror'},
+  ],
+  top_inventory:[
+    {name:'Category Name',fid:'— new —',type:'input'},{name:'Stage / Area',fid:'— new —',type:'key'},
+    {name:'Total Items',fid:'— new —',type:'formula'},{name:'Status',fid:'— new —',type:'status'},
+    {name:'Owner',fid:'— new —',type:'people'},{name:'Notes',fid:'— new —',type:'input'},
+  ],
+  detail_inventory:[
+    {name:'Item Name',fid:'— new —',type:'input'},{name:'Category',fid:'— new —',type:'key'},
+    {name:'Quantity',fid:'— new —',type:'input'},{name:'Status',fid:'— new —',type:'status'},
+    {name:'Cost per unit',fid:'— new —',type:'input'},{name:'Total Cost',fid:'— new —',type:'formula'},
+    {name:'Location',fid:'— new —',type:'input'},
+  ],
+  meals:[
+    {name:'Meal Name',fid:'— new —',type:'input'},{name:'Person',fid:'— new —',type:'key'},
+    {name:'Artist',fid:'— new —',type:'mirror'},{name:'Meal Type',fid:'— new —',type:'status'},
+    {name:'Date',fid:'— new —',type:'date'},{name:'Location',fid:'— new —',type:'status'},
+    {name:'Stage / Area',fid:'— new —',type:'key'},{name:'Status',fid:'— new —',type:'status'},
+  ],
+};
+
+// ═══════════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════════
+let fieldMode = 'connected', expandedBoard = null, filterMode = 'all';
+
+// ═══════════════════════════════════════════════════════════════
+// GEOMETRY — EXACT VERTICAL APPROACH FROM WORKING REFERENCE
+// ═══════════════════════════════════════════════════════════════
+function toRad(d) { return d * Math.PI / 180; }
+function polarToXY(angle, r) {
+  const rad = toRad(angle-90);
+  return { x: CENTRE.x + r*Math.cos(rad), y: CENTRE.y + r*Math.sin(rad) };
+}
+function getNodePos(id) {
+  if (id==='aat') return CENTRE;
+  const p = POS[id]; if (!p) return CENTRE;
+  return polarToXY(p.angle, p.r);
+}
+
+// Board pills: vertical column anchored radially outside node
+function boardPillPositions(boardId, count) {
+  const p = POS[boardId];
+  const rad = toRad(p.angle-90);
+  const rx = Math.cos(rad), ry = Math.sin(rad);
+  const ax = CENTRE.x + rx*(p.r + bpDist());
+  const ay = CENTRE.y + ry*(p.r + bpDist());
+  const startOff = -((count-1)*pillStep())/2;
+  return Array.from({length:count}, (_,i) => ({ x:ax, y:ay + startOff + i*pillStep() }));
+}
+
+// AAT pills: same y-values, horizontally offset inward
+function aatPillPositions(boardId, count) {
+  const bp = boardPillPositions(boardId, count);
+  const p  = POS[boardId];
+  const rx = Math.cos(toRad(p.angle-90));
+  const ry = Math.sin(toRad(p.angle-90));
+  let xOff;
+  if (Math.abs(rx) > 0.2) xOff = rx > 0 ? -(pillW()+pillGap()) : (pillW()+pillGap());
+  else xOff = ry < 0 ? (pillW()+pillGap()) : -(pillW()+pillGap());
+  return bp.map(pos => ({ x: pos.x + xOff, y: pos.y }));
+}
+
+function singleColumnPositions(boardId, count) { return boardPillPositions(boardId, count); }
+
+// ═══════════════════════════════════════════════════════════════
+// SVG HELPERS
+// ═══════════════════════════════════════════════════════════════
+function svgEl(tag, attrs={}) {
+  const el = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k,v);
+  return el;
+}
+function measureTextWidth(text, fontSize) {
+  const svg = document.getElementById('diagram');
+  const t = svgEl('text', {'font-family':"'DM Sans',sans-serif",'font-size':fontSize,'font-weight':500,visibility:'hidden'});
+  t.textContent = text; svg.appendChild(t);
+  const w = t.getBBox().width; svg.removeChild(t);
+  return Math.ceil(w);
+}
+function trunc(str, n=28) { return str.length > n ? str.slice(0,n-1)+'…' : str; }
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER BASE
+// ═══════════════════════════════════════════════════════════════
+function renderBase() { renderBaseConnectors(); renderNodes(); }
+
+function renderBaseConnectors() {
+  const g = document.getElementById('base-connectors');
+  g.innerHTML = '';
+  BASE_CONNECTIONS.forEach(c => {
+    const from = getNodePos(c.from), to = getNodePos(c.to);
+    const board = BOARDS.find(b => b.id === (c.to==='aat' ? c.from : c.to));
+    const color = board ? CLUSTERS[board.cluster].color : '#CBD5E1';
+    const isAat = c.from==='aat' || c.to==='aat';
+    if (isAat) {
+      g.appendChild(svgEl('line', {x1:from.x,y1:from.y,x2:to.x,y2:to.y,stroke:color,'stroke-width':2.5,opacity:0.4,class:'base-connector','data-from':c.from,'data-to':c.to}));
+    } else {
+      const mx=(from.x+to.x)/2, my=(from.y+to.y)/2;
+      const cx=mx+(CENTRE.x-mx)*0.22, cy=my+(CENTRE.y-my)*0.22;
+      g.appendChild(svgEl('path',{d:`M${from.x},${from.y} Q${cx},${cy} ${to.x},${to.y}`,fill:'none',stroke:color,'stroke-width':1.8,opacity:0.28,'stroke-dasharray':'6,4',class:'base-connector','data-from':c.from,'data-to':c.to}));
+    }
+  });
+}
+
+function renderNodes() {
+  const g = document.getElementById('nodes');
+  g.innerHTML = '';
+  // AAT centre
+  const aatR = Math.round(FS*8);
+  const aG = svgEl('g', {class:'node-wrap','data-id':'aat',transform:`translate(${CENTRE.x},${CENTRE.y})`});
+  aG.appendChild(svgEl('circle',{r:aatR+14,fill:'rgba(27,67,50,0.06)'}));
+  aG.appendChild(svgEl('circle',{r:aatR+5,fill:'none',stroke:'#52B788','stroke-width':1.5,opacity:0.2}));
+  aG.appendChild(svgEl('circle',{r:aatR,fill:'#1B4332',filter:'url(#sh-aat)',class:'node-card'}));
+  const ly = Math.round(FS*1.1);
+  [['Artist Advancing',-ly,'white','node-label-main'],['Tracker',ly*0.55,'white','node-label-main'],['150 fields · HUB',ly*2.1,'rgba(255,255,255,0.5)','node-label-sub']].forEach(([txt,y,fill,cls])=>{
+    const t=svgEl('text',{y,fill,class:cls,'font-size':Math.round(FS*(cls==='node-label-sub'?0.68:1.0))});
+    t.textContent=txt; aG.appendChild(t);
+  });
+  aG.addEventListener('click', ()=>{ if(expandedBoard) collapseAll(); else showAATCard(); });
+  aG.addEventListener('mouseenter', e=>showTip(e,'Artist Advancing Tracker','Click for field summary · double-click to fit','150 fields'));
+  aG.addEventListener('mouseleave', hideTip);
+  g.appendChild(aG);
+
+  // Satellite boards — PASTEL CIRCLES (restored from v4)
+  BOARDS.forEach(board => {
+    const pos     = getNodePos(board.id);
+    const cluster = CLUSTERS[board.cluster];
+    const lines   = board.label.split('\n');
+    const r       = Math.round(FS * 3.5);   // circle radius
+    const isExp   = expandedBoard === board.id;
+    const node    = svgEl('g', {class:'node-wrap','data-id':board.id,transform:`translate(${pos.x},${pos.y})`});
+
+    // Outer halo
+    node.appendChild(svgEl('circle',{r:r+10, fill: isExp ? cluster.color : cluster.light, opacity: isExp ? 0.2 : 0.4}));
+    // Main circle
+    node.appendChild(svgEl('circle',{
+      r,
+      fill:   isExp ? cluster.mid  : 'white',
+      stroke: cluster.color,
+      'stroke-width': isExp ? 0 : 2.5,
+      'stroke-dasharray': (board.isNew && !isExp) ? '8,4' : 'none',
+      filter: 'url(#sh-sm)', class:'node-card',
+    }));
+
+    // Labels
+    const ls = Math.round(FS * 1.0);
+    const textColor = isExp ? 'white' : cluster.color;
+    lines.forEach((line, li) => {
+      const yOff = lines.length > 1 ? (li===0 ? -Math.round(ls*0.55) : Math.round(ls*0.55)) : 0;
+      const t = svgEl('text',{y:yOff, fill:textColor, class:'node-label-main','font-size':Math.round(FS*0.7)});
+      t.textContent = line; node.appendChild(t);
+    });
+    const countY = lines.length > 1 ? Math.round(ls*1.6) : Math.round(FS*0.78);
+    const fc = svgEl('text',{y:countY, fill:isExp?'rgba(255,255,255,0.7)':cluster.color, class:'node-count','font-size':Math.round(FS*0.5), opacity:0.85});
+    fc.textContent = `${board.fields} fields`; node.appendChild(fc);
+
+    // NEW badge — small filled circle top-right
+    if (board.isNew) {
+      const bR = Math.round(FS*0.5), bX = Math.round(r*0.7), bY = -Math.round(r*0.7);
+      node.appendChild(svgEl('circle',{cx:bX,cy:bY,r:bR,fill:cluster.color}));
+      const nt = svgEl('text',{x:bX,y:bY+1,fill:'white','font-size':Math.round(FS*0.36),'font-weight':800,'text-anchor':'middle','dominant-baseline':'middle'});
+      nt.textContent='N'; node.appendChild(nt);
+    }
+
+    node.addEventListener('click', ()=>toggleBoard(board.id));
+    node.addEventListener('mouseenter', e=>showTip(e,board.label.replace('\n',' '),`${cluster.label} · ${board.isNew?'New EC12':'Existing'} · ${board.fields} fields`,'Click to expand'));
+    node.addEventListener('mouseleave', hideTip);
+    g.appendChild(node);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
+// RENDER FIELD LAYER
+// ═══════════════════════════════════════════════════════════════
+function renderFieldLayer() {
+  document.getElementById('field-pills').innerHTML='';
+  document.getElementById('field-connectors').innerHTML='';
+  if (!expandedBoard || fieldMode==='none') return;
+  fieldMode==='connected' ? renderConnected() : renderFieldList();
+}
+
+function renderConnected() {
+  const fpg=document.getElementById('field-pills'), fcg=document.getElementById('field-connectors');
+  const board=BOARDS.find(b=>b.id===expandedBoard); if(!board) return;
+  const cluster=CLUSTERS[board.cluster];
+  const conns=FIELD_CONNECTIONS.filter(c=>c.boardId===expandedBoard);
+  if(!conns.length) return;
+
+  const bp=boardPillPositions(expandedBoard,conns.length);
+  const ap=aatPillPositions(expandedBoard,conns.length);
+  const hdrFS=Math.round(FS*0.75);
+
+  // Headers
+  const labelY=Math.min(...ap.map(p=>p.y),...bp.map(p=>p.y))-pillH()/2-Math.round(FS*1.0);
+  const aHdr=svgEl('text',{x:ap[0].x,y:labelY,fill:'#52B788','font-family':"'DM Sans',sans-serif",'font-size':hdrFS,'font-weight':700,'text-anchor':'middle','letter-spacing':'0.5'});
+  aHdr.textContent='ARTIST ADVANCING TRACKER'; fcg.appendChild(aHdr);
+  const bHdr=svgEl('text',{x:bp[0].x,y:labelY,fill:cluster.color,'font-family':"'DM Sans',sans-serif",'font-size':hdrFS,'font-weight':700,'text-anchor':'middle','letter-spacing':'0.5'});
+  bHdr.textContent=board.label.replace('\n',' ').toUpperCase(); fcg.appendChild(bHdr);
+
+  // Spine lines
+  const maxY=Math.max(...ap.map(p=>p.y),...bp.map(p=>p.y))+pillH()/2+6;
+  fcg.appendChild(svgEl('line',{x1:ap[0].x,y1:labelY+6,x2:ap[0].x,y2:maxY,stroke:'#1B4332','stroke-width':0.8,opacity:0.12}));
+  fcg.appendChild(svgEl('line',{x1:bp[0].x,y1:labelY+6,x2:bp[0].x,y2:maxY,stroke:cluster.color,'stroke-width':0.8,opacity:0.12}));
+
+  // Elbow from board node
+  const p=POS[expandedBoard], rad=toRad(p.angle-90), rx=Math.cos(rad), ry=Math.sin(rad);
+  const eX=CENTRE.x+rx*(p.r+Math.round(FS*2)), eY=CENTRE.y+ry*(p.r+Math.round(FS*2));
+  const aX=CENTRE.x+rx*(p.r+bpDist()), aY=CENTRE.y+ry*(p.r+bpDist());
+  fcg.appendChild(svgEl('line',{x1:eX,y1:eY,x2:aX,y2:aY,stroke:cluster.color,'stroke-width':1.5,opacity:0.25}));
+  fcg.appendChild(svgEl('circle',{cx:aX,cy:aY,r:3,fill:cluster.color,opacity:0.4}));
+
+  conns.forEach((conn,i)=>{
+    const bPos=bp[i], aPos=ap[i];
+    const leftX=Math.min(aPos.x,bPos.x)+pillW()/2, rightX=Math.max(aPos.x,bPos.x)-pillW()/2;
+    const line=svgEl('line',{x1:leftX,y1:aPos.y,x2:rightX,y2:aPos.y,stroke:conn.type==='key'?'#5B8FF9':'#B07FE8','stroke-width':1.5,'stroke-dasharray':conn.type==='mirror'?'6,4':'none',opacity:0.4,class:'field-connector'});
+    line.addEventListener('mouseenter',e=>{line.setAttribute('opacity',1);line.setAttribute('stroke-width',3);showTip(e,`${conn.aatName} ↔ ${conn.boardName}`,conn.type==='key'?'↔ board relation':'⟵ mirror',`AAT: ${conn.aatFid}  ·  Board: ${conn.boardFid}`);});
+    line.addEventListener('mouseleave',()=>{line.setAttribute('opacity',0.4);line.setAttribute('stroke-width',1.5);hideTip();});
+    fcg.appendChild(line);
+    fpg.appendChild(makeBox(bPos,conn.boardName,conn.type,cluster.color,false,e=>showTip(e,conn.boardName,board.label.replace('\n',' '),`${conn.type} · ${conn.boardFid}`)));
+    fpg.appendChild(makeBox(aPos,conn.aatName,conn.type,'#1B4332',true,e=>showTip(e,conn.aatName,'Artist Advancing Tracker',`${conn.type} · ${conn.aatFid}`)));
+  });
+}
+
+function renderFieldList() {
+  const fpg=document.getElementById('field-pills'), fcg=document.getElementById('field-connectors');
+  const board=BOARDS.find(b=>b.id===expandedBoard); if(!board) return;
+  const cluster=CLUSTERS[board.cluster];
+  const allFields=BOARD_FIELDS[expandedBoard]||[];
+  const connMap={};
+  FIELD_CONNECTIONS.filter(c=>c.boardId===expandedBoard).forEach(c=>{connMap[c.boardFid]=c;});
+  const connectedFids=new Set(Object.keys(connMap));
+
+  if (fieldMode==='input') {
+    const fields=allFields.filter(f=>['input','status','date','people','file'].includes(f.type));
+    const positions=singleColumnPositions(expandedBoard,fields.length); if(!positions.length) return;
+    _drawColHdr(fcg,positions[0],cluster.color,board.label,expandedBoard);
+    fields.forEach((f,i)=>fpg.appendChild(makeBox(positions[i],f.name,f.type,cluster.color,false,e=>showTip(e,f.name,`Type: ${f.type}`,f.fid))));
+    return;
+  }
+
+  if (fieldMode==='all') {
+    const cross=allFields.filter(f=>f.type==='key'||f.type==='mirror'||connectedFids.has(f.fid));
+    const inp=allFields.filter(f=>!cross.includes(f));
+    const totalRows=cross.length+(inp.length>0?inp.length+1:0);
+    const positions=singleColumnPositions(expandedBoard,totalRows); if(!positions.length) return;
+    _drawColHdr(fcg,positions[0],cluster.color,board.label,expandedBoard);
+
+    const p=POS[expandedBoard], rad=toRad(p.angle-90), rx=Math.cos(rad), ry=Math.sin(rad);
+    let xOff;
+    if (Math.abs(rx)>0.2) xOff=rx>0?-(pillW()+pillGap()):(pillW()+pillGap());
+    else xOff=ry<0?(pillW()+pillGap()):-(pillW()+pillGap());
+
+    cross.forEach((f,i)=>{
+      const bPos=positions[i];
+      fpg.appendChild(makeBox(bPos,f.name,f.type,cluster.color,false,e=>showTip(e,f.name,`Type: ${f.type}`,f.fid)));
+      const conn=connMap[f.fid];
+      if (conn) {
+        const aPos={x:bPos.x+xOff,y:bPos.y};
+        const lX=Math.min(bPos.x,aPos.x)+pillW()/2, rX=Math.max(bPos.x,aPos.x)-pillW()/2;
+        fcg.appendChild(svgEl('line',{x1:lX,y1:bPos.y,x2:rX,y2:bPos.y,stroke:f.type==='key'?'#5B8FF9':'#B07FE8','stroke-width':1.5,'stroke-dasharray':f.type==='mirror'?'6,4':'none',opacity:0.4}));
+        fpg.appendChild(makeBox(aPos,conn.aatName,conn.type,'#1B4332',true,e=>showTip(e,conn.aatName,'Artist Advancing Tracker',`${conn.type} · ${conn.aatFid}`)));
+      }
+    });
+    if (inp.length>0) {
+      const dPos=positions[cross.length];
+      const dl=svgEl('text',{x:dPos.x,y:dPos.y,'font-family':"'DM Sans',sans-serif",'font-size':Math.round(FS*0.65),'font-weight':700,'text-anchor':'middle','dominant-baseline':'middle',fill:cluster.color,opacity:0.45,'letter-spacing':'0.5'});
+      dl.textContent='— INPUT FIELDS —'; fcg.appendChild(dl);
+      inp.forEach((f,j)=>fpg.appendChild(makeBox(positions[cross.length+1+j],f.name,f.type,cluster.color,false,e=>showTip(e,f.name,`Type: ${f.type}`,f.fid),true)));
+    }
+    return;
+  }
+}
+
+function _drawColHdr(fcg, topPos, color, boardLabel, boardId) {
+  const labelY=topPos.y-pillH()/2-Math.round(FS*1.0);
+  const hdr=svgEl('text',{x:topPos.x,y:labelY,fill:color,'font-family':"'DM Sans',sans-serif",'font-size':Math.round(FS*0.75),'font-weight':700,'text-anchor':'middle','letter-spacing':'0.5'});
+  hdr.textContent=boardLabel.replace('\n',' ').toUpperCase(); fcg.appendChild(hdr);
+  const p=POS[boardId]; if(!p) return;
+  const rad=toRad(p.angle-90), rx=Math.cos(rad), ry=Math.sin(rad);
+  fcg.appendChild(svgEl('line',{x1:CENTRE.x+rx*(p.r+Math.round(FS*2)),y1:CENTRE.y+ry*(p.r+Math.round(FS*2)),x2:CENTRE.x+rx*(p.r+bpDist()),y2:CENTRE.y+ry*(p.r+bpDist()),stroke:color,'stroke-width':1.5,opacity:0.25}));
+}
+
+function makeBox(pos, name, type, accentColor, isAat, onEnter, dimmed=false) {
+  const ft=FT[type]||FT.input;
+  const label=trunc(name);
+  const tw=measureTextWidth(label,FS);
+  const iconSp=Math.round(FS*1.55);
+  const pw=tw+iconSp+Math.round(FS*0.9);
+  const ph=pillH(), r=Math.round(ph/2);
+  const iconX=-pw/2+Math.round(iconSp*0.45);
+  const labelX=-pw/2+iconSp;
+  const g=svgEl('g',{class:'field-box',transform:`translate(${pos.x},${pos.y})`,opacity:dimmed?0.45:1});
+
+  if (isAat) {
+    g.appendChild(svgEl('rect',{x:-pw/2,y:-ph/2,width:pw,height:ph,rx:r,fill:'#1B4332',filter:'url(#sh-sm)'}));
+    g.appendChild(svgEl('rect',{x:-pw/2,y:-ph/2,width:5,height:ph,rx:r,fill:'#52B788'}));
+    const ic=svgEl('text',{x:iconX,y:1,'font-size':Math.round(FS*0.68),'text-anchor':'middle','dominant-baseline':'middle','pointer-events':'none',fill:'#52B788','font-weight':700});
+    ic.textContent=ft.icon; g.appendChild(ic);
+    const lb=svgEl('text',{x:labelX,y:1,'font-family':"'DM Sans',sans-serif",'font-size':FS,'font-weight':500,'dominant-baseline':'middle','pointer-events':'none',fill:'rgba(255,255,255,0.92)'});
+    lb.textContent=label; g.appendChild(lb);
+  } else {
+    g.appendChild(svgEl('rect',{x:-pw/2,y:-ph/2,width:pw,height:ph,rx:r,fill:'white',stroke:accentColor,'stroke-width':1.5,'stroke-opacity':0.35,filter:'url(#sh-sm)'}));
+    g.appendChild(svgEl('circle',{cx:iconX,cy:0,r:Math.round(ph*0.22),fill:ft.bg}));
+    const ic=svgEl('text',{x:iconX,y:1,'font-size':Math.round(FS*0.66),'text-anchor':'middle','dominant-baseline':'middle','pointer-events':'none',fill:ft.text,'font-weight':600});
+    ic.textContent=ft.icon; g.appendChild(ic);
+    const lb=svgEl('text',{x:labelX,y:1,'font-family':"'DM Sans',sans-serif",'font-size':FS,'font-weight':500,'dominant-baseline':'middle','pointer-events':'none',fill:ft.text});
+    lb.textContent=label; g.appendChild(lb);
+  }
+  g.style.cursor='default';
+  if (onEnter) { g.addEventListener('mouseenter',onEnter); g.addEventListener('mouseleave',hideTip); }
+  return g;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// AAT CARD
+// ═══════════════════════════════════════════════════════════════
+const AAT_CATEGORIES = [
+  {name:'Performance / Timing',color:'#5B8FF9',lightBg:'#E8F0FE',count:18,boardId:'stage_timings',boardLabel:'Live Stage Timings'},
+  {name:'Accommodation',       color:'#45C9A0',lightBg:'#DCFAF0',count:16,boardId:'accommodation',boardLabel:'Accommodation'},
+  {name:'Transfers',           color:'#F4A940',lightBg:'#FFF3DC',count:14,boardId:'transfers',    boardLabel:'Transfers'},
+  {name:'Flights',             color:'#F4A940',lightBg:'#FFF3DC',count:12,boardId:'flights',      boardLabel:'Flights'},
+  {name:'People / Contacts',   color:'#B07FE8',lightBg:'#F0E8FF',count:11,boardId:'team_members', boardLabel:'Team Members'},
+  {name:'Rider & Technical',   color:'#F47F6B',lightBg:'#FFE8E4',count:14,boardId:null,boardLabel:null},
+  {name:'Media & PR',          color:'#E06090',lightBg:'#FFE8F5',count:6, boardId:null,boardLabel:null},
+  {name:'Catering',            color:'#45C9A0',lightBg:'#DCFAF0',count:6, boardId:null,boardLabel:null},
+  {name:'Dressing Rooms',      color:'#B07FE8',lightBg:'#F0E8FF',count:5, boardId:'dressing_rooms',boardLabel:'Dressing Rooms'},
+  {name:'Artist Party',        color:'#B07FE8',lightBg:'#F0E8FF',count:8, boardId:'artist_party',  boardLabel:'Artist Party'},
+  {name:'Stages',              color:'#5B8FF9',lightBg:'#E8F0FE',count:4, boardId:'stages',        boardLabel:'Stages'},
+  {name:'Formulas / Computed', color:'#F4A940',lightBg:'#FFF3DC',count:7, boardId:null,boardLabel:null},
+  {name:'Admin / Status',      color:'#9CA3AF',lightBg:'#F3F4F6',count:12,boardId:null,boardLabel:null},
+];
+
+let _cardView='categories';
+function showAATCard() { _cardView='categories'; _renderAATCard(); document.getElementById('aat-card').classList.add('visible'); }
+function hideAATCard() { document.getElementById('aat-card').classList.remove('visible'); _cardView='categories'; }
+
+function _renderAATCard() {
+  const body=document.getElementById('aat-card-body');
+  const nav=document.getElementById('aat-card-nav');
+  if (_cardView==='categories') {
+    nav.style.display='none';
+    body.innerHTML=AAT_CATEGORIES.map(cat=>`
+      <div class="aat-cat-row ${cat.boardId?'aat-cat-clickable':''}" style="border-color:${cat.lightBg}" ${cat.boardId?`onclick="_drillInto('${cat.boardId}')"`:''}>
+        <span class="aat-cat-name">${cat.name}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+          ${cat.boardId?`<span style="font-size:10px;color:${cat.color};opacity:0.7">${cat.boardLabel} →</span>`:''}
+          <span class="aat-cat-count" style="background:${cat.lightBg};color:${cat.color}">${cat.count}</span>
+        </div>
+      </div>`).join('');
+  } else {
+    const cat=AAT_CATEGORIES.find(c=>c.boardId===_cardView);
+    const conns=FIELD_CONNECTIONS.filter(c=>c.boardId===_cardView);
+    const board=BOARDS.find(b=>b.id===_cardView);
+    const cluster=board?CLUSTERS[board.cluster]:null;
+    nav.style.display='flex';
+    nav.innerHTML=`<button onclick="_cardView='categories';_renderAATCard()" class="aat-back-btn">← All categories</button><span class="aat-drill-title" style="color:${cluster?cluster.color:'#555'}">${cat?cat.name:_cardView}</span>`;
+    if (!conns.length) { body.innerHTML=`<div style="padding:24px;color:#9CA3AF;font-size:13px;grid-column:1/-1">No cross-board connections found.</div>`; return; }
+    body.innerHTML=`<div class="aat-field-table" style="grid-column:1/-1">
+      <div class="aft-head"><span>AAT field name</span><span>↔</span><span>${board?board.label.replace('\n',' '):_cardView} field</span><span>Field ID</span><span>Type</span></div>
+      ${conns.map(conn=>{const ft=FT[conn.type]||FT.input;return`<div class="aft-row"><span class="aft-aat">${conn.aatName}</span><span class="aft-arrow" style="color:${conn.type==='key'?'#5B8FF9':'#B07FE8'}">${conn.type==='key'?'↔':'⟵'}</span><span class="aft-board" style="color:${cluster?cluster.color:'#555'}">${conn.boardName}</span><span class="aft-fid">${conn.aatFid}</span><span class="aft-type" style="background:${ft.bg};color:${ft.text}">${conn.type}</span></div>`;}).join('')}
+    </div>`;
+  }
+}
+function _drillInto(id) { _cardView=id; _renderAATCard(); }
+document.addEventListener('click', e=>{
+  const card=document.getElementById('aat-card');
+  if (card.classList.contains('visible')&&!card.contains(e.target)&&!e.target.closest('.node-wrap')) hideAATCard();
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INTERACTIONS
+// ═══════════════════════════════════════════════════════════════
+function toggleBoard(id) {
+  const was=expandedBoard===id;
+  expandedBoard=was?null:id;
+  renderNodes(); renderFieldLayer();
+  if (!was && fieldMode!=='none') requestAnimationFrame(()=>requestAnimationFrame(()=>zoomToFitCluster(id)));
+}
+function collapseAll() { expandedBoard=null; renderNodes(); renderFieldLayer(); }
+function setFieldMode(mode) {
+  fieldMode=mode;
+  document.querySelectorAll('.btn-mode').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  document.getElementById('field-legend').classList.toggle('visible',mode==='all'||mode==='input');
+  const msgs={connected:'Click any board to expand connected fields',input:'Click any board to see its input fields',all:'Click any board — cross-board fields on top, input fields below',none:'Overview mode'};
+  document.getElementById('instructions').textContent=msgs[mode]||'';
+  renderNodes(); renderFieldLayer();
+}
+function setFilter(mode) {
+  filterMode=mode;
+  document.querySelectorAll('.btn-ctrl').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`btn-${mode}`).classList.add('active');
+  BOARDS.forEach(board=>{
+    const el=document.querySelector(`.node-wrap[data-id="${board.id}"]`); if(!el) return;
+    if(mode==='all') el.setAttribute('opacity',1);
+    else if(mode==='existing') el.setAttribute('opacity',board.isNew?0.12:1);
+    else if(mode==='new') el.setAttribute('opacity',board.isNew?1:0.12);
+  });
+}
+
+function zoomToFitCluster(boardId) {
+  const conns=FIELD_CONNECTIONS.filter(c=>c.boardId===boardId);
+  let fields=BOARD_FIELDS[boardId]||[];
+  if(fieldMode==='input') fields=fields.filter(f=>['input','status','date','people','file'].includes(f.type));
+  let rowCount=fieldMode==='connected'?conns.length:fields.length;
+  if(fieldMode==='all') rowCount=fields.length+(conns.length>0?conns.length+1:0);
+  if(rowCount===0) return;
+  const bp=boardPillPositions(boardId,rowCount);
+  const ap=aatPillPositions(boardId,rowCount);
+  const all=[...bp,...ap];
+  const halfPW=pillW()/2;
+  const x1=Math.min(...all.map(p=>p.x))-halfPW-20;
+  const x2=Math.max(...all.map(p=>p.x))+halfPW+20;
+  const y1=Math.min(...all.map(p=>p.y))-pillH()/2-Math.round(FS*2.5);
+  const y2=Math.max(...all.map(p=>p.y))+pillH()/2+20;
+  const np=getNodePos(boardId), nr=Math.round(FS*2.5);
+  zoomToSVGRect(Math.min(x1,np.x-nr),Math.min(y1,np.y-nr),Math.max(x2,np.x+nr)-Math.min(x1,np.x-nr),Math.max(y2,np.y+nr)-Math.min(y1,np.y-nr),56);
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TOOLTIP
+// ═══════════════════════════════════════════════════════════════
+const tooltip=document.getElementById('tooltip');
+function showTip(e,name,sub,fid){tooltip.innerHTML=`<strong>${name}</strong><span class="tt-sub">${sub||''}</span>${fid?`<span class="tt-fid">${fid}</span>`:''}`; tooltip.classList.add('visible');}
+function hideTip(){tooltip.classList.remove('visible');}
+document.addEventListener('mousemove',e=>{tooltip.style.left=(e.clientX+14)+'px';tooltip.style.top=(e.clientY-8)+'px';});
+
+// ═══════════════════════════════════════════════════════════════
+// ZOOM & PAN ENGINE
+// ═══════════════════════════════════════════════════════════════
+const surface=document.getElementById('zoom-surface');
+const wrap=document.getElementById('canvas-wrap');
+const zoomLbl=document.getElementById('zoom-label');
+const Z={scale:1,tx:0,ty:0,minScale:0.1,maxScale:8};
+
+function applyTransform(animate=false){
+  surface.style.transition=animate?'transform 0.38s cubic-bezier(0.25,0.8,0.25,1)':'none';
+  surface.style.transform=`translate(${Z.tx}px,${Z.ty}px) scale(${Z.scale})`;
+  zoomLbl.textContent=Math.round(Z.scale*100)+'%';
+}
+function zoomToward(cx,cy,factor){
+  const ns=Math.min(Z.maxScale,Math.max(Z.minScale,Z.scale*factor));
+  const r=ns/Z.scale;
+  Z.tx=cx-r*(cx-Z.tx); Z.ty=cy-r*(cy-Z.ty); Z.scale=ns;
+  applyTransform();
+}
+function zoomBy(f){const r=wrap.getBoundingClientRect(); zoomToward(r.left+r.width/2,r.top+r.height/2,f);}
+function zoomReset(){
+  const r=wrap.getBoundingClientRect();
+  Z.scale=Math.min(Z.maxScale,Math.max(Z.minScale,r.width/1600));
+  Z.tx=(r.width-1600*Z.scale)/2; Z.ty=(r.height-1900*Z.scale)/2;
+  applyTransform(true);
+}
+function zoomToSVGRect(svgX,svgY,svgW,svgH,pad=48){
+  const svg=document.getElementById('diagram');
+  const vb=svg.getAttribute('viewBox').split(' ').map(Number);
+  const wr=wrap.getBoundingClientRect();
+  const ppu=1600/vb[2];
+  const ns=Math.min(Z.maxScale,Math.max(Z.minScale,Math.min((wr.width-pad*2)/(svgW*ppu),(wr.height-pad*2)/(svgH*ppu))));
+  const cx=(svgX+svgW/2-vb[0])*ppu, cy=(svgY+svgH/2-vb[1])*ppu;
+  Z.tx=wr.width/2-cx*ns; Z.ty=wr.height/2-cy*ns; Z.scale=ns;
+  applyTransform(true);
+}
+let pinchDist=null,pinchMid=null;
+wrap.addEventListener('touchstart',e=>{
+  if(e.touches.length!==2)return;
+  pinchDist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  pinchMid={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
+  e.preventDefault();
+},{passive:false});
+wrap.addEventListener('touchmove',e=>{
+  if(e.touches.length!==2||!pinchDist)return;
+  const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);
+  const m={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
+  zoomToward(m.x,m.y,d/pinchDist);Z.tx+=m.x-pinchMid.x;Z.ty+=m.y-pinchMid.y;
+  applyTransform();pinchDist=d;pinchMid=m;e.preventDefault();
+},{passive:false});
+wrap.addEventListener('touchend',()=>{pinchDist=null;pinchMid=null;});
+wrap.addEventListener('wheel',e=>{e.preventDefault();zoomToward(e.clientX,e.clientY,e.ctrlKey?Math.pow(0.995,e.deltaY):(e.deltaY<0?1.1:0.91));},{passive:false});
+let drag={active:false};
+wrap.addEventListener('mousedown',e=>{if(e.target.closest('.node-wrap,.field-box,.field-connector'))return;drag={active:true,startX:e.clientX,startY:e.clientY,startTx:Z.tx,startTy:Z.ty};wrap.classList.add('panning');});
+window.addEventListener('mousemove',e=>{if(!drag.active)return;Z.tx=drag.startTx+(e.clientX-drag.startX);Z.ty=drag.startTy+(e.clientY-drag.startY);applyTransform();});
+window.addEventListener('mouseup',()=>{drag.active=false;wrap.classList.remove('panning');});
+wrap.addEventListener('dblclick',e=>{const n=e.target.closest('.node-wrap');if(!n)return;const id=n.getAttribute('data-id');if(id&&id!=='aat'){e.stopPropagation();const svg=document.getElementById('diagram');const vb=svg.getAttribute('viewBox').split(' ').map(Number);const sr=svg.getBoundingClientRect();const pos=getNodePos(id);const vpx=sr.left+(pos.x-vb[0])*(sr.width/vb[2]),vpy=sr.top+(pos.y-vb[1])*(sr.height/vb[3]);const wr=wrap.getBoundingClientRect();const ns=Math.min(Z.maxScale,2.5);const r=ns/Z.scale;Z.tx=(vpx-wr.left)*(1-r)+Z.tx;Z.ty=(vpy-wr.top)*(1-r)+Z.ty;Z.scale=ns;applyTransform(true);}else if(id==='aat')zoomReset();});
+window.addEventListener('load',()=>setTimeout(zoomReset,80));
+
+renderBase();
+</script>
+</body>
+</html>

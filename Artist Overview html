@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EC12 — Hospitality Manager</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+
+/* ── RESET ──────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── PALETTE ────────────────────────────────────────────────── */
+/* Edit this block to retheme the entire app. No hex codes appear anywhere else. */
+:root {
+  /* Primary — deep festival navy */
+  --primary:        #1A2942;
+  --primary-mid:    #243656;
+  --primary-dark:   #0F1E35;
+  --primary-light:  #3D5A8A;
+  --primary-pale:   #E8EEF7;
+
+  /* Background — warm off-white */
+  --cream:      #F4F1EB;
+  --cream-dark: #E5DFD3;
+
+  /* Accent A — coral / blocked / alert */
+  --accent-a:       #C85A45;
+  --accent-a-light: #FAECE9;
+
+  /* Accent B — amber / in progress / warn */
+  --accent-b:       #B87010;
+  --accent-b-light: #FEF3C7;
+
+  /* Accent C — green / complete / good */
+  --accent-c:       #1A7A50;
+  --accent-c-light: #D1FAE5;
+
+  /* Accent D — blue / info */
+  --accent-d:       #2558C9;
+  --accent-d-light: #DBEAFE;
+
+  /* Tier colours */
+  --tier-headliner-col: #6D3AC9;
+  --tier-headliner-bg:  #F0EBFF;
+  --tier-sub-col:       #2558C9;
+  --tier-sub-bg:        #EBF1FF;
+  --tier-support-col:   #1A7A50;
+  --tier-support-bg:    #E8F7F1;
+  --tier-local-col:     #6B7280;
+  --tier-local-bg:      #F3F4F6;
+
+  /* Origin colours */
+  --origin-int-col:   #1A2942;
+  --origin-int-bg:    #DDE4F0;
+  --origin-ro-col:    #7A3A0A;
+  --origin-ro-bg:     #FDE8CC;
+  --origin-local-col: #374151;
+  --origin-local-bg:  #E5E7EB;
+
+  /* Text scale */
+  --text:      #16213A;
+  --text-mid:  #4A5568;
+  --text-soft: #8B95A8;
+  --text-inv:  #EEF2FF;
+
+  /* Borders */
+  --border:      #D8D2C6;
+  --border-dark: #BDB7A8;
+}
+
+/* ── LOADER ─────────────────────────────────────────────────── */
+#loader {
+  position: fixed; inset: 0;
+  background: rgba(15, 30, 53, 0.92);
+  z-index: 9999;
+  display: none;
+  flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+}
+#loader .spin {
+  width: 34px; height: 34px;
+  border: 3px solid rgba(255,255,255,0.12);
+  border-top-color: #5B8FD4;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#loader p { color: rgba(240,242,255,0.5); font-size: 11px; letter-spacing: 0.5px; }
+
+/* ── APP HEADER (3-bar stack) ───────────────────────────────── */
+.app-header { position: sticky; top: 0; z-index: 100; }
+
+/* Bar 1 — Identity */
+.header-bar {
+  background: var(--primary);
+  padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-identity { display: flex; align-items: baseline; gap: 14px; }
+.header-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  color: var(--text-inv);
+  letter-spacing: -0.3px;
+}
+.header-subtitle {
+  font-size: 10px;
+  color: rgba(238,242,255,0.4);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+}
+.header-actions { display: flex; gap: 8px; }
+.header-btn {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: rgba(238,242,255,0.6);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 500;
+  padding: 5px 12px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s;
+}
+.header-btn:hover { background: rgba(255,255,255,0.14); color: white; }
+.header-btn.accent {
+  background: var(--primary-light);
+  border-color: transparent;
+  color: white;
+}
+.header-btn.accent:hover { background: #4D6FA0; }
+
+/* Bar 2 — Context (view tabs + filters) */
+.context-bar {
+  background: var(--primary-mid);
+  padding: 0 20px;
+  display: flex; align-items: stretch; justify-content: space-between; gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  overflow-x: auto;
+}
+.context-bar::-webkit-scrollbar { display: none; }
+
+/* View tabs */
+.view-tabs { display: flex; flex-shrink: 0; }
+.view-tab {
+  background: none; border: none;
+  color: rgba(238,242,255,0.45);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 500;
+  padding: 13px 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.view-tab:hover { color: rgba(238,242,255,0.8); }
+.view-tab.active { color: white; border-bottom-color: #5B8FD4; }
+
+/* Filters */
+.filter-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 0; flex-wrap: nowrap;
+  overflow-x: auto; flex: 1;
+}
+.filter-row::-webkit-scrollbar { display: none; }
+.filter-label {
+  font-size: 9px; font-weight: 600;
+  color: rgba(238,242,255,0.28);
+  text-transform: uppercase; letter-spacing: 0.8px;
+  flex-shrink: 0;
+}
+.filter-pill {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(238,242,255,0.55);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px; font-weight: 500;
+  padding: 3px 10px; border-radius: 20px;
+  cursor: pointer; transition: all 0.15s;
+  white-space: nowrap; flex-shrink: 0;
+}
+.filter-pill:hover { background: rgba(255,255,255,0.12); color: white; }
+.filter-pill.active { background: var(--primary-light); border-color: transparent; color: white; }
+.filter-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.08); flex-shrink: 0; margin: 0 2px; }
+
+/* Bar 3 — Status (darkest bar) */
+.status-bar {
+  background: var(--primary-dark);
+  padding: 6px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px;
+}
+.status-stats { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.stat-item { display: flex; align-items: center; gap: 5px; color: rgba(238,242,255,0.35); }
+.stat-num { font-size: 13px; font-weight: 600; color: rgba(238,242,255,0.8); }
+.stat-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.stat-dot.complete { background: var(--accent-c); }
+.stat-dot.progress { background: var(--accent-b); }
+.stat-dot.blocked  { background: var(--accent-a); }
+
+.sync-status { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.sync-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.sync-dot.live    { background: var(--accent-c); }
+.sync-dot.offline { background: var(--accent-b); }
+.sync-dot.error   { background: var(--accent-a); }
+#sync-label { font-size: 10px; color: rgba(238,242,255,0.3); }
+
+/* ── MAIN ───────────────────────────────────────────────────── */
+.main { padding: 20px 20px 80px; max-width: 1600px; margin: 0 auto; }
+.view { display: none; }
+.view.active { display: block; }
+
+/* ── PIPELINE VIEW ──────────────────────────────────────────── */
+.pipeline-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px; gap: 12px; flex-wrap: wrap;
+}
+.pipeline-count { font-size: 12px; color: var(--text-soft); }
+.pipeline-count strong { color: var(--text); font-weight: 600; }
+.pipeline-search {
+  background: white; border: 2px solid var(--border);
+  border-radius: 8px; padding: 6px 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text);
+  width: 220px; outline: none; transition: border-color 0.15s;
+}
+.pipeline-search:focus { border-color: var(--primary-light); }
+.pipeline-search::placeholder { color: var(--text-soft); }
+
+.table-wrap {
+  overflow-x: auto; border-radius: 12px;
+  border: 2px solid var(--border); background: white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+}
+.pipeline-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+/* Table header */
+.pipeline-table thead tr { background: var(--primary); }
+.pipeline-table th {
+  padding: 10px 10px; text-align: left;
+  font-size: 9px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  color: rgba(238,242,255,0.45);
+  white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+.pipeline-table th:first-child {
+  position: sticky; left: 0; z-index: 3;
+  background: var(--primary);
+  min-width: 180px; max-width: 220px;
+  color: rgba(238,242,255,0.65);
+}
+.pipeline-table th.step-col {
+  text-align: center; min-width: 58px;
+  padding: 8px 6px;
+}
+.th-snum { display: block; font-size: 13px; font-weight: 700; color: white; margin-bottom: 1px; }
+.th-sname { display: block; font-size: 8px; color: rgba(238,242,255,0.35); letter-spacing: 0.3px; }
+.th-owner { display: block; font-size: 8px; color: rgba(238,242,255,0.2); margin-top: 1px; }
+
+/* Rows */
+.pipeline-table tbody tr { border-top: 1px solid var(--cream-dark); transition: background 0.08s; }
+.pipeline-table tbody tr:hover { background: #F8F5EF; }
+.pipeline-table td {
+  padding: 8px 10px; vertical-align: middle;
+  border-right: 1px solid var(--cream-dark);
+}
+.pipeline-table td:first-child {
+  position: sticky; left: 0; z-index: 1;
+  background: white;
+  border-right: 2px solid var(--border);
+  max-width: 220px;
+}
+.pipeline-table tbody tr:hover td:first-child { background: #F8F5EF; }
+
+/* Artist cell */
+.artist-cell { display: flex; align-items: center; gap: 8px; }
+.artist-link {
+  font-weight: 500; color: var(--text);
+  text-decoration: none; transition: color 0.1s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.artist-link:hover { color: var(--primary-light); text-decoration: underline; }
+
+/* Tier tags */
+.tier-tag {
+  display: inline-flex; align-items: center;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  white-space: nowrap; flex-shrink: 0;
+}
+.tier-headliner    { background: var(--tier-headliner-bg); color: var(--tier-headliner-col); }
+.tier-sub-headliner { background: var(--tier-sub-bg); color: var(--tier-sub-col); }
+.tier-support      { background: var(--tier-support-bg); color: var(--tier-support-col); }
+.tier-local-act    { background: var(--tier-local-bg); color: var(--tier-local-col); }
+
+/* Origin tags */
+.origin-int   { background: var(--origin-int-bg);   color: var(--origin-int-col); }
+.origin-ro    { background: var(--origin-ro-bg);    color: var(--origin-ro-col); }
+.origin-local { background: var(--origin-local-bg); color: var(--origin-local-col); }
+
+/* Lead avatar bubble */
+.lead-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 8px; font-weight: 700; color: white; flex-shrink: 0;
+}
+
+/* Step status cells */
+.step-cell { text-align: center; padding: 6px 4px !important; }
+.step-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700;
+  position: relative; cursor: default;
+}
+.step-dot.s0 { background: var(--cream-dark); color: var(--text-soft); }
+.step-dot.s1 { background: var(--accent-b-light); color: var(--accent-b); border: 1.5px solid var(--accent-b); }
+.step-dot.s2 { background: var(--accent-c-light); color: var(--accent-c); }
+.step-dot.s3 { background: var(--accent-a-light); color: var(--accent-a); }
+/* Tooltip */
+.step-dot:hover::after {
+  content: attr(data-tip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  background: var(--primary); color: white;
+  font-size: 9px; padding: 3px 8px; border-radius: 4px;
+  white-space: nowrap; z-index: 20; pointer-events: none;
+  font-weight: 400;
+}
+
+/* Boolean cells */
+.bool-cell { text-align: center; }
+.bool-yes { color: var(--accent-c); font-weight: 700; font-size: 13px; }
+.bool-no  { color: var(--accent-a); font-weight: 700; font-size: 13px; }
+
+/* Party size cell */
+.party-cell { text-align: center; font-weight: 600; }
+.party-cell.miss { color: var(--accent-a); }
+
+/* Progress bar on artist row — last column */
+.prog-wrap { display: flex; gap: 2px; align-items: center; }
+.prog-seg {
+  height: 4px; flex: 1; border-radius: 2px;
+  background: var(--cream-dark);
+}
+.prog-seg.s1 { background: var(--accent-b); }
+.prog-seg.s2 { background: var(--accent-c); }
+.prog-seg.s3 { background: var(--accent-a); }
+
+/* ── BLOCKERS VIEW ──────────────────────────────────────────── */
+.blockers-hd {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px; gap: 12px; flex-wrap: wrap;
+}
+.blockers-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; color: var(--text);
+}
+.blockers-total { font-size: 12px; color: var(--text-soft); }
+
+.blocker-card {
+  background: white; border: 2px solid var(--border);
+  border-radius: 12px; margin-bottom: 10px; overflow: hidden;
+}
+.blocker-card-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px; cursor: pointer; transition: background 0.1s;
+  user-select: none;
+}
+.blocker-card-hd:hover { background: #FAFAF8; }
+.blocker-card.open .blocker-card-hd { border-bottom: 1px solid var(--border); }
+
+.blocker-left { display: flex; align-items: center; gap: 12px; }
+.blocker-icon {
+  width: 34px; height: 34px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.blocker-icon.red   { background: var(--accent-a-light); }
+.blocker-icon.amber { background: var(--accent-b-light); }
+.blocker-icon.gray  { background: var(--cream-dark); }
+
+.blocker-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.blocker-desc { font-size: 11px; color: var(--text-soft); margin-top: 1px; }
+
+.blocker-right { display: flex; align-items: center; gap: 10px; }
+.blocker-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 9px; border-radius: 10px;
+}
+.blocker-badge.red   { background: var(--accent-a-light); color: var(--accent-a); }
+.blocker-badge.amber { background: var(--accent-b-light); color: var(--accent-b); }
+.blocker-badge.gray  { background: var(--cream-dark); color: var(--text-soft); }
+.blocker-arrow { color: var(--text-soft); font-size: 11px; transition: transform 0.2s; }
+.blocker-card.open .blocker-arrow { transform: rotate(180deg); }
+
+.blocker-list { display: none; }
+.blocker-card.open .blocker-list { display: block; }
+
+.blocker-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 18px;
+  border-bottom: 1px solid var(--cream-dark);
+  font-size: 12px;
+}
+.blocker-row:last-child { border-bottom: none; }
+.blocker-row-name { flex: 1; font-weight: 500; color: var(--text); }
+.blocker-row-meta { display: flex; align-items: center; gap: 8px; }
+.monday-link {
+  font-size: 10px; color: var(--primary-light);
+  text-decoration: none; font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid var(--primary-pale);
+  border-radius: 4px; background: var(--primary-pale);
+  transition: all 0.1s;
+}
+.monday-link:hover { background: var(--primary-light); color: white; border-color: transparent; }
+.lead-name-small { font-size: 10px; color: var(--text-soft); }
+
+/* ── BY LEAD VIEW ───────────────────────────────────────────── */
+.bylead-hd {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 18px;
+}
+.bylead-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; color: var(--text);
+}
+
+.bylead-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+@media (max-width: 900px) { .bylead-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .bylead-grid { grid-template-columns: 1fr; } }
+
+.lead-card {
+  background: white; border: 2px solid var(--border);
+  border-radius: 12px; overflow: hidden;
+}
+.lead-card-hd {
+  background: var(--primary);
+  padding: 16px 18px;
+  display: flex; align-items: center; gap: 12px;
+}
+.lead-avatar-lg {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: rgba(255,255,255,0.88);
+  flex-shrink: 0;
+}
+.lead-card-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 15px; color: white;
+}
+.lead-card-role { font-size: 10px; color: rgba(255,255,255,0.4); margin-top: 1px; }
+
+.lead-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid var(--border);
+}
+.lead-stat {
+  padding: 10px 12px; text-align: center;
+  border-right: 1px solid var(--border);
+}
+.lead-stat:last-child { border-right: none; }
+.lead-stat-num { font-size: 20px; font-weight: 700; color: var(--text); line-height: 1; }
+.lead-stat-num.green { color: var(--accent-c); }
+.lead-stat-num.red   { color: var(--accent-a); }
+.lead-stat-num.amber { color: var(--accent-b); }
+.lead-stat-lbl { font-size: 9px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+
+/* Artist rows inside lead card */
+.lead-artist-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--cream-dark);
+  font-size: 11px; transition: background 0.08s; cursor: default;
+}
+.lead-artist-item:last-child { border-bottom: none; }
+.lead-artist-item:hover { background: #FAFAF8; }
+.lead-artist-name { flex: 1; font-weight: 500; color: var(--text); }
+
+.mini-steps { display: flex; gap: 2px; }
+.mini-step { width: 8px; height: 8px; border-radius: 2px; background: var(--cream-dark); }
+.mini-step.s1 { background: var(--accent-b); }
+.mini-step.s2 { background: var(--accent-c); }
+.mini-step.s3 { background: var(--accent-a); }
+
+.lead-row-link {
+  font-size: 10px; color: var(--primary-light);
+  text-decoration: none; font-weight: 600;
+  opacity: 0; transition: opacity 0.1s; padding: 0 2px;
+}
+.lead-artist-item:hover .lead-row-link { opacity: 1; }
+
+.lead-show-more {
+  padding: 8px 14px; text-align: center;
+  font-size: 11px; color: var(--primary-light);
+  cursor: pointer; border-top: 1px solid var(--border);
+  background: #FAFAF8; transition: background 0.1s;
+  font-weight: 500;
+}
+.lead-show-more:hover { background: var(--cream-dark); }
+
+/* ── SETTINGS MODAL ─────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(15, 30, 53, 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 200; display: none;
+  align-items: center; justify-content: center; padding: 20px;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 16px;
+  width: 100%; max-width: 540px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.28);
+  max-height: 90vh; overflow-y: auto;
+}
+.modal-hd {
+  background: var(--primary);
+  padding: 18px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0;
+}
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px; color: white;
+}
+.modal-close {
+  background: rgba(255,255,255,0.1); border: none; color: white;
+  font-size: 14px; width: 28px; height: 28px; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.2); }
+
+.modal-body { padding: 24px; }
+.modal-sec { margin-bottom: 24px; }
+.modal-sec-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.9px; color: var(--text-soft);
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  margin-bottom: 14px;
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-field { margin-bottom: 10px; }
+.form-lbl { font-size: 11px; font-weight: 600; color: var(--text-mid); display: block; margin-bottom: 4px; }
+.form-input {
+  width: 100%; border: 2px solid var(--border); border-radius: 8px;
+  padding: 7px 10px;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; color: var(--text);
+  outline: none; transition: border-color 0.15s;
+}
+.form-input:focus { border-color: var(--primary-light); }
+.form-hint { font-size: 10px; color: var(--text-soft); margin-top: 3px; line-height: 1.4; }
+
+.modal-ft {
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px; justify-content: flex-end;
+  background: #FAFAF8; position: sticky; bottom: 0;
+}
+.btn-save {
+  background: var(--primary); color: white; border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  padding: 8px 20px; border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.btn-save:hover { background: var(--primary-mid); }
+.btn-cancel {
+  background: var(--cream-dark); color: var(--text); border: none;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; transition: background 0.15s;
+}
+.btn-cancel:hover { background: var(--border); }
+
+/* ── EMPTY STATE ────────────────────────────────────────────── */
+.empty {
+  text-align: center; padding: 60px 20px;
+  color: var(--text-soft);
+}
+.empty-icon { font-size: 30px; margin-bottom: 12px; }
+.empty h3 { font-size: 14px; font-weight: 600; color: var(--text-mid); margin-bottom: 6px; }
+.empty p { font-size: 12px; }
+
+/* ── ARTIST PANEL ───────────────────────────────────────────── */
+.panel-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(15,30,53,0.45);
+  backdrop-filter: blur(2px);
+  z-index: 150;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s;
+}
+.panel-backdrop.open { opacity: 1; pointer-events: all; }
+
+.artist-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 500px; max-width: 96vw;
+  background: var(--cream);
+  z-index: 160;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.18);
+}
+.artist-panel.open { transform: translateX(0); }
+
+/* Panel header */
+.panel-hd {
+  background: var(--primary);
+  padding: 16px 18px 14px;
+  flex-shrink: 0;
+}
+.panel-hd-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  margin-bottom: 10px;
+}
+.panel-artist-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px; color: white; line-height: 1.15;
+}
+.panel-close {
+  background: rgba(255,255,255,0.1); border: none; color: white;
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s; margin-top: 2px;
+}
+.panel-close:hover { background: rgba(255,255,255,0.22); }
+
+.panel-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+
+.panel-meta {
+  display: flex; gap: 14px; flex-wrap: wrap;
+}
+.panel-meta-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: rgba(238,242,255,0.5);
+}
+.panel-meta-item strong { color: rgba(238,242,255,0.85); font-weight: 600; }
+.panel-monday-link {
+  font-size: 10px; font-weight: 600;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15);
+  color: rgba(238,242,255,0.7); padding: 3px 10px; border-radius: 5px;
+  text-decoration: none; transition: all 0.12s; white-space: nowrap;
+}
+.panel-monday-link:hover { background: rgba(255,255,255,0.2); color: white; }
+
+/* Panel data strip */
+.panel-strip {
+  background: var(--primary-dark);
+  padding: 8px 18px;
+  display: flex; gap: 0; flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.panel-strip-item {
+  flex: 1; text-align: center;
+  padding: 4px 6px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.panel-strip-item:last-child { border-right: none; }
+.panel-strip-val {
+  font-size: 13px; font-weight: 700;
+  display: block; line-height: 1;
+  margin-bottom: 3px;
+}
+.panel-strip-val.yes  { color: var(--accent-c); }
+.panel-strip-val.no   { color: var(--accent-a); }
+.panel-strip-val.num  { color: rgba(238,242,255,0.85); }
+.panel-strip-val.dash { color: rgba(238,242,255,0.2); }
+.panel-strip-lbl {
+  font-size: 8px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: rgba(238,242,255,0.25);
+  display: block;
+}
+
+/* Panel body scroll */
+.panel-body {
+  flex: 1; overflow-y: auto; padding: 14px 0 40px;
+}
+.panel-body::-webkit-scrollbar { width: 4px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Step sections */
+.step-section {
+  border-bottom: 1px solid var(--border);
+}
+.step-section-hd {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 18px; cursor: pointer;
+  user-select: none; transition: background 0.1s;
+}
+.step-section-hd:hover { background: rgba(0,0,0,0.03); }
+
+.step-num-badge {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  flex-shrink: 0;
+}
+.step-num-badge.done    { background: var(--accent-c-light); color: var(--accent-c); }
+.step-num-badge.current { background: var(--primary); color: white; }
+.step-num-badge.past    { background: var(--cream-dark); color: var(--text-soft); }
+
+.step-section-name {
+  flex: 1; font-size: 12px; font-weight: 600; color: var(--text);
+}
+.step-section-name .step-owner-badge {
+  display: inline-block; font-size: 8px; font-weight: 700;
+  padding: 1px 5px; border-radius: 4px; margin-left: 5px;
+  text-transform: uppercase; letter-spacing: 0.4px;
+  vertical-align: middle;
+}
+.step-owner-badge.ec    { background: var(--primary-pale); color: var(--primary-light); }
+.step-owner-badge.tm    { background: var(--accent-b-light); color: var(--accent-b); }
+
+.step-section-right { display: flex; align-items: center; gap: 6px; }
+.step-pending-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 8px;
+  background: var(--accent-b-light); color: var(--accent-b);
+}
+.step-pending-badge.red { background: var(--accent-a-light); color: var(--accent-a); }
+.step-done-badge {
+  font-size: 9px; font-weight: 700;
+  padding: 2px 7px; border-radius: 8px;
+  background: var(--accent-c-light); color: var(--accent-c);
+}
+.step-toggle-arrow { font-size: 10px; color: var(--text-soft); transition: transform 0.18s; }
+.step-section.expanded .step-toggle-arrow { transform: rotate(180deg); }
+
+/* Action list */
+.action-list { display: none; padding: 2px 0 8px; }
+.step-section.expanded .action-list { display: block; }
+
+.action-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 6px 18px 6px 18px;
+  transition: background 0.1s; position: relative;
+  cursor: pointer;
+}
+.action-item:hover { background: rgba(0,0,0,0.025); }
+
+/* Overdue = unticked item from a PAST step */
+.action-item.overdue {
+  background: var(--accent-b-light);
+  border-left: 3px solid var(--accent-b);
+  padding-left: 15px;
+}
+.action-item.overdue:hover { background: #fef0b0; }
+
+/* The checkbox */
+.action-check {
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: 2px solid var(--border-dark); background: white;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 1px; transition: all 0.12s; pointer-events: none;
+}
+.action-item.checked .action-check {
+  background: var(--accent-c); border-color: var(--accent-c);
+}
+.action-item.checked .action-check::after {
+  content: '✓'; font-size: 9px; font-weight: 700; color: white;
+}
+.action-item.overdue .action-check { border-color: var(--accent-b); }
+
+.action-label {
+  font-size: 12px; color: var(--text-mid); line-height: 1.45; flex: 1;
+}
+.action-item.checked .action-label {
+  color: var(--text-soft); text-decoration: line-through;
+}
+.action-item.overdue .action-label { color: var(--text); font-weight: 500; }
+
+.action-owner {
+  font-size: 9px; font-weight: 600; flex-shrink: 0; margin-top: 2px;
+  padding: 1px 5px; border-radius: 4px; text-transform: uppercase;
+}
+.action-owner.ec { background: var(--primary-pale); color: var(--primary-light); }
+.action-owner.tm { background: var(--accent-b-light); color: var(--accent-b); }
+
+/* Section progress bar */
+.step-progress-bar {
+  height: 2px; background: var(--cream-dark); margin: 0 18px 6px;
+}
+.step-progress-fill { height: 100%; background: var(--accent-c); border-radius: 1px; transition: width 0.3s; }
+
+/* Action source badge */
+.action-source {
+  font-size: 8px; font-weight: 700; letter-spacing: 0.4px;
+  padding: 1px 5px; border-radius: 4px; text-transform: uppercase;
+  flex-shrink: 0; margin-top: 2px; white-space: nowrap;
+}
+.action-source.monday { background: var(--accent-d-light); color: var(--accent-d); }
+.action-source.email  { background: #F0E6FF; color: #6B2FA0; }
+.action-source.manual { background: var(--cream-dark); color: var(--text-soft); }
+
+/* Conflict state — Monday says ✓ but user manually unticked */
+.action-item.conflict {
+  background: #FFF8E1;
+  border-left: 3px solid #E6A817;
+  padding-left: 15px;
+}
+.action-item.conflict:hover { background: #FFF3CC; }
+.action-conflict-icon {
+  font-size: 10px; flex-shrink: 0; margin-top: 2px;
+  cursor: help; color: #B87010;
+}
+
+/* Panel legend */
+.panel-legend {
+  display: flex; gap: 8px; align-items: center;
+  padding: 7px 18px; border-bottom: 1px solid var(--border);
+  background: #FAFAF8; flex-wrap: wrap;
+}
+.panel-legend-item { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-soft); }
+
+</style>
+</head>
+<body>
+
+<!-- ── LOADER ────────────────────────────────────────────────── -->
+<div id="loader">
+  <div class="spin"></div>
+  <p>Syncing with Monday.com…</p>
+</div>
+
+<!-- ── APP HEADER ────────────────────────────────────────────── -->
+<header class="app-header">
+
+  <!-- Bar 1: Identity -->
+  <div class="header-bar">
+    <div class="header-identity">
+      <span class="header-title">Hospitality</span>
+      <span class="header-subtitle" id="event-subtitle">Electric Castle · EC12</span>
+    </div>
+    <div class="header-actions">
+      <button class="header-btn" onclick="refreshData()">↻ Refresh</button>
+      <button class="header-btn accent" onclick="openSettings()">⚙ Settings</button>
+    </div>
+  </div>
+
+  <!-- Bar 2: View tabs + filters -->
+  <div class="context-bar">
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="pipeline">Pipeline</button>
+      <button class="view-tab" data-view="blockers">Blockers</button>
+      <button class="view-tab" data-view="bylead">By Lead</button>
+    </div>
+    <div class="filter-row">
+      <span class="filter-label">Tier</span>
+      <button class="filter-pill active" data-filter="tier" data-val="all">All</button>
+      <button class="filter-pill" data-filter="tier" data-val="Headliner">Headliner</button>
+      <button class="filter-pill" data-filter="tier" data-val="Sub-headliner">Sub</button>
+      <button class="filter-pill" data-filter="tier" data-val="Support">Support</button>
+      <button class="filter-pill" data-filter="tier" data-val="Local Act">Local</button>
+      <div class="filter-sep"></div>
+      <span class="filter-label">Lead</span>
+      <button class="filter-pill active" data-filter="lead" data-val="all">All</button>
+      <span id="lead-pills"></span>
+      <div class="filter-sep"></div>
+      <span class="filter-label">Status</span>
+      <button class="filter-pill active" data-filter="status" data-val="all">All</button>
+      <button class="filter-pill" data-filter="status" data-val="blocked">Blocked</button>
+      <button class="filter-pill" data-filter="status" data-val="complete">Complete</button>
+      <button class="filter-pill" data-filter="status" data-val="idle">Not Started</button>
+      <div class="filter-sep"></div>
+      <span class="filter-label">Origin</span>
+      <button class="filter-pill active" data-filter="origin" data-val="all">All</button>
+      <button class="filter-pill" data-filter="origin" data-val="Int">INT</button>
+      <button class="filter-pill" data-filter="origin" data-val="RO">RO</button>
+      <button class="filter-pill" data-filter="origin" data-val="Local">Local</button>
+      <div class="filter-sep"></div>
+      <span class="filter-label">Booked By</span>
+      <button class="filter-pill active" data-filter="bookedBy" data-val="all">All</button>
+      <span id="bookedby-pills"></span>
+    </div>
+  </div>
+
+  <!-- Bar 3: Sync / stats -->
+  <div class="status-bar">
+    <div class="status-stats">
+      <div class="stat-item"><div class="stat-dot"></div><span class="stat-num" id="s-total">—</span>&nbsp;artists</div>
+      <div class="stat-item"><div class="stat-dot complete"></div><span class="stat-num" id="s-complete">—</span>&nbsp;complete</div>
+      <div class="stat-item"><div class="stat-dot progress"></div><span class="stat-num" id="s-progress">—</span>&nbsp;in progress</div>
+      <div class="stat-item"><div class="stat-dot blocked"></div><span class="stat-num" id="s-blocked">—</span>&nbsp;blocked</div>
+      <div class="stat-item"><div class="stat-dot"></div><span class="stat-num" id="s-idle">—</span>&nbsp;not started</div>
+    </div>
+    <div class="sync-status">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span id="sync-label">Loading…</span>
+    </div>
+  </div>
+
+</header>
+
+<!-- ── MAIN ───────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Pipeline View -->
+  <div class="view active" id="view-pipeline">
+    <div class="pipeline-toolbar">
+      <p class="pipeline-count"><strong id="vis-count">—</strong> artists shown</p>
+      <input class="pipeline-search" id="search-input" type="text"
+        placeholder="Search artists…" oninput="handleSearch(this.value)"/>
+    </div>
+    <div class="table-wrap">
+      <table class="pipeline-table">
+        <thead>
+          <tr>
+            <th>Artist</th>
+            <th>Tier</th>
+            <th>Lead</th>
+            <th class="step-col"><span class="th-snum">0</span><span class="th-sname">KO</span><span class="th-owner">EC</span></th>
+            <th class="step-col"><span class="th-snum">1</span><span class="th-sname">Intro</span><span class="th-owner">EC</span></th>
+            <th class="step-col"><span class="th-snum">2</span><span class="th-sname">TM Reply</span><span class="th-owner">TM</span></th>
+            <th class="step-col"><span class="th-snum">3</span><span class="th-sname">Confirm</span><span class="th-owner">EC</span></th>
+            <th class="step-col"><span class="th-snum">4</span><span class="th-sname">Travel</span><span class="th-owner">TM</span></th>
+            <th class="step-col"><span class="th-snum">5</span><span class="th-sname">On-site</span><span class="th-owner">EC</span></th>
+            <th class="step-col"><span class="th-snum">6</span><span class="th-sname">TM Final</span><span class="th-owner">TM</span></th>
+            <th class="step-col"><span class="th-snum">7</span><span class="th-sname">Handover</span><span class="th-owner">EC</span></th>
+            <th style="text-align:center;min-width:52px;">Rider</th>
+            <th style="text-align:center;min-width:46px;">Party</th>
+            <th style="text-align:center;min-width:52px;">Hotel</th>
+            <th style="text-align:center;min-width:54px;">Origin</th>
+            <th style="min-width:90px;">Booked By</th>
+          </tr>
+        </thead>
+        <tbody id="pipeline-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Blockers View -->
+  <div class="view" id="view-blockers">
+    <div class="blockers-hd">
+      <h2 class="blockers-title">Blockers</h2>
+      <span class="blockers-total" id="blockers-total"></span>
+    </div>
+    <div id="blockers-container"></div>
+  </div>
+
+  <!-- By Lead View -->
+  <div class="view" id="view-bylead">
+    <div class="bylead-hd">
+      <h2 class="bylead-title">By Advancing Lead</h2>
+    </div>
+    <div class="bylead-grid" id="bylead-grid"></div>
+  </div>
+
+</div>
+
+<!-- ── ARTIST DETAIL PANEL ────────────────────────────────────── -->
+<div class="panel-backdrop" id="panel-backdrop" onclick="closePanel()"></div>
+<aside class="artist-panel" id="artist-panel">
+  <div class="panel-hd">
+    <div class="panel-hd-top">
+      <span class="panel-artist-name" id="panel-name">—</span>
+      <button class="panel-close" onclick="closePanel()">✕</button>
+    </div>
+    <div class="panel-tags" id="panel-tags"></div>
+    <div class="panel-meta" id="panel-meta"></div>
+  </div>
+  <div class="panel-strip" id="panel-strip"></div>
+  <div class="panel-body" id="panel-body"></div>
+</aside>
+
+<!-- ── SETTINGS MODAL ─────────────────────────────────────────── -->
+<div class="overlay" id="settings-overlay">
+  <div class="modal">
+    <div class="modal-hd">
+      <span class="modal-title">Dashboard Settings</span>
+      <button class="modal-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="modal-sec">
+        <div class="modal-sec-title">Monday.com Connection</div>
+        <div class="form-field">
+          <label class="form-lbl">API Key</label>
+          <input class="form-input" id="cfg-apikey" type="password" placeholder="eyJhbGci…"/>
+          <p class="form-hint">Monday.com → Profile → Developers → My Access Tokens</p>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-lbl">Board ID</label>
+            <input class="form-input" id="cfg-boardid" type="text" placeholder="123456789"/>
+            <p class="form-hint">In the URL: monday.com/boards/<strong>ID</strong></p>
+          </div>
+          <div class="form-field">
+            <label class="form-lbl">Workspace URL</label>
+            <input class="form-input" id="cfg-workspace" type="text" placeholder="yourorg.monday.com"/>
+            <p class="form-hint">Domain only — for item links</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-sec-title">Connected Board IDs</div>
+        <p style="font-size:11px;color:var(--text-soft);margin-bottom:14px;">
+          Used to evaluate action-level field conditions. Find board IDs in the Monday.com URL when viewing that board.
+        </p>
+        <div class="form-row">
+          <div class="form-field"><label class="form-lbl">Artist Advancing Tracker</label><input class="form-input" id="bid-artist" type="text" placeholder="= main Board ID above"/></div>
+          <div class="form-field"><label class="form-lbl">Accommodation</label><input class="form-input" id="bid-accommodation" type="text" placeholder="Board ID"/></div>
+          <div class="form-field"><label class="form-lbl">Flights</label><input class="form-input" id="bid-flights" type="text" placeholder="Board ID"/></div>
+          <div class="form-field"><label class="form-lbl">Transfers</label><input class="form-input" id="bid-transfers" type="text" placeholder="Board ID"/></div>
+          <div class="form-field"><label class="form-lbl">Team Members</label><input class="form-input" id="bid-team" type="text" placeholder="Board ID"/></div>
+          <div class="form-field"><label class="form-lbl">Stages</label><input class="form-input" id="bid-stages" type="text" placeholder="Board ID"/></div>
+          <div class="form-field"><label class="form-lbl">Dressing Rooms</label><input class="form-input" id="bid-dressing_rooms" type="text" placeholder="Board ID"/></div>
+        </div>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-sec-title">Column ID Mapping</div>
+        <p style="font-size:11px;color:var(--text-soft);margin-bottom:14px;">
+          Find column IDs in Monday.com by right-clicking any column header → Column Settings → Copy Column ID.
+        </p>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-lbl">Tier (status/dropdown)</label>
+            <input class="form-input" id="col-tier" type="text" placeholder="status"/>
+          </div>
+          <div class="form-field">
+            <label class="form-lbl">Advancing Lead (people)</label>
+            <input class="form-input" id="col-lead" type="text" placeholder="person"/>
+          </div>
+          <div class="form-field">
+            <label class="form-lbl">Booked By (people)</label>
+            <input class="form-input" id="col-bookedBy" type="text" placeholder="person1"/>
+            <p class="form-hint">Links to team members board</p>
+          </div>
+          <div class="form-field">
+            <label class="form-lbl">Artist Origin (status)</label>
+            <input class="form-input" id="col-origin" type="text" placeholder="status9"/>
+            <p class="form-hint">Values: Int / RO / Local</p>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field"><label class="form-lbl">Step 0 — KO</label><input class="form-input" id="col-s0" type="text" placeholder="status_1"/></div>
+          <div class="form-field"><label class="form-lbl">Step 1 — Intro Email</label><input class="form-input" id="col-s1" type="text" placeholder="status_2"/></div>
+          <div class="form-field"><label class="form-lbl">Step 2 — TM Response</label><input class="form-input" id="col-s2" type="text" placeholder="status_3"/></div>
+          <div class="form-field"><label class="form-lbl">Step 3 — Confirmations</label><input class="form-input" id="col-s3" type="text" placeholder="status_4"/></div>
+          <div class="form-field"><label class="form-lbl">Step 4 — Travel Details</label><input class="form-input" id="col-s4" type="text" placeholder="status_5"/></div>
+          <div class="form-field"><label class="form-lbl">Step 5 — On-site Intro</label><input class="form-input" id="col-s5" type="text" placeholder="status_6"/></div>
+          <div class="form-field"><label class="form-lbl">Step 6 — TM Final</label><input class="form-input" id="col-s6" type="text" placeholder="status_7"/></div>
+          <div class="form-field"><label class="form-lbl">Step 7 — Handover</label><input class="form-input" id="col-s7" type="text" placeholder="status_8"/></div>
+          <div class="form-field"><label class="form-lbl">Rider Received (checkbox)</label><input class="form-input" id="col-rider" type="text" placeholder="checkbox"/></div>
+          <div class="form-field"><label class="form-lbl">Party Size (numbers)</label><input class="form-input" id="col-party" type="text" placeholder="numbers"/></div>
+          <div class="form-field"><label class="form-lbl">Hotel (text)</label><input class="form-input" id="col-hotel" type="text" placeholder="text"/></div>
+          <div class="form-field"><label class="form-lbl">Dietary Confirmed (checkbox)</label><input class="form-input" id="col-dietary" type="text" placeholder="checkbox0"/></div>
+        </div>
+      </div>
+
+      <div class="modal-sec">
+        <div class="modal-sec-title">Display</div>
+        <div class="form-field">
+          <label class="form-lbl">Event Name (shown in header)</label>
+          <input class="form-input" id="cfg-eventname" type="text" placeholder="Electric Castle · EC12"/>
+        </div>
+      </div>
+
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
+      <button class="btn-save" onclick="saveSettings()">Save & Refresh</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════════
+// EC12 HOSPITALITY MANAGER
+// ────────────────────────────────────────────────────────────────
+// State object → applyFilters → render[Pipeline|Blockers|ByLead]
+// Monday.com: GraphQL POST to api.monday.com/v2 with API key.
+// Falls back to MOCK_ARTISTS if no credentials or fetch fails.
+// Settings persisted in localStorage (never sent anywhere else).
+// ════════════════════════════════════════════════════════════════
+
+// ── STEP METADATA ─────────────────────────────────────────────
+// STATIC — these match the advancing document. Edit names here only.
+const STEPS = [
+  { num: 0, name: 'KO Meeting',        short: 'KO',       owner: 'EC' },
+  { num: 1, name: 'Intro Email & RFI', short: 'Intro',    owner: 'EC' },
+  { num: 2, name: 'TM Response',       short: 'TM Reply', owner: 'TM' },
+  { num: 3, name: 'Confirmations',     short: 'Confirm',  owner: 'EC' },
+  { num: 4, name: 'Travel Details',    short: 'Travel',   owner: 'TM' },
+  { num: 5, name: 'On-site Intro',     short: 'On-site',  owner: 'EC' },
+  { num: 6, name: 'TM Final Reply',    short: 'TM Final', owner: 'TM' },
+  { num: 7, name: 'Handover Complete', short: 'Handover', owner: 'EC' }
+];
+
+// ── STATUS MAP ────────────────────────────────────────────────
+// Maps Monday.com status text → 0=not started, 1=in progress, 2=complete, 3=blocked
+const STATUS_MAP = {
+  'done': 2, 'complete': 2, 'completed': 2,
+  'working on it': 1, 'in progress': 1, 'started': 1,
+  'stuck': 3, 'blocked': 3, 'waiting': 3,
+  '': 0, 'not started': 0, '-': 0
+};
+
+// ── ACTION STEPS ──────────────────────────────────────────────
+// STATIC — derived from the EC Hospitality advancing document.
+// Each action has a source type:
+//   'monday' — auto-ticked when a Monday column meets its condition.
+//              boardRef: which board the column lives on.
+//              columnId: the Monday column ID.
+//              condition: 'not_empty' | 'checked' | 'has_relation' | 'equals:VALUE'
+//              columnName: human-readable label (shown as tooltip).
+//   'email'  — auto-ticked by the EC12 Email Tool when the email module
+//              is generated/sent. emailModule: the module key the email tool writes.
+//              Shared state key in localStorage: emailModules_[artistId]
+//   'manual' — no external source. Checkbox persists in localStorage only.
+//
+// Manual overrides: if a user ticks/unticks a 'monday' or 'email' action,
+// the override is stored separately and shown as a conflict flag.
+const ACTION_STEPS = [
+  {
+    num: 0, name: 'KO Meeting', short: 'KO', owner: 'ec',
+    actions: [
+      { label: 'Hospitality KO meeting held',                          owner: 'ec', source: 'manual' },
+      { label: 'Intro to EC Hospitality Advancing Team sent by ED',    owner: 'ec', source: 'email', emailModule: 'step0_ko' }
+    ]
+  },
+  {
+    num: 1, name: 'Intro Email & RFI', short: 'Intro', owner: 'ec',
+    // All step 1 actions are generated together as one email module.
+    // When the Step 1 intro email template is sent, all are ticked.
+    actions: [
+      { label: 'Cluj & festival description included',                  owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Advancing process explained',                          owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Timeline attached (what we need by when)',             owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Party size confirmation requested',                    owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Hotel requirements requested (rooms, nights, list)',   owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Allocation confirmed per contract',                    owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Hotel cluster & distance to airport/festival shared',  owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Flight details requested',                             owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Ground transportation requirements discussed',         owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Rider requested (incl. dietary requirements)',         owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Merch procedure attached',                             owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'link_mkry702c', condition: 'not_empty', columnName: 'Link to Merch Requests' },
+      { label: 'Brochure attached',                                    owner: 'ec', source: 'email', emailModule: 'step1_intro' },
+      { label: 'Monday artist item CC\'d',                             owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'text54__1',    condition: 'not_empty', columnName: 'Record Email to CC' }
+    ]
+  },
+  {
+    num: 2, name: 'TM Response', short: 'TM Reply', owner: 'tm',
+    actions: [
+      { label: 'Party size confirmed (A-Party)',                       owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'numbers',           condition: 'not_empty', columnName: 'A-Party' },
+      { label: 'Hotel requirements provided (room types, nights)',     owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'hotel_notes',        condition: 'not_empty', columnName: 'Hotel Notes' },
+      { label: 'Flight details provided',                              owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'connect_boards3__1', condition: 'has_relation', columnName: 'Arrivals (linked flight)' },
+      { label: 'Ground transfer requirements provided',                owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'long_text1__1',      condition: 'not_empty', columnName: 'Transport Requested' },
+      { label: 'Hospitality rider submitted',                          owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'files__1',           condition: 'not_empty', columnName: 'Initial Rider' },
+      { label: 'Dietary requirements confirmed',                       owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'long_text02__1',     condition: 'not_empty', columnName: 'Allergies' }
+    ]
+  },
+  {
+    num: 3, name: 'Confirmations & On the Ground', short: 'Confirm', owner: 'ec',
+    actions: [
+      { label: 'Hotel confirmed',                                      owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'status7__1',          condition: 'not_empty', columnName: 'Hotel Status' },
+      { label: 'Hotel description / options sent',                     owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Check-in / check-out confirmed',                      owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Sabina intro sent (rooms, charges, changes)',          owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Rider negotiation sheet live & alternatives added',   owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'link4__1',             condition: 'not_empty', columnName: '🔗 Rider Alternatives' },
+      { label: 'Rider alternatives shared with TM',                   owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Dressing room allocation sent',                        owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards0__1',   condition: 'has_relation', columnName: 'DR Allocated' },
+      { label: 'Transport options shared',                             owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Ground transfer request form sent',                    owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Angels info shared',                                   owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards7__1',   condition: 'has_relation', columnName: 'Angel (linked)' },
+      { label: 'Distances & durations confirmed',                      owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Timeline sent',                                        owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'label2__1',            condition: 'not_empty', columnName: 'Itinerary Status' },
+      { label: 'Brochure sent',                                        owner: 'ec', source: 'email',  emailModule: 'step3_confirm' },
+      { label: 'Merch procedure confirmed',                            owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'link_mkry702c',         condition: 'not_empty', columnName: 'Link to Merch Requests' },
+      { label: 'Monday artist item CC\'d',                             owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'text54__1',             condition: 'not_empty', columnName: 'Record Email to CC' }
+    ]
+  },
+  {
+    num: 4, name: 'Travel Party Details', short: 'Travel', owner: 'tm',
+    actions: [
+      { label: 'Final flight details provided (arrivals)',             owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'connect_boards3__1',  condition: 'has_relation', columnName: 'Arrivals (linked flight)' },
+      { label: 'Final flight details provided (departures)',           owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'connect_boards23__1', condition: 'has_relation', columnName: 'Departures (linked flight)' },
+      { label: 'Ground transfer requests submitted',                   owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'connect_boards2__1',  condition: 'has_relation', columnName: 'Transfers (linked)' },
+      { label: 'Parking specified (site or hotel)',                    owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'text2__1',            condition: 'not_empty', columnName: 'Parking (site/hotel?)' },
+      { label: 'Rooming list provided',                                owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'rooming_list',         condition: 'not_empty', columnName: 'Rooming List' },
+      { label: 'Dietary requirements confirmed (final)',               owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'long_text02__1',       condition: 'not_empty', columnName: 'Allergies' },
+      { label: 'Meal times confirmed',                                 owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'catering_specifications__1', condition: 'not_empty', columnName: 'Catering Plan' },
+      { label: 'Rider alternatives approved',                          owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'status__1',            condition: 'not_empty', columnName: 'Rider Status' }
+    ]
+  },
+  {
+    num: 5, name: 'On-site Hospitality Intro', short: 'On-site', owner: 'ec',
+    actions: [
+      { label: 'Full hotel details sent',                              owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'board_relation7',       condition: 'has_relation', columnName: 'A Party Hotel (linked)' },
+      { label: 'Rider negotiation sheet finalised with alternatives',  owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'status__1',             condition: 'not_empty', columnName: 'Rider Status' },
+      { label: 'Guest list requirement checked & deadline shared',     owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'text1__1',              condition: 'not_empty', columnName: 'Guest List Requested' },
+      { label: 'Transport team intro sent',                            owner: 'ec', source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Route request form shared',                            owner: 'ec', source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Angel contact shared',                                 owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards7__1',    condition: 'has_relation', columnName: 'Angel (linked)' },
+      { label: 'Itinerary V1 shared',                                  owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'text97__1',             condition: 'not_empty', columnName: 'Itinerary' },
+      { label: 'Press details requested (add last to itinerary)',      owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'checkbox1__1',          condition: 'checked',    columnName: 'Media Requested' },
+      { label: 'À la carte menu shared',                               owner: 'ec', source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Catering amenities described',                         owner: 'ec', source: 'email',  emailModule: 'step5_onsite' },
+      { label: 'Meal times on site / in Cluj confirmed',               owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'catering_specifications__1', condition: 'not_empty', columnName: 'Catering Plan' },
+      { label: 'Dressing room allocation sent',                        owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards0__1',    condition: 'has_relation', columnName: 'DR Allocated' },
+      { label: 'Brochure sent',                                        owner: 'ec', source: 'email',  emailModule: 'step5_onsite' }
+    ]
+  },
+  {
+    num: 6, name: 'TM Final Confirmations', short: 'TM Final', owner: 'tm',
+    actions: [
+      { label: 'Guest list provided',                                  owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'text1__1',              condition: 'not_empty', columnName: 'Guest List Requested' },
+      { label: 'Meal times confirmed (final)',                         owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'catering_specifications__1', condition: 'not_empty', columnName: 'Catering Plan' },
+      { label: 'Pre-orders advanced',                                  owner: 'tm', source: 'email',  emailModule: 'step6_tm_final' },
+      { label: 'Rider alternatives approved (if not previously done)', owner: 'tm', source: 'monday', boardRef: 'artist', columnId: 'status__1',             condition: 'not_empty', columnName: 'Rider Status' }
+    ]
+  },
+  {
+    num: 7, name: 'Advancing Complete — Handover', short: 'Handover', owner: 'ec',
+    actions: [
+      { label: 'Backstage manager intro sent',                         owner: 'ec', source: 'email',  emailModule: 'step7_handover' },
+      { label: 'Stage manager intro sent',                             owner: 'ec', source: 'email',  emailModule: 'step7_handover' },
+      { label: 'Angel intro sent',                                     owner: 'ec', source: 'email',  emailModule: 'step7_handover' },
+      { label: 'Final itinerary / update link shared',                 owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'text97__1',             condition: 'not_empty', columnName: 'Itinerary' },
+      { label: 'Soundcheck confirmed',                                 owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'board_relation_mksefftj', condition: 'has_relation', columnName: 'Soundcheck Slot (linked)' },
+      { label: 'Hotel details finalised',                              owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'status7__1',             condition: 'not_empty', columnName: 'Hotel Status' },
+      { label: 'Ground transfers scheduled and confirmed',             owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards2__1',     condition: 'has_relation', columnName: 'Transfers (linked)' },
+      { label: 'Angel details shared',                                 owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards7__1',     condition: 'has_relation', columnName: 'Angel (linked)' },
+      { label: 'Updated menu shared (if applicable)',                  owner: 'ec', source: 'email',  emailModule: 'step7_handover' },
+      { label: 'Dressing rooms confirmed',                             owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'connect_boards0__1',     condition: 'has_relation', columnName: 'DR Allocated' },
+      { label: 'Maps shared (if applicable)',                          owner: 'ec', source: 'monday', boardRef: 'artist', columnId: 'link__1',                condition: 'not_empty', columnName: 'Artist Pack Link' }
+    ]
+  }
+];
+
+// ── MOCK DATA ─────────────────────────────────────────────────
+// STATIC — this is the offline fallback dataset used for preview.
+// Edit artist names, tiers, leads, and step progress here.
+// steps[]: 0=not started, 1=in progress, 2=complete, 3=blocked
+const MOCK_ARTISTS = [
+  { id:'1001', name:'Bonobo',            tier:'Headliner',     lead:'Sarah K.',  bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,2,2,2,1,0,0], rider:true,  partySize:14, hotel:'Radisson Blu',  dietary:true  },
+  { id:'1002', name:'Jamie xx',          tier:'Headliner',     lead:'Marcus D.', bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,2,2,1,0,0,0], rider:true,  partySize:8,  hotel:'Park Inn',      dietary:true  },
+  { id:'1003', name:'Floating Points',   tier:'Headliner',     lead:'Sarah K.',  bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,3,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1004', name:'Four Tet',          tier:'Sub-headliner', lead:'Marcus D.', bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,2,1,0,0,0,0], rider:true,  partySize:6,  hotel:'Radisson Blu',  dietary:true  },
+  { id:'1005', name:'Jon Hopkins',       tier:'Sub-headliner', lead:'Priya T.',  bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,2,0,0,0,0], rider:true,  partySize:5,  hotel:'Park Inn',      dietary:false },
+  { id:'1006', name:'Caribou',           tier:'Sub-headliner', lead:'Tom R.',    bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,1,0,0,0,0,0], rider:true,  partySize:9,  hotel:null,            dietary:false },
+  { id:'1007', name:'Moderat',           tier:'Sub-headliner', lead:'Sarah K.',  bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,2,2,2,1,0], rider:true,  partySize:11, hotel:'Grand Hotel',   dietary:true  },
+  { id:'1008', name:'Apparat',           tier:'Sub-headliner', lead:'Tom R.',    bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,2,3,0,0,0,0], rider:true,  partySize:8,  hotel:null,            dietary:false },
+  { id:'1009', name:'Peggy Gou',         tier:'Support',       lead:'Priya T.',  bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,0,0,0,0,0], rider:true,  partySize:4,  hotel:null,            dietary:false },
+  { id:'1010', name:'Objekt',            tier:'Support',       lead:'Marcus D.', bookedBy:'Esme F.',   origin:'Int',   steps:[2,1,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1011', name:'Palms Trax',        tier:'Support',       lead:'Tom R.',    bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,0,0,0,0,0,0], rider:false, partySize:2,  hotel:null,            dietary:false },
+  { id:'1012', name:'Sherelle',          tier:'Support',       lead:'Priya T.',  bookedBy:'Esme F.',   origin:'Int',   steps:[1,0,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1013', name:'Jayda G',           tier:'Support',       lead:'Marcus D.', bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,2,0,0,0,0], rider:true,  partySize:6,  hotel:'Park Inn',      dietary:true  },
+  { id:'1014', name:'Hunee',             tier:'Support',       lead:'Tom R.',    bookedBy:'Esme F.',   origin:'Int',   steps:[2,3,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1015', name:'Antal',             tier:'Support',       lead:'Sarah K.',  bookedBy:'Angel V.',  origin:'RO',    steps:[2,2,0,0,0,0,0,0], rider:true,  partySize:3,  hotel:null,            dietary:false },
+  { id:'1016', name:'Job Jobse',         tier:'Support',       lead:'Priya T.',  bookedBy:'Esme F.',   origin:'Int',   steps:[0,0,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1017', name:'Kode9',             tier:'Support',       lead:'Marcus D.', bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,2,1,0,0,0], rider:true,  partySize:3,  hotel:'Radisson Blu',  dietary:false },
+  { id:'1018', name:'Actress',           tier:'Support',       lead:'Sarah K.',  bookedBy:'Esme F.',   origin:'Int',   steps:[2,2,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1019', name:'Red Axes',          tier:'Support',       lead:'Priya T.',  bookedBy:'Angel V.',  origin:'Int',   steps:[2,2,2,0,0,0,0,0], rider:true,  partySize:4,  hotel:null,            dietary:true  },
+  { id:'1020', name:'Space Afrika',      tier:'Support',       lead:'Tom R.',    bookedBy:'Esme F.',   origin:'Int',   steps:[2,1,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1021', name:'Local Warmup A',    tier:'Local Act',     lead:'Marcus D.', bookedBy:'Angel V.',  origin:'Local', steps:[2,2,0,0,0,0,0,0], rider:false, partySize:2,  hotel:null,            dietary:false },
+  { id:'1022', name:'Local Warmup B',    tier:'Local Act',     lead:'Marcus D.', bookedBy:'Angel V.',  origin:'Local', steps:[1,0,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false },
+  { id:'1023', name:'Local DJ C',        tier:'Local Act',     lead:'Tom R.',    bookedBy:'Esme F.',   origin:'RO',    steps:[2,0,0,0,0,0,0,0], rider:false, partySize:1,  hotel:null,            dietary:false },
+  { id:'1024', name:'Local Band D',      tier:'Local Act',     lead:'Sarah K.',  bookedBy:'Esme F.',   origin:'RO',    steps:[2,2,2,0,0,0,0,0], rider:false, partySize:5,  hotel:null,            dietary:false },
+  { id:'1025', name:'Local Act E',       tier:'Local Act',     lead:'Priya T.',  bookedBy:'Angel V.',  origin:'Local', steps:[0,0,0,0,0,0,0,0], rider:false, partySize:null,hotel:null,           dietary:false }
+];
+
+// ── SETTINGS ─────────────────────────────────────────────────
+// Loaded from localStorage; only the Monday API key and board IDs
+// are sensitive — they are stored locally and sent only to api.monday.com.
+let CFG = {
+  apiKey:       '',
+  boardId:      '',          // EC12 - Artist Advancing Tracker (main board)
+  workspaceUrl: '',
+  eventName:    'Electric Castle · EC12',
+  // ── Board IDs for connected boards (needed for action-level field evaluation)
+  // These are entered in Settings and stored locally.
+  boardIds: {
+    artist:        '',   // EC12 - Artist Advancing Tracker (same as boardId above)
+    accommodation: '',   // EC12 - Accommodation
+    flights:       '',   // EC12 - Flights
+    transfers:     '',   // EC12 - Transfers
+    team:          '',   // EC12 - Team Members
+    stages:        '',   // EC12 - Stages
+    dressing_rooms:''    // EC12 - Dressing Rooms
+  },
+  cols: {
+    tier: 'status',   lead: 'person',   bookedBy: 'connect_boards5',  origin: 'artist_origin__1',
+    s0: 'status_1',   s1: 'status_2',  s2: 'status_3',  s3: 'status_4',
+    s4: 'status_5',   s5: 'status_6',  s6: 'status_7',  s7: 'status_8',
+    rider: 'files__1', party: 'numbers', hotel: 'board_relation7',  dietary: 'long_text02__1'
+  }
+};
+
+// ── STATE ─────────────────────────────────────────────────────
+let ST = {
+  artists:  [],      // full fetched dataset
+  filtered: [],      // after filters
+  search:   '',
+  filters:  { tier: 'all', lead: 'all', status: 'all', origin: 'all', bookedBy: 'all' },
+  view:     'pipeline',
+  blockerOpen: {},   // { [id]: bool }
+  leadOpen:    {},   // { [name]: bool }
+  panelArtist: null, // currently open artist object
+  stepOpen:    {},   // { [stepNum]: bool } — which step sections are expanded in panel
+  sync:     'offline',
+  syncTime: null
+};
+
+// ── ACTION STATE (localStorage) ───────────────────────────────
+// Three namespaces per artist:
+//   actions_[id]       — manual-only ticks (source:'manual' actions)
+//   overrides_[id]     — manual overrides of 'monday' or 'email' actions
+//                        value: { "stepNum_actionIdx": true|false }
+//                        null = no override (auto state applies)
+//   emailModules_[id]  — written by EC12 Email Tool when a module is sent
+//                        value: { "moduleKey": { sent: true, sentAt: "ISO" } }
+
+function getManualTicks(artistId) {
+  try { return JSON.parse(localStorage.getItem('actions_' + artistId) || '{}'); }
+  catch { return {}; }
+}
+function getOverrides(artistId) {
+  try { return JSON.parse(localStorage.getItem('overrides_' + artistId) || '{}'); }
+  catch { return {}; }
+}
+function getEmailModules(artistId) {
+  try { return JSON.parse(localStorage.getItem('emailModules_' + artistId) || '{}'); }
+  catch { return {}; }
+}
+
+// ── CONDITION EVALUATOR ───────────────────────────────────────
+// Evaluates whether a Monday column value satisfies a condition.
+// rawCol: the { id, text, value } object from the GraphQL response.
+function evalCondition(rawCol, condition) {
+  if (!rawCol) return false;
+  const text = (rawCol.text || '').trim();
+  if (condition === 'not_empty') return text !== '' && text !== '-';
+  if (condition === 'checked') {
+    try { return JSON.parse(rawCol.value || '{}')?.checked === 'true'; }
+    catch { return text.toLowerCase() === 'v'; }
+  }
+  if (condition === 'has_relation') {
+    try {
+      const p = JSON.parse(rawCol.value || '{}');
+      return Array.isArray(p?.linkedPulseIds) && p.linkedPulseIds.length > 0;
+    } catch { return text !== '' && text !== '-'; }
+  }
+  if (condition.startsWith('equals:')) {
+    return text.toLowerCase() === condition.slice(7).toLowerCase();
+  }
+  return false;
+}
+
+// ── RESOLVED TICK STATE ───────────────────────────────────────
+// Returns { ticked, autoSource, conflict } for a single action.
+// autoSource: 'monday' | 'email' | null (for manual actions autoSource is null)
+// conflict:   true if user override disagrees with auto state
+function resolveActionTick(artist, stepNum, actionIdx) {
+  const action  = ACTION_STEPS[stepNum]?.actions[actionIdx];
+  if (!action) return { ticked: false, autoSource: null, conflict: false };
+
+  const key      = stepNum + '_' + actionIdx;
+  const overrides = getOverrides(artist.id);
+  const manTicks  = getManualTicks(artist.id);
+  const emailMods = getEmailModules(artist.id);
+
+  let autoTick = false;
+  let autoSource = null;
+
+  if (action.source === 'monday') {
+    autoSource = 'monday';
+    const rawCol = artist.rawColumns?.[action.columnId];
+    autoTick = evalCondition(rawCol, action.condition);
+  } else if (action.source === 'email') {
+    autoSource = 'email';
+    autoTick = !!(emailMods[action.emailModule]?.sent);
+  }
+  // source === 'manual': no autoTick
+
+  const hasOverride = key in overrides && overrides[key] !== null;
+  const effectiveTick = hasOverride ? overrides[key] : (autoSource ? autoTick : !!(manTicks[key]));
+  const conflict = hasOverride && overrides[key] !== autoTick && autoSource !== null;
+
+  return { ticked: effectiveTick, autoTick, autoSource, conflict, hasOverride };
+}
+
+// ── TOGGLE ACTION ─────────────────────────────────────────────
+// Manual actions: writes to actions_[id].
+// Auto-sourced actions: writes an override to overrides_[id].
+// If override matches auto state exactly → clear the override (no conflict).
+function toggleAction(artistId, stepNum, actionIdx) {
+  const action   = ACTION_STEPS[stepNum]?.actions[actionIdx];
+  if (!action) return;
+  const artist   = ST.artists.find(a => a.id === artistId);
+  const resolved = resolveActionTick(artist, stepNum, actionIdx);
+  const newVal   = !resolved.ticked;
+  const key      = stepNum + '_' + actionIdx;
+
+  if (action.source === 'manual') {
+    const ticks = getManualTicks(artistId);
+    ticks[key] = newVal;
+    localStorage.setItem('actions_' + artistId, JSON.stringify(ticks));
+  } else {
+    // Auto-sourced: write override; clear it if it matches auto state
+    const overrides = getOverrides(artistId);
+    if (newVal === resolved.autoTick) {
+      delete overrides[key]; // no longer diverges — clear conflict
+    } else {
+      overrides[key] = newVal;
+    }
+    localStorage.setItem('overrides_' + artistId, JSON.stringify(overrides));
+  }
+  if (ST.panelArtist) renderPanel(ST.panelArtist);
+}
+
+// ── LEAD COLOURS ─────────────────────────────────────────────
+const LEAD_PALETTE = ['#3D5A8A','#1A7A50','#7C4A8A','#B87010','#C85A45','#2558C9','#5A7A3A','#8A3A5A'];
+const _leadColMap = {};
+function leadColour(name) {
+  if (!_leadColMap[name]) {
+    _leadColMap[name] = LEAD_PALETTE[Object.keys(_leadColMap).length % LEAD_PALETTE.length];
+  }
+  return _leadColMap[name];
+}
+function initials(name) {
+  return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0,2);
+}
+
+// ── MONDAY.COM API ────────────────────────────────────────────
+async function fetchMonday() {
+  if (!CFG.apiKey || !CFG.boardId) return null;
+
+  // Collect all column IDs: summary-level cols + all action-level artist cols
+  const summaryColIds = Object.values(CFG.cols).filter(Boolean);
+  const actionColIds  = [];
+  ACTION_STEPS.forEach(step => step.actions.forEach(act => {
+    if (act.source === 'monday' && act.boardRef === 'artist' && act.columnId) {
+      if (!actionColIds.includes(act.columnId)) actionColIds.push(act.columnId);
+    }
+  }));
+  const allColIds = [...new Set([...summaryColIds, ...actionColIds])];
+
+  const query = `{
+    boards(ids: [${CFG.boardId}]) {
+      items_page(limit: 500) {
+        items {
+          id
+          name
+          column_values(ids: ${JSON.stringify(allColIds)}) {
+            id text value
+          }
+        }
+      }
+    }
+  }`;
+
+  try {
+    const res = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': CFG.apiKey,
+        'API-Version': '2024-01'
+      },
+      body: JSON.stringify({ query })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.errors) throw new Error(json.errors[0].message);
+    const items = json?.data?.boards?.[0]?.items_page?.items || [];
+    return items.map(parseMondayItem);
+  } catch (err) {
+    console.warn('Monday.com fetch failed:', err.message);
+    return null;
+  }
+}
+
+function parseMondayItem(item) {
+  const cv = {};
+  (item.column_values || []).forEach(c => { cv[c.id] = c; });
+
+  const statusVal = (colId) => {
+    const t = (cv[colId]?.text || '').toLowerCase().trim();
+    return STATUS_MAP.hasOwnProperty(t) ? STATUS_MAP[t] : 0;
+  };
+  const textVal  = (colId) => cv[colId]?.text || null;
+  const numVal   = (colId) => { const n = parseInt(cv[colId]?.text); return isNaN(n) ? null : n; };
+  const leadVal  = (colId) => {
+    try {
+      const p = JSON.parse(cv[colId]?.value || '{}');
+      return p?.personsAndTeams?.[0]?.name || textVal(colId) || '—';
+    } catch { return textVal(colId) || '—'; }
+  };
+  const hasRelation = (colId) => evalCondition(cv[colId], 'has_relation');
+  const notEmpty    = (colId) => evalCondition(cv[colId], 'not_empty');
+
+  return {
+    id:         item.id,
+    name:       item.name,
+    tier:       textVal(CFG.cols.tier) || 'Support',
+    lead:       leadVal(CFG.cols.lead),
+    bookedBy:   leadVal(CFG.cols.bookedBy),
+    origin:     textVal(CFG.cols.origin) || 'Int',
+    steps:      [0,1,2,3,4,5,6,7].map(i => statusVal(CFG.cols['s'+i])),
+    // Summary indicators (used for pipeline dots + blockers)
+    rider:      notEmpty('files__1'),           // Initial Rider file uploaded
+    partySize:  numVal('numbers'),              // A-Party
+    hotel:      hasRelation('board_relation7'), // A Party Hotel linked
+    dietary:    notEmpty('long_text02__1'),     // Allergies filled
+    // Raw column values — used by resolveActionTick for action-level evaluation
+    rawColumns: cv
+  };
+}
+
+function mondayUrl(itemId) {
+  if (!CFG.workspaceUrl || !CFG.boardId || !itemId) return '#';
+  const base = CFG.workspaceUrl.replace(/^https?:\/\//, '');
+  return `https://${base}/boards/${CFG.boardId}/items/${itemId}`;
+}
+
+// ── COMPUTED ──────────────────────────────────────────────────
+function overallStatus(a) {
+  if (a.steps.includes(3)) return 'blocked';
+  if (a.steps[7] === 2)    return 'complete';
+  if (a.steps.some(s => s > 0)) return 'in-progress';
+  return 'idle';
+}
+
+function hasBlockers(a) {
+  return !a.rider || a.partySize === null || !a.hotel || !a.dietary || a.steps.includes(3);
+}
+
+function stepsDone(a) {
+  return a.steps.filter(s => s === 2).length;
+}
+
+// ── FILTERS ───────────────────────────────────────────────────
+function applyFilters() {
+  let r = ST.artists;
+  if (ST.filters.tier     !== 'all') r = r.filter(a => a.tier === ST.filters.tier);
+  if (ST.filters.lead     !== 'all') r = r.filter(a => a.lead === ST.filters.lead);
+  if (ST.filters.origin   !== 'all') r = r.filter(a => a.origin === ST.filters.origin);
+  if (ST.filters.bookedBy !== 'all') r = r.filter(a => a.bookedBy === ST.filters.bookedBy);
+  if (ST.filters.status === 'blocked')  r = r.filter(a => overallStatus(a) === 'blocked');
+  if (ST.filters.status === 'complete') r = r.filter(a => overallStatus(a) === 'complete');
+  if (ST.filters.status === 'idle')     r = r.filter(a => overallStatus(a) === 'idle');
+  if (ST.search) r = r.filter(a => a.name.toLowerCase().includes(ST.search.toLowerCase()));
+  ST.filtered = r;
+}
+
+// ── RENDER: PIPELINE ──────────────────────────────────────────
+function renderPipeline() {
+  applyFilters();
+  document.getElementById('vis-count').textContent = ST.filtered.length;
+  const tbody = document.getElementById('pipeline-body');
+
+  if (!ST.filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="16"><div class="empty"><div class="empty-icon">🎵</div><h3>No artists match</h3><p>Try adjusting the filters or search above.</p></div></td></tr>`;
+    return;
+  }
+
+  const STATUS_ICON  = ['·', '~', '✓', '!'];
+  const STATUS_LABEL = ['Not started', 'In progress', 'Complete', 'Blocked'];
+
+  // Origin tag helper
+  const originCls = { 'Int': 'origin-int', 'RO': 'origin-ro', 'Local': 'origin-local' };
+
+  tbody.innerHTML = ST.filtered.map(a => {
+    const col    = leadColour(a.lead);
+    const bbCol  = leadColour(a.bookedBy);
+    const tCls   = 'tier-' + a.tier.toLowerCase().replace(/ /g, '-');
+    const tLbl   = a.tier === 'Sub-headliner' ? 'Sub' : a.tier;
+    const oCls   = originCls[a.origin] || 'origin-int';
+    const url    = mondayUrl(a.id);
+
+    const stepCells = a.steps.map((s, i) =>
+      `<td class="step-cell"><span class="step-dot s${s}" data-tip="${STEPS[i].name}: ${STATUS_LABEL[s]}">${STATUS_ICON[s]}</span></td>`
+    ).join('');
+
+    return `<tr class="pipeline-row" onclick="openPanel('${esc(a.id)}')" style="cursor:pointer" title="Click to open detail panel">
+      <td><div class="artist-cell">
+        <a class="artist-link" href="${url}" target="_blank" title="Open in Monday.com"
+           onclick="event.stopPropagation()">${esc(a.name)}</a>
+      </div></td>
+      <td><span class="tier-tag ${tCls}">${tLbl}</span></td>
+      <td><span class="lead-avatar" style="background:${col}" title="${esc(a.lead)}">${initials(a.lead)}</span></td>
+      ${stepCells}
+      <td class="bool-cell"><span class="${a.rider ? 'bool-yes':'bool-no'}">${a.rider ? '✓':'✗'}</span></td>
+      <td class="party-cell ${a.partySize === null ? 'miss' : ''}">${a.partySize ?? '—'}</td>
+      <td class="bool-cell"><span class="${a.hotel ? 'bool-yes':'bool-no'}">${a.hotel ? '✓':'✗'}</span></td>
+      <td class="bool-cell"><span class="tier-tag ${oCls}">${esc(a.origin)}</span></td>
+      <td><span class="lead-avatar" style="background:${bbCol}" title="${esc(a.bookedBy)}">${initials(a.bookedBy)}</span>&nbsp;<span style="font-size:11px;color:var(--text-mid)">${esc(a.bookedBy.split(' ')[0])}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── RENDER: BLOCKERS ──────────────────────────────────────────
+function renderBlockers() {
+  applyFilters();
+  const a = ST.filtered;
+
+  const SECTIONS = [
+    { id:'no-rider',   icon:'📄', sev:'red',   name:'No Rider Received',            desc:'Artist has not submitted a hospitality rider',          list: a.filter(x => !x.rider) },
+    { id:'no-party',   icon:'👥', sev:'red',   name:'Party Size Not Confirmed',      desc:'Travelling party size unknown',                        list: a.filter(x => x.partySize === null) },
+    { id:'no-hotel',   icon:'🏨', sev:'amber', name:'Hotel Not Assigned',            desc:'No accommodation confirmed for this artist',            list: a.filter(x => !x.hotel) },
+    { id:'no-dietary', icon:'🍽️', sev:'amber', name:'Dietary Requirements Unknown',  desc:'Dietary requirements not yet confirmed with TM',       list: a.filter(x => !x.dietary) },
+    { id:'step-block', icon:'🚨', sev:'red',   name:'Step Blocked',                  desc:'One or more advancing steps are stuck or blocked',      list: a.filter(x => x.steps.includes(3)) },
+    { id:'not-start',  icon:'⏳', sev:'gray',  name:'Not Started',                   desc:'No advancing steps have been initiated',               list: a.filter(x => overallStatus(x) === 'idle') }
+  ];
+
+  const active = SECTIONS.filter(s => s.list.length > 0);
+  const total  = active.reduce((n, s) => n + s.list.length, 0);
+  document.getElementById('blockers-total').textContent =
+    total ? `${total} items across ${active.length} categories` : '';
+
+  const c = document.getElementById('blockers-container');
+  if (!active.length) {
+    c.innerHTML = `<div class="empty"><div class="empty-icon">🎉</div><h3>No blockers</h3><p>All artists are on track within current filters.</p></div>`;
+    return;
+  }
+
+  c.innerHTML = active.map(s => {
+    const open = ST.blockerOpen[s.id];
+    const rows = s.list.map(a => {
+      const tCls = 'tier-' + a.tier.toLowerCase().replace(/ /g,'-');
+      const tLbl = a.tier === 'Sub-headliner' ? 'Sub' : a.tier;
+      const oCls = { 'Int': 'origin-int', 'RO': 'origin-ro', 'Local': 'origin-local' }[a.origin] || 'origin-int';
+      return `<div class="blocker-row">
+        <span class="tier-tag ${tCls}">${tLbl}</span>
+        <span class="tier-tag ${oCls}">${esc(a.origin)}</span>
+        <span class="blocker-row-name">${esc(a.name)}</span>
+        <div class="blocker-row-meta">
+          <span class="lead-name-small">Lead: ${esc(a.lead)}</span>
+          <span class="lead-name-small" style="opacity:0.6">· Bkd: ${esc(a.bookedBy)}</span>
+          <a class="monday-link" href="${mondayUrl(a.id)}" target="_blank">→ Monday</a>
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<div class="blocker-card ${open ? 'open' : ''}" id="bc-${s.id}">
+      <div class="blocker-card-hd" onclick="toggleBlocker('${s.id}')">
+        <div class="blocker-left">
+          <div class="blocker-icon ${s.sev}">${s.icon}</div>
+          <div>
+            <div class="blocker-name">${s.name}</div>
+            <div class="blocker-desc">${s.desc}</div>
+          </div>
+        </div>
+        <div class="blocker-right">
+          <span class="blocker-badge ${s.sev}">${s.list.length} artist${s.list.length !== 1 ? 's':''}</span>
+          <span class="blocker-arrow">▼</span>
+        </div>
+      </div>
+      <div class="blocker-list">${rows}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER: BY LEAD ───────────────────────────────────────────
+function renderByLead() {
+  applyFilters();
+  const grouped = {};
+  ST.filtered.forEach(a => {
+    if (!grouped[a.lead]) grouped[a.lead] = [];
+    grouped[a.lead].push(a);
+  });
+
+  const grid = document.getElementById('bylead-grid');
+  if (!Object.keys(grouped).length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1"><div class="empty-icon">👤</div><h3>No leads found</h3><p>Adjust filters to see lead assignments.</p></div>`;
+    return;
+  }
+
+  const SHOW = 6; // initial rows per card before "show all"
+
+  grid.innerHTML = Object.entries(grouped)
+    .sort((a, b) => b[1].length - a[1].length)
+    .map(([lead, artists]) => {
+      const col      = leadColour(lead);
+      const blocked  = artists.filter(a => hasBlockers(a)).length;
+      const complete = artists.filter(a => overallStatus(a) === 'complete').length;
+      const inProg   = artists.filter(a => overallStatus(a) === 'in-progress').length;
+      const open     = ST.leadOpen[lead];
+      const visible  = open ? artists : artists.slice(0, SHOW);
+
+      const rows = visible.map(a => {
+        const tCls = 'tier-' + a.tier.toLowerCase().replace(/ /g,'-');
+        const tSh  = a.tier === 'Sub-headliner' ? 'Sub' : a.tier === 'Headliner' ? 'HL' : a.tier === 'Support' ? 'Supp' : 'LCL';
+        const oCls = { 'Int': 'origin-int', 'RO': 'origin-ro', 'Local': 'origin-local' }[a.origin] || 'origin-int';
+        return `<div class="lead-artist-item">
+          <span class="tier-tag ${tCls}">${tSh}</span>
+          <span class="tier-tag ${oCls}">${esc(a.origin)}</span>
+          <span class="lead-artist-name">${esc(a.name)}</span>
+          <div class="mini-steps">${a.steps.map(s=>`<div class="mini-step s${s}"></div>`).join('')}</div>
+          <a class="lead-row-link" href="${mondayUrl(a.id)}" target="_blank">→</a>
+        </div>`;
+      }).join('');
+
+      const more = artists.length > SHOW ? `
+        <div class="lead-show-more" onclick="toggleLead('${esc(lead)}')">
+          ${open ? '▲ Show less' : `▼ ${artists.length - SHOW} more artists`}
+        </div>` : '';
+
+      return `<div class="lead-card">
+        <div class="lead-card-hd">
+          <div class="lead-avatar-lg" style="color:${col}">${initials(lead)}</div>
+          <div>
+            <div class="lead-card-name">${esc(lead)}</div>
+            <div class="lead-card-role">Advancing Lead</div>
+          </div>
+        </div>
+        <div class="lead-stats">
+          <div class="lead-stat">
+            <div class="lead-stat-num">${artists.length}</div>
+            <div class="lead-stat-lbl">Artists</div>
+          </div>
+          <div class="lead-stat">
+            <div class="lead-stat-num green">${complete}</div>
+            <div class="lead-stat-lbl">Complete</div>
+          </div>
+          <div class="lead-stat">
+            <div class="lead-stat-num ${blocked > 0 ? 'red' : ''}">${blocked}</div>
+            <div class="lead-stat-lbl">Blockers</div>
+          </div>
+        </div>
+        <div class="lead-artist-list">${rows}</div>
+        ${more}
+      </div>`;
+    }).join('');
+}
+
+// ── RENDER: STATUS BAR ────────────────────────────────────────
+function renderStats() {
+  const a = ST.artists;
+  document.getElementById('s-total').textContent    = a.length;
+  document.getElementById('s-complete').textContent = a.filter(x => overallStatus(x) === 'complete').length;
+  document.getElementById('s-progress').textContent = a.filter(x => overallStatus(x) === 'in-progress').length;
+  document.getElementById('s-blocked').textContent  = a.filter(x => overallStatus(x) === 'blocked').length;
+  document.getElementById('s-idle').textContent     = a.filter(x => overallStatus(x) === 'idle').length;
+
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + ST.sync;
+  if      (ST.sync === 'live')    lbl.textContent = `Live from Monday.com · updated ${ST.syncTime}`;
+  else if (ST.sync === 'error')   lbl.textContent = 'Sync failed — using offline data';
+  else                            lbl.textContent = 'Offline · Connect in ⚙ Settings to go live';
+}
+
+// ── RENDER: LEAD FILTER PILLS ─────────────────────────────────
+function renderLeadPills() {
+  const leads = [...new Set(ST.artists.map(a => a.lead))].sort();
+  document.getElementById('lead-pills').innerHTML = leads.map(l =>
+    `<button class="filter-pill ${ST.filters.lead === l ? 'active' : ''}"
+      data-filter="lead" data-val="${esc(l)}"
+      onclick="setFilter('lead','${esc(l)}')">${l.split(' ')[0]}</button>`
+  ).join('');
+}
+
+// ── RENDER: BOOKED BY FILTER PILLS ───────────────────────────
+function renderBookedByPills() {
+  const bookers = [...new Set(ST.artists.map(a => a.bookedBy))].sort();
+  document.getElementById('bookedby-pills').innerHTML = bookers.map(b =>
+    `<button class="filter-pill ${ST.filters.bookedBy === b ? 'active' : ''}"
+      data-filter="bookedBy" data-val="${esc(b)}"
+      onclick="setFilter('bookedBy','${esc(b)}')">${b.split(' ')[0]}</button>`
+  ).join('');
+}
+
+// ── PANEL: OPEN / CLOSE ───────────────────────────────────────
+function openPanel(artistId) {
+  const a = ST.artists.find(x => x.id === artistId);
+  if (!a) return;
+  ST.panelArtist = a;
+
+  // Default: current step expanded, all past steps collapsed
+  const currentStep = a.steps.findIndex(s => s !== 2);
+  const effectiveCurrent = currentStep === -1 ? 7 : currentStep;
+  ST.stepOpen = {};
+  ST.stepOpen[effectiveCurrent] = true;
+
+  renderPanel(a);
+  document.getElementById('artist-panel').classList.add('open');
+  document.getElementById('panel-backdrop').classList.add('open');
+}
+
+function closePanel() {
+  document.getElementById('artist-panel').classList.remove('open');
+  document.getElementById('panel-backdrop').classList.remove('open');
+  ST.panelArtist = null;
+}
+
+// ── PANEL: TOGGLE STEP SECTION ────────────────────────────────
+function togglePanelStep(stepNum) {
+  ST.stepOpen[stepNum] = !ST.stepOpen[stepNum];
+  // Re-render only the panel body, not the whole page
+  if (ST.panelArtist) renderPanel(ST.panelArtist);
+}
+
+// ── PANEL: RENDER ─────────────────────────────────────────────
+function renderPanel(a) {
+  // Determine current step (first incomplete step)
+  const currentStep = a.steps.findIndex(s => s !== 2);
+  const effectiveCurrent = currentStep === -1 ? 7 : currentStep;
+
+  // ── Header
+  document.getElementById('panel-name').textContent = a.name;
+
+  const tCls  = 'tier-' + a.tier.toLowerCase().replace(/ /g,'-');
+  const tLbl  = a.tier === 'Sub-headliner' ? 'Sub-headliner' : a.tier;
+  const oCls  = { 'Int':'origin-int','RO':'origin-ro','Local':'origin-local' }[a.origin] || 'origin-int';
+  document.getElementById('panel-tags').innerHTML =
+    `<span class="tier-tag ${tCls}">${esc(tLbl)}</span>
+     <span class="tier-tag ${oCls}">${esc(a.origin)}</span>`;
+
+  const leadCol = leadColour(a.lead);
+  const bbCol   = leadColour(a.bookedBy);
+  document.getElementById('panel-meta').innerHTML =
+    `<div class="panel-meta-item">
+       <span class="lead-avatar" style="background:${leadCol};width:18px;height:18px;font-size:7px">${initials(a.lead)}</span>
+       <strong>${esc(a.lead)}</strong><span>Adv. Lead</span>
+     </div>
+     <div class="panel-meta-item">
+       <span class="lead-avatar" style="background:${bbCol};width:18px;height:18px;font-size:7px">${initials(a.bookedBy)}</span>
+       <strong>${esc(a.bookedBy)}</strong><span>Booked By</span>
+     </div>
+     <a class="panel-monday-link" href="${mondayUrl(a.id)}" target="_blank">→ Monday</a>`;
+
+  // ── Data strip
+  const stripItems = [
+    { lbl:'Rider',    val: a.rider     ? '✓':'✗',   cls: a.rider     ? 'yes':'no'  },
+    { lbl:'Party',    val: a.partySize ?? '—',        cls: a.partySize ? 'num':'dash'},
+    { lbl:'Hotel',    val: a.hotel     ? '✓':'✗',   cls: a.hotel     ? 'yes':'no'  },
+    { lbl:'Dietary',  val: a.dietary   ? '✓':'✗',   cls: a.dietary   ? 'yes':'no'  },
+    { lbl:'Step',     val: effectiveCurrent + '/7',   cls: 'num'                    }
+  ];
+  document.getElementById('panel-strip').innerHTML = stripItems.map(i =>
+    `<div class="panel-strip-item">
+       <span class="panel-strip-val ${i.cls}">${i.val}</span>
+       <span class="panel-strip-lbl">${i.lbl}</span>
+     </div>`
+  ).join('');
+
+  // ── Body: step sections
+  // Only render steps 0 … effectiveCurrent (future steps hidden)
+  const body = document.getElementById('panel-body');
+
+  // Legend strip
+  const legendHtml = `<div class="panel-legend">
+    <span class="panel-legend-item"><span class="action-source monday">MON</span> Auto from Monday</span>
+    <span class="panel-legend-item"><span class="action-source email">EMAIL</span> Auto from Email Tool</span>
+    <span class="panel-legend-item"><span class="action-source manual">MANUAL</span> Manual checkbox</span>
+    <span class="panel-legend-item" style="margin-left:4px">⚡ = conflict with Monday data</span>
+  </div>`;
+
+  const sectionsHtml = ACTION_STEPS
+    .filter(step => step.num <= effectiveCurrent)
+    .map(step => {
+      const isPast    = step.num < effectiveCurrent;
+      const isCurrent = step.num === effectiveCurrent;
+      const isOpen    = !!ST.stepOpen[step.num];
+
+      // Tally using resolved ticks
+      const resolved = step.actions.map((_, i) => resolveActionTick(a, step.num, i));
+      const checkedCount = resolved.filter(r => r.ticked).length;
+      const conflictCount = resolved.filter(r => r.conflict).length;
+      const overdueCount  = isPast ? resolved.filter(r => !r.ticked).length : 0;
+      const total = step.actions.length;
+      const pct   = total ? Math.round((checkedCount / total) * 100) : 0;
+
+      // Header badge
+      let badgeHtml = '';
+      if (conflictCount > 0) {
+        badgeHtml += `<span class="step-pending-badge red">⚡ ${conflictCount} conflict${conflictCount > 1 ? 's':''}</span> `;
+      }
+      if (overdueCount > 0) {
+        const sev = overdueCount >= 3 ? 'red' : '';
+        badgeHtml += `<span class="step-pending-badge ${sev}">${overdueCount} pending</span>`;
+      } else if (isPast && checkedCount === total) {
+        badgeHtml += `<span class="step-done-badge">✓ All done</span>`;
+      } else if (isCurrent) {
+        badgeHtml += `<span style="font-size:9px;color:var(--text-soft)">${checkedCount}/${total}</span>`;
+      }
+
+      const numCls = isCurrent ? 'current' : (checkedCount === total ? 'done' : 'past');
+
+      // Source badge labels
+      const SRC_LABELS = { monday: 'MON', email: 'EMAIL', manual: 'MANUAL' };
+
+      const actionsHtml = step.actions.map((act, i) => {
+        const r       = resolved[i];
+        const overdue = isPast && !r.ticked;
+        const srcCls  = act.source;
+        const srcLbl  = SRC_LABELS[act.source];
+
+        // Tooltip for monday actions: shows column name + board
+        const tip = act.source === 'monday'
+          ? `title="Monday: ${esc(act.columnName)} (${esc(act.boardRef)} board) · condition: ${esc(act.condition)}"`
+          : act.source === 'email'
+          ? `title="Email Tool: module ${esc(act.emailModule)}"`
+          : '';
+
+        // Conflict icon
+        const conflictIcon = r.conflict
+          ? `<span class="action-conflict-icon" title="Conflict: Monday says ${r.autoTick ? '✓ ticked' : '✗ unticked'} but manually overridden">⚡</span>`
+          : '';
+
+        return `<div class="action-item ${r.ticked ? 'checked':''} ${overdue ? 'overdue':''} ${r.conflict ? 'conflict':''}"
+                     onclick="toggleAction('${esc(a.id)}', ${step.num}, ${i})" ${tip}>
+          <div class="action-check"></div>
+          <span class="action-label">${esc(act.label)}</span>
+          ${conflictIcon}
+          <span class="action-source ${srcCls}">${srcLbl}</span>
+          <span class="action-owner ${act.owner}">${act.owner.toUpperCase()}</span>
+        </div>`;
+      }).join('');
+
+      return `<div class="step-section ${isOpen ? 'expanded' : ''}" id="ps-${step.num}">
+        <div class="step-section-hd" onclick="togglePanelStep(${step.num})">
+          <div class="step-num-badge ${numCls}">${step.num}</div>
+          <div class="step-section-name">
+            ${esc(step.name)}
+            <span class="step-owner-badge ${step.owner}">${step.owner.toUpperCase()}</span>
+          </div>
+          <div class="step-section-right">
+            ${badgeHtml}
+            <span class="step-toggle-arrow">▼</span>
+          </div>
+        </div>
+        <div class="action-list">
+          <div class="step-progress-bar">
+            <div class="step-progress-fill" style="width:${pct}%"></div>
+          </div>
+          ${actionsHtml}
+        </div>
+      </div>`;
+    }).join('');
+
+  body.innerHTML = legendHtml + sectionsHtml;
+}
+
+// ── RENDER ALL ────────────────────────────────────────────────
+function renderAll() {
+  renderStats();
+  renderLeadPills();
+  renderBookedByPills();
+  if (ST.view === 'pipeline') renderPipeline();
+  else if (ST.view === 'blockers') renderBlockers();
+  else if (ST.view === 'bylead') renderByLead();
+}
+
+// ── VIEW & FILTER CONTROLS ────────────────────────────────────
+function setView(v) {
+  ST.view = v;
+  document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+  renderAll();
+}
+
+function setFilter(type, val) {
+  ST.filters[type] = val;
+  document.querySelectorAll(`.filter-pill[data-filter="${type}"]`).forEach(p => {
+    p.classList.toggle('active', p.dataset.val === val);
+  });
+  renderAll();
+}
+
+function handleSearch(v) { ST.search = v; renderPipeline(); }
+
+function toggleBlocker(id) {
+  ST.blockerOpen[id] = !ST.blockerOpen[id];
+  renderBlockers();
+}
+
+function toggleLead(lead) {
+  ST.leadOpen[lead] = !ST.leadOpen[lead];
+  renderByLead();
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────
+function loadCfg() {
+  try {
+    const s = JSON.parse(localStorage.getItem('ec12_cfg') || '{}');
+    Object.assign(CFG, s);
+    if (s.cols)     CFG.cols     = Object.assign({}, CFG.cols, s.cols);
+    if (s.boardIds) CFG.boardIds = Object.assign({}, CFG.boardIds, s.boardIds);
+  } catch(e) {}
+  document.getElementById('event-subtitle').textContent = CFG.eventName;
+}
+
+function openSettings() {
+  document.getElementById('cfg-apikey').value     = CFG.apiKey;
+  document.getElementById('cfg-boardid').value    = CFG.boardId;
+  document.getElementById('cfg-workspace').value  = CFG.workspaceUrl;
+  document.getElementById('cfg-eventname').value  = CFG.eventName;
+  Object.entries(CFG.cols).forEach(([k,v]) => {
+    const el = document.getElementById('col-'+k);
+    if (el) el.value = v;
+  });
+  Object.entries(CFG.boardIds).forEach(([k,v]) => {
+    const el = document.getElementById('bid-'+k);
+    if (el) el.value = v || '';
+  });
+  document.getElementById('settings-overlay').classList.add('open');
+}
+
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function saveSettings() {
+  CFG.apiKey       = document.getElementById('cfg-apikey').value.trim();
+  CFG.boardId      = document.getElementById('cfg-boardid').value.trim();
+  CFG.workspaceUrl = document.getElementById('cfg-workspace').value.trim().replace(/^https?:\/\//,'');
+  CFG.eventName    = document.getElementById('cfg-eventname').value.trim() || 'Electric Castle · EC12';
+  ['tier','lead','bookedBy','origin','s0','s1','s2','s3','s4','s5','s6','s7','rider','party','hotel','dietary'].forEach(k => {
+    const el = document.getElementById('col-'+k);
+    if (el) CFG.cols[k] = el.value.trim();
+  });
+  Object.keys(CFG.boardIds).forEach(k => {
+    const el = document.getElementById('bid-'+k);
+    if (el) CFG.boardIds[k] = el.value.trim();
+  });
+  // Keep artist board ID in sync with main boardId
+  if (!CFG.boardIds.artist) CFG.boardIds.artist = CFG.boardId;
+  localStorage.setItem('ec12_cfg', JSON.stringify(CFG));
+  document.getElementById('event-subtitle').textContent = CFG.eventName;
+  closeSettings();
+  refreshData();
+}
+
+// ── DATA LOAD ─────────────────────────────────────────────────
+async function refreshData() {
+  showLoader(true);
+  const data = await fetchMonday();
+  if (data && data.length > 0) {
+    ST.artists  = data;
+    ST.sync     = 'live';
+    ST.syncTime = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  } else {
+    ST.artists = MOCK_ARTISTS;
+    ST.sync    = (CFG.apiKey && CFG.boardId) ? 'error' : 'offline';
+  }
+  renderAll();
+  showLoader(false);
+}
+
+function showLoader(v) { document.getElementById('loader').style.display = v ? 'flex' : 'none'; }
+
+// ── UTILITY ───────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── EVENT DELEGATION ──────────────────────────────────────────
+document.querySelectorAll('.view-tab').forEach(t =>
+  t.addEventListener('click', () => setView(t.dataset.view)));
+
+document.querySelectorAll('.filter-pill[data-filter]').forEach(p =>
+  p.addEventListener('click', () => setFilter(p.dataset.filter, p.dataset.val)));
+
+// Close modal on overlay click
+document.getElementById('settings-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeSettings();
+});
+
+// ── INIT ──────────────────────────────────────────────────────
+loadCfg();
+refreshData();
+</script>
+</body>
+</html>

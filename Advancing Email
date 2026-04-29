@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC Hospitality // Email Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --primary:         #1A3A2A;
+  --primary-mid:     #2D5A40;
+  --primary-light:   #4A8C6B;
+  --primary-faint:   #EAF4EE;
+  --gold:            #9C6E1A;
+  --gold-light:      #FEF6E4;
+  --gold-mid:        #7A540E;
+  --cream:           #FDF8F0;
+  --cream-dark:      #EDE3D0;
+  --red:             #C0392B;
+  --red-light:       #FDEDEC;
+  --state-good:      #059669;
+  --text:            #1A1A1A;
+  --text-mid:        #4A4A4A;
+  --text-soft:       #717171;
+  --radius:          10px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--text); display: flex; flex-direction: column; height: 100vh; }
+
+/* HEADER */
+.app-header { background: var(--primary); padding: 13px 22px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; gap: 16px; }
+.header-brand { display: flex; align-items: baseline; gap: 10px; }
+.header-title  { font-family: 'Playfair Display', serif; font-size: 18px; color: white; }
+.header-div    { color: rgba(255,255,255,0.25); }
+.header-sub    { font-size: 11px; color: rgba(255,255,255,0.42); font-weight: 400; }
+.header-artist { font-size: 12.5px; font-weight: 600; color: white; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18); padding: 4px 13px; border-radius: 20px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.header-artist.empty { color: rgba(255,255,255,0.3); font-weight: 400; font-style: italic; font-size: 11.5px; }
+
+/* LAYOUT */
+.app-body { display: flex; flex: 1; overflow: hidden; }
+
+/* SIDEBAR */
+.sidebar { width: 355px; min-width: 290px; background: white; border-right: 2px solid var(--cream-dark); overflow-y: auto; flex-shrink: 0; }
+.sidebar-section { border-bottom: 1px solid var(--cream-dark); }
+.sidebar-section-hd { padding: 10px 15px; background: var(--cream); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; transition: background 0.15s; }
+.sidebar-section-hd:hover { background: var(--cream-dark); }
+.sidebar-section-title { font-family: 'Playfair Display', serif; font-size: 12px; color: var(--primary); }
+.sshd-right { display: flex; align-items: center; gap: 7px; }
+.sidebar-section-arrow { font-size: 9px; color: var(--text-soft); }
+.sec-count { font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px; background: var(--red-light); color: var(--red); display: none; }
+.sec-count.show { display: inline-block; }
+.sidebar-section-body { padding: 12px 15px; display: flex; flex-direction: column; gap: 8px; }
+.sidebar-section-body.closed { display: none; }
+
+/* FORM */
+label.field-label { font-size: 9.5px; font-weight: 600; color: var(--text-soft); letter-spacing: 0.5px; text-transform: uppercase; display: block; margin-bottom: 3px; }
+input[type="text"], input[type="date"], input[type="email"], input[type="number"], select, textarea { width: 100%; background: var(--cream); border: 1.5px solid var(--cream-dark); border-radius: 7px; padding: 6px 9px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; color: var(--text); outline: none; transition: border-color 0.15s, background 0.15s; }
+input:focus, select:focus, textarea:focus { border-color: var(--primary-light); background: white; }
+textarea { resize: vertical; min-height: 50px; line-height: 1.5; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+/* HOTEL TIER */
+.hotel-tier { background: var(--cream); border: 1.5px solid var(--cream-dark); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; transition: opacity 0.2s; }
+.hotel-tier.dim { opacity: 0.4; }
+.hotel-tier-hd { display: flex; align-items: center; justify-content: space-between; }
+.hotel-tier-label { font-size: 11px; font-weight: 600; color: var(--primary); }
+.hotel-tier-stars { font-size: 10px; color: var(--gold); letter-spacing: 1px; }
+
+/* TRAVEL */
+.travel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.travel-btn { padding: 6px 7px; background: var(--cream); border: 2px solid var(--cream-dark); border-radius: 7px; cursor: pointer; text-align: center; font-size: 11px; font-weight: 500; transition: all 0.15s; user-select: none; color: var(--text-mid); }
+.travel-btn:hover { border-color: var(--primary-light); color: var(--primary); }
+.travel-btn.on { background: var(--primary-faint); border-color: var(--primary-light); color: var(--primary); font-weight: 600; }
+
+/* CHECKBOXES */
+.chk-row { display: flex; align-items: flex-start; gap: 7px; cursor: pointer; padding: 3px 0; }
+.chk-row input[type="checkbox"] { width: 14px; height: 14px; accent-color: var(--primary); cursor: pointer; flex-shrink: 0; margin-top: 2px; }
+.chk-row span { font-size: 11.5px; color: var(--text-mid); line-height: 1.4; user-select: none; }
+
+/* SENT STEP HEADERS */
+.sent-step-hd { display: flex; align-items: center; gap: 7px; padding: 5px 0 3px; }
+.sent-step-label { font-size: 9px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; padding: 2px 7px; border-radius: 8px; }
+.sent-step-label.ec { background: rgba(74,140,107,0.15); color: var(--primary-mid); }
+.sent-step-line { flex: 1; height: 1px; background: var(--cream-dark); }
+.sent-step-due { font-size: 9px; color: var(--text-soft); font-weight: 500; }
+
+/* OUTPUT */
+.output-panel { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-width: 0; }
+
+/* STEP TABS */
+.step-tabs { background: var(--primary); display: flex; padding: 0 16px; overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+.step-tabs::-webkit-scrollbar { display: none; }
+.step-tab { padding: 9px 16px 7px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.15s; flex-shrink: 0; position: relative; }
+.step-tab:hover { background: rgba(255,255,255,0.06); }
+.step-tab.active-tab { border-bottom-color: #52B788; background: rgba(255,255,255,0.08); }
+.step-tab-badge { font-size: 8px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; padding: 1px 5px; border-radius: 3px; }
+.ec-step .step-tab-badge { background: rgba(82,183,136,0.25); color: #82D4A8; }
+.tm-step .step-tab-badge { background: rgba(184,134,11,0.3); color: #FBBF24; }
+.step-tab-num { font-size: 16px; font-weight: 700; color: rgba(255,255,255,0.4); line-height: 1; }
+.step-tab.active-tab .step-tab-num { color: white; }
+.step-tab:not(.active-tab):hover .step-tab-num { color: rgba(255,255,255,0.65); }
+.tab-alert { position: absolute; top: 5px; right: 5px; width: 6px; height: 6px; border-radius: 50%; background: #FF6B6B; display: none; }
+
+/* CTX BAR */
+.ctx-bar { background: var(--primary-mid); padding: 6px 19px; display: flex; align-items: center; gap: 9px; flex-shrink: 0; flex-wrap: wrap; }
+.ctx-item { font-size: 10.5px; color: rgba(255,255,255,0.55); display: flex; align-items: center; gap: 4px; }
+.ctx-item strong { color: white; font-weight: 600; }
+.ctx-sep { color: rgba(255,255,255,0.2); font-size: 11px; }
+.ctx-badge { font-size: 8.5px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; padding: 2px 7px; border-radius: 10px; }
+.ctx-badge.ec { background: rgba(82,183,136,0.3); color: #82D4A8; }
+.ctx-badge.tm { background: rgba(251,191,36,0.3); color: #FBBF24; }
+.ctx-badge.catchup { background: rgba(255,107,107,0.3); color: #FF9B8E; }
+
+/* OUTPUT AREA */
+.output-area { flex: 1; overflow-y: auto; padding: 18px 22px 48px; display: flex; flex-direction: column; gap: 12px; }
+.out-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.out-step-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--primary); }
+.out-step-meta { font-size: 11px; color: var(--text-soft); margin-top: 3px; }
+
+/* CATCHUP NOTICE */
+.catchup-notice { background: var(--red-light); border: 1.5px solid #E6B0AA; border-radius: 8px; padding: 9px 13px; display: flex; align-items: flex-start; gap: 8px; }
+.catchup-notice-text { font-size: 11.5px; color: var(--red); line-height: 1.5; }
+.catchup-notice-text strong { font-weight: 700; }
+.blocks-summary { display: flex; flex-wrap: wrap; gap: 5px; }
+.block-chip { font-size: 9.5px; font-weight: 600; letter-spacing: 0.3px; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; }
+.block-chip.new     { background: var(--primary-faint); color: var(--primary-mid); }
+.block-chip.overdue { background: var(--red-light); color: var(--red); }
+
+/* SUBJECT */
+.subject-bar { background: var(--primary-faint); border: 1.5px solid var(--primary-light); border-radius: 8px; padding: 8px 13px; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.subject-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--primary-mid); flex-shrink: 0; }
+.subject-text { font-size: 12.5px; color: var(--primary); font-weight: 500; }
+
+/* ATTACHMENTS */
+.attach-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.attach-tag { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; font-weight: 600; padding: 3px 8px; border-radius: 10px; text-transform: uppercase; background: var(--primary-faint); color: var(--primary-mid); }
+
+/* BUTTONS */
+.btn { padding: 7px 15px; border-radius: 8px; border: none; font-family: 'DM Sans', sans-serif; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.btn-copy { background: var(--primary-faint); color: var(--primary); border: 1.5px solid var(--primary-light); }
+.btn-copy:hover { background: var(--primary-light); color: white; }
+.btn-copy.ok { background: var(--state-good); color: white; border-color: var(--state-good); }
+.btn-chase { background: var(--gold-light); color: var(--gold); border: 1.5px solid #D4A83A; }
+.btn-chase:hover { background: var(--gold); color: white; }
+.btn-chase.ok { background: var(--state-good); color: white; }
+
+/* EMAIL BODY */
+.email-body { background: white; border: 2px solid var(--cream-dark); border-radius: var(--radius); padding: 20px 24px; font-size: 13px; line-height: 1.85; color: var(--text); white-space: pre-wrap; font-family: 'DM Sans', sans-serif; }
+
+/* TM CARD */
+.tm-card { background: white; border: 2px solid #F3E0A0; border-radius: var(--radius); overflow: hidden; }
+.tm-card-hd { background: var(--gold-light); padding: 12px 17px; display: flex; align-items: center; gap: 9px; border-bottom: 1px solid #F0D88A; }
+.tm-card-icon { font-size: 16px; }
+.tm-card-title { font-family: 'Playfair Display', serif; font-size: 13.5px; color: var(--gold-mid); }
+.tm-card-body { padding: 12px 15px; display: flex; flex-direction: column; gap: 7px; }
+.tm-item { display: flex; align-items: flex-start; gap: 8px; background: var(--cream); border: 1px solid var(--cream-dark); border-radius: 7px; padding: 7px 9px; }
+.tm-item-icon { font-size: 13px; flex-shrink: 0; margin-top: 1px; }
+.tm-item-body { display: flex; flex-direction: column; gap: 1px; }
+.tm-item-title { font-size: 11.5px; font-weight: 600; color: var(--text); }
+.tm-item-desc  { font-size: 11px; color: var(--text-soft); line-height: 1.4; }
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--cream-dark); border-radius: 10px; }
+
+@media (max-width: 860px) {
+  html, body { overflow: auto; height: auto; }
+  .app-body { flex-direction: column; }
+  .sidebar { width: 100%; border-right: none; border-bottom: 2px solid var(--cream-dark); }
+  .output-panel { height: auto; }
+  .output-area { overflow-y: visible; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="header-brand">
+    <span class="header-title">EC Hospitality</span>
+    <span class="header-div">/</span>
+    <span class="header-sub">Email Draft Generator</span>
+  </div>
+  <div class="header-artist empty" id="headerArtist">No artist entered</div>
+</header>
+
+<div class="app-body">
+
+<aside class="sidebar">
+
+  <!-- Artist & Contact -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('contact')">
+      <span class="sidebar-section-title">Artist & Contact</span>
+      <div class="sshd-right"><span class="sidebar-section-arrow" id="arr-contact">▼</span></div>
+    </div>
+    <div class="sidebar-section-body" id="sec-contact">
+      <div><label class="field-label">Artist Name</label><input type="text" id="artistName" placeholder="e.g. Fred Again.." oninput="upd()"></div>
+      <div class="row2">
+        <div><label class="field-label">Advancing Lead</label><input type="text" id="advLead" placeholder="Your name" oninput="upd()"></div>
+        <div><label class="field-label">Performance Date</label><input type="date" id="perfDate" oninput="upd()"></div>
+      </div>
+      <div><label class="field-label">Stage</label><input type="text" id="stageName" placeholder="e.g. Main Stage" oninput="upd()"></div>
+      <div><label class="field-label">Tour Manager Name</label><input type="text" id="tmName" placeholder="TM full name" oninput="upd()"></div>
+      <div><label class="field-label">TM Email</label><input type="email" id="tmEmail" placeholder="tm@agency.com" oninput="upd()"></div>
+      <div><label class="field-label">CC — Monday Artist Item</label><input type="email" id="ccEmail" placeholder="monday+artist@electriccastle.ro" oninput="upd()"></div>
+    </div>
+  </div>
+
+  <!-- Hotels -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('hotels')">
+      <span class="sidebar-section-title">Hotel Configuration</span>
+      <div class="sshd-right"><span class="sidebar-section-arrow" id="arr-hotels">▼</span></div>
+    </div>
+    <div class="sidebar-section-body" id="sec-hotels">
+      <div class="hotel-tier" id="tier-a">
+        <div class="hotel-tier-hd"><span class="hotel-tier-label">A-Party</span><span class="hotel-tier-stars">★★★★★</span></div>
+        <div class="row2">
+          <div><label class="field-label">Rooms</label><input type="number" id="aCount" value="0" min="0" oninput="upd()"></div>
+          <div><label class="field-label">Hotel</label><select id="aHotel" onchange="upd()"><option>Radisson Blu</option><option>Vibre Hotel</option><option>Platinia Hotel</option><option>Other — TBC</option></select></div>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">Check-in</label><input type="date" id="aIn" oninput="upd()"></div>
+          <div><label class="field-label">Check-out</label><input type="date" id="aOut" oninput="upd()"></div>
+        </div>
+      </div>
+      <div class="hotel-tier" id="tier-b">
+        <div class="hotel-tier-hd"><span class="hotel-tier-label">B-Party</span><span class="hotel-tier-stars">★★★★☆</span></div>
+        <div class="row2">
+          <div><label class="field-label">Rooms</label><input type="number" id="bCount" value="0" min="0" oninput="upd()"></div>
+          <div><label class="field-label">Hotel</label><select id="bHotel" onchange="upd()"><option>Courtyard by Marriott</option><option>Grand Hotel Napoca</option><option>Royal Class Hotel</option><option>Other — TBC</option></select></div>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">Check-in</label><input type="date" id="bIn" oninput="upd()"></div>
+          <div><label class="field-label">Check-out</label><input type="date" id="bOut" oninput="upd()"></div>
+        </div>
+      </div>
+      <div class="hotel-tier" id="tier-crew">
+        <div class="hotel-tier-hd"><span class="hotel-tier-label">Crew</span><span class="hotel-tier-stars">★★★★</span></div>
+        <div class="row2">
+          <div><label class="field-label">Rooms</label><input type="number" id="crewCount" value="0" min="0" oninput="upd()"></div>
+          <div><label class="field-label">Hotel</label><select id="crewHotel" onchange="upd()"><option>Grand Hotel Napoca</option><option>Courtyard by Marriott</option><option>Royal Class Hotel</option><option>Other — TBC</option></select></div>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">Check-in</label><input type="date" id="crewIn" oninput="upd()"></div>
+          <div><label class="field-label">Check-out</label><input type="date" id="crewOut" oninput="upd()"></div>
+        </div>
+      </div>
+      <div class="hotel-tier" id="tier-drivers">
+        <div class="hotel-tier-hd"><span class="hotel-tier-label">Drivers / Truck Crew</span><span class="hotel-tier-stars">★★★</span></div>
+        <div class="row2">
+          <div><label class="field-label">Rooms</label><input type="number" id="drvCount" value="0" min="0" oninput="upd()"></div>
+          <div><label class="field-label">Hotel</label><select id="drvHotel" onchange="upd()"><option>Golden Tulip Ana Dome</option><option>Belvedere Hotel</option><option>Other — TBC</option></select></div>
+        </div>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="extraCovered" onchange="upd()"><span>Extra nights covered by festival</span></label>
+    </div>
+  </div>
+
+  <!-- Travel -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('travel')">
+      <span class="sidebar-section-title">Travel</span>
+      <div class="sshd-right"><span class="sidebar-section-arrow" id="arr-travel">▼</span></div>
+    </div>
+    <div class="sidebar-section-body" id="sec-travel">
+      <div>
+        <label class="field-label">Travel Mode</label>
+        <div class="travel-grid">
+          <div class="travel-btn on" data-mode="flying"      onclick="setTravel('flying')">✈ Flying in</div>
+          <div class="travel-btn"    data-mode="nightliner"  onclick="setTravel('nightliner')">🚌 Nightliner</div>
+          <div class="travel-btn"    data-mode="selfdriving" onclick="setTravel('selfdriving')">🚗 Self-driving</div>
+          <div class="travel-btn"    data-mode="mixed"       onclick="setTravel('mixed')">⇄ Mixed</div>
+        </div>
+      </div>
+      <div id="fld-flying">
+        <div class="row2" style="margin-bottom:6px">
+          <div><label class="field-label">Flying from</label><input type="text" id="flyFrom" placeholder="e.g. London" oninput="upd()"></div>
+          <div><label class="field-label">Airport</label><input type="text" id="flyAirport" value="CLJ" oninput="upd()"></div>
+        </div>
+        <div class="row2">
+          <div><label class="field-label">Approx. arrival</label><input type="date" id="flyArrival" oninput="upd()"></div>
+          <div><label class="field-label">Approx. departure</label><input type="date" id="flyDepart" oninput="upd()"></div>
+        </div>
+      </div>
+      <div id="fld-nightliner" style="display:none">
+        <div style="margin-bottom:6px"><label class="field-label">Vehicle reg number(s)</label><input type="text" id="nlReg" placeholder="e.g. AB 12 CDE" oninput="upd()"></div>
+        <div><label class="field-label">Parking preference</label><input type="text" id="nlParking" placeholder="e.g. artist compound" oninput="upd()"></div>
+      </div>
+      <div id="fld-selfdriving" style="display:none">
+        <div class="row2">
+          <div><label class="field-label">Reg number(s)</label><input type="text" id="sdReg" placeholder="e.g. B 123 XYZ" oninput="upd()"></div>
+          <div><label class="field-label">Make / model</label><input type="text" id="sdCar" placeholder="e.g. Range Rover" oninput="upd()"></div>
+        </div>
+      </div>
+      <div id="fld-mixed" style="display:none">
+        <label class="field-label">Mixed travel — notes</label>
+        <textarea id="mixedNotes" placeholder="e.g. Artist flying London, crew on nightliner from Berlin" oninput="upd()"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rider -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('rider')">
+      <span class="sidebar-section-title">Rider & Dietary</span>
+      <div class="sshd-right"><span class="sidebar-section-arrow" id="arr-rider">▼</span></div>
+    </div>
+    <div class="sidebar-section-body" id="sec-rider">
+      <label class="chk-row"><input type="checkbox" id="riderRcvd"    onchange="upd()"><span>Rider received</span></label>
+      <label class="chk-row"><input type="checkbox" id="riderApproved" onchange="upd()"><span>Rider alternatives approved by TM</span></label>
+      <div><label class="field-label">Dietary requirements</label><textarea id="dietaryReqs" placeholder="e.g. 1× vegan, 1× gluten-free" oninput="upd()"></textarea></div>
+    </div>
+  </div>
+
+  <!-- Already Sent -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('sent')">
+      <span class="sidebar-section-title">Already Sent</span>
+      <div class="sshd-right">
+        <span class="sec-count" id="pendingCount"></span>
+        <span class="sidebar-section-arrow" id="arr-sent">▼</span>
+      </div>
+    </div>
+    <div class="sidebar-section-body" id="sec-sent">
+
+      <div class="sent-step-hd">
+        <span class="sent-step-label ec">EC — Step 1</span>
+        <div class="sent-step-line"></div>
+        <span class="sent-step-due">hard deadline: Step 3</span>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="brochureSent"   onchange="upd()"><span>Festival brochure</span></label>
+      <label class="chk-row"><input type="checkbox" id="timelineSent"   onchange="upd()"><span>Advancing timeline</span></label>
+      <label class="chk-row"><input type="checkbox" id="merchSent"      onchange="upd()"><span>Merch procedure</span></label>
+      <label class="chk-row"><input type="checkbox" id="hotelDescSent"  onchange="upd()"><span>Hotel options / descriptions shared</span></label>
+      <label class="chk-row"><input type="checkbox" id="distancesSent"  onchange="upd()"><span>Distances & durations to site</span></label>
+      <label class="chk-row"><input type="checkbox" id="sponsorExpSent" onchange="upd()"><span>Sponsor exclusions explained (beer / water)</span></label>
+
+      <div class="sent-step-hd" style="margin-top:6px">
+        <span class="sent-step-label ec">EC — Step 3</span>
+        <div class="sent-step-line"></div>
+        <span class="sent-step-due">hard deadline: Step 5</span>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="hotelConfirmed"       onchange="upd()"><span>Hotel formally confirmed with dates</span></label>
+      <label class="chk-row"><input type="checkbox" id="angelExplained"       onchange="upd()"><span>What an Angel IS — explained to TM</span></label>
+      <label class="chk-row"><input type="checkbox" id="riderAltShared"       onchange="upd()"><span>Rider alternatives sheet shared</span></label>
+      <label class="chk-row"><input type="checkbox" id="drAllocated"          onchange="upd()"><span>Dressing room allocated (even if TBC)</span></label>
+      <label class="chk-row"><input type="checkbox" id="transferOverviewSent" onchange="upd()"><span>Ground transfer overview sent</span></label>
+      <label class="chk-row"><input type="checkbox" id="cateringDescSent"     onchange="upd()"><span>Catering amenities described</span></label>
+
+      <div class="sent-step-hd" style="margin-top:6px">
+        <span class="sent-step-label ec">EC — Step 5</span>
+        <div class="sent-step-line"></div>
+        <span class="sent-step-due">hard deadline: Step 7</span>
+      </div>
+      <label class="chk-row"><input type="checkbox" id="routeFormSent"      onchange="upd()"><span>Route request form link sent</span></label>
+      <label class="chk-row"><input type="checkbox" id="itinSent"           onchange="upd()"><span>Itinerary V1 shared</span></label>
+      <label class="chk-row"><input type="checkbox" id="menuSent"           onchange="upd()"><span>À la carte menu shared</span></label>
+      <label class="chk-row"><input type="checkbox" id="drConfirmed"        onchange="upd()"><span>Dressing room details confirmed</span></label>
+      <label class="chk-row"><input type="checkbox" id="guestListExplained" onchange="upd()"><span>Guest list process & deadline explained</span></label>
+      <label class="chk-row"><input type="checkbox" id="angelAllocated"     onchange="upd()"><span>Angel allocated — name + contact shared</span></label>
+
+    </div>
+  </div>
+
+  <!-- Step 5–7 Details -->
+  <div class="sidebar-section">
+    <div class="sidebar-section-hd" onclick="toggleSec('late')">
+      <span class="sidebar-section-title">Step 5–7 Details</span>
+      <div class="sshd-right"><span class="sidebar-section-arrow" id="arr-late">▼</span></div>
+    </div>
+    <div class="sidebar-section-body" id="sec-late">
+      <label class="chk-row"><input type="checkbox" id="guestListReq"   onchange="upd()"><span>Guest list requested by artist</span></label>
+      <label class="chk-row"><input type="checkbox" id="pressScheduled" onchange="upd()"><span>Press / media scheduled</span></label>
+      <label class="chk-row"><input type="checkbox" id="mealTimesConf"  onchange="upd()"><span>Meal times confirmed by TM</span></label>
+      <div><label class="field-label">Angel Name</label><input type="text" id="angelName" placeholder="Angel's full name" oninput="upd()"></div>
+      <div><label class="field-label">Angel Phone</label><input type="text" id="angelPhone" placeholder="+40 7xx xxx xxx" oninput="upd()"></div>
+      <div><label class="field-label">Backstage Manager Name</label><input type="text" id="bsmName" placeholder="BSM full name" oninput="upd()"></div>
+      <div><label class="field-label">Dressing Room Details</label><textarea id="drDetails" placeholder="e.g. DR3, ground floor, Stage Left" oninput="upd()"></textarea></div>
+    </div>
+  </div>
+
+</aside>
+
+<main class="output-panel">
+  <div class="step-tabs"   id="stepTabs"></div>
+  <div class="ctx-bar"     id="ctxBar"></div>
+  <div class="output-area" id="outputArea"></div>
+</main>
+
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════════════════
+let S = {
+  step: 1,
+  artistName:'', advLead:'', tmName:'', tmEmail:'', ccEmail:'', perfDate:'', stageName:'',
+  aCount:0, aHotel:'Radisson Blu', aIn:'', aOut:'',
+  bCount:0, bHotel:'Courtyard by Marriott', bIn:'', bOut:'',
+  crewCount:0, crewHotel:'Grand Hotel Napoca', crewIn:'', crewOut:'',
+  drvCount:0, drvHotel:'Golden Tulip Ana Dome',
+  extraCovered:false,
+  travelMode:'flying',
+  flyFrom:'', flyAirport:'CLJ', flyArrival:'', flyDepart:'',
+  nlReg:'', nlParking:'', sdReg:'', sdCar:'', mixedNotes:'',
+  riderRcvd:false, riderApproved:false, dietaryReqs:'',
+  // ── Sent flags with hard deadlines ────────────────────────────────
+  // must be covered by Step 3:
+  brochureSent:false, timelineSent:false, merchSent:false,
+  hotelDescSent:false, distancesSent:false, sponsorExpSent:false,
+  // must be covered by Step 5:
+  hotelConfirmed:false, angelExplained:false, riderAltShared:false,
+  drAllocated:false, transferOverviewSent:false, cateringDescSent:false,
+  // must be covered by Step 7:
+  routeFormSent:false, itinSent:false, menuSent:false,
+  drConfirmed:false, guestListExplained:false, angelAllocated:false,
+  // Step 5–7 context
+  guestListReq:false, pressScheduled:false, mealTimesConf:false,
+  angelName:'', angelPhone:'', bsmName:'', drDetails:'',
+};
+
+// Hard deadline: must be covered no later than this step
+const DEADLINE = {
+  brochureSent:3, timelineSent:3, merchSent:3,
+  hotelDescSent:3, distancesSent:3, sponsorExpSent:3,
+  hotelConfirmed:5, angelExplained:5, riderAltShared:5,
+  drAllocated:5, transferOverviewSent:5, cateringDescSent:5,
+  routeFormSent:7, itinSent:7, menuSent:7,
+  drConfirmed:7, guestListExplained:7, angelAllocated:7,
+};
+
+// include(flag): should this block appear in the current step's email?
+// YES if: flag not sent AND deadline <= current step
+function include(flag) { return !S[flag] && DEADLINE[flag] <= S.step; }
+// overdue(flag): was it due in an EARLIER step?
+function overdue(flag) { return !S[flag] && DEADLINE[flag] < S.step; }
+// hasCatchup: are there ANY overdue blocks at this step?
+function hasCatchup(step) { return Object.keys(DEADLINE).some(f => !S[f] && DEADLINE[f] < step); }
+
+// ══════════════════════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════════════════════
+const CLOSED = {};
+function toggleSec(id) {
+  CLOSED[id] = !CLOSED[id];
+  document.getElementById('sec-'+id).classList.toggle('closed', !!CLOSED[id]);
+  document.getElementById('arr-'+id).textContent = CLOSED[id] ? '▶' : '▼';
+}
+function setTravel(mode) {
+  S.travelMode = mode;
+  document.querySelectorAll('.travel-btn').forEach(el => el.classList.toggle('on', el.dataset.mode === mode));
+  ['flying','nightliner','selfdriving','mixed'].forEach(m => {
+    const el = document.getElementById('fld-'+m);
+    if (el) el.style.display = m === mode ? '' : 'none';
+  });
+  upd();
+}
+function fmtDate(d) {
+  if (!d) return '[DATE TBC]';
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+}
+const A    = () => S.artistName || '[Artist Name]';
+const TM   = () => S.tmName    || '[TM Name]';
+const LEAD = () => S.advLead   || '[Your Name]';
+const has  = t  => ({a:S.aCount>0, b:S.bCount>0, crew:S.crewCount>0, drv:S.drvCount>0}[t]);
+const rooms = n => n===1 ? '1 room' : `${n} rooms`;
+
+const HOTELS = { a:()=>S.aHotel, b:()=>S.bHotel, crew:()=>S.crewHotel, drv:()=>S.drvHotel };
+const STARS  = { a:'★★★★★', b:'★★★★', crew:'★★★★', drv:'★★★' };
+const LABELS = { a:'A-Party', b:'B-Party', crew:'Crew', drv:'Drivers / Truck Crew' };
+const INS    = () => ({a:S.aIn, b:S.bIn, crew:S.crewIn, drv:''});
+const OUTS   = () => ({a:S.aOut, b:S.bOut, crew:S.crewOut, drv:''});
+const COUNTS = () => ({a:S.aCount, b:S.bCount, crew:S.crewCount, drv:S.drvCount});
+
+function activeTiers() { return ['a','b','crew','drv'].filter(t => has(t)); }
+function hotelBlock(tier, dates=true) {
+  const n=COUNTS()[tier], h=HOTELS[tier](), ci=INS()[tier], co=OUTS()[tier];
+  let s = `${LABELS[tier].toUpperCase()} — ${h} ${STARS[tier]}\n${rooms(n)} per contracted allocation`;
+  if (dates && ci && co) s += `\nCheck-in: ${fmtDate(ci)}  |  Check-out: ${fmtDate(co)}`;
+  return s;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CONTENT BLOCKS — each block is a pure function returning a string
+// ══════════════════════════════════════════════════════════════════════
+function bBrochure()   { return `I've attached the Electric Castle festival brochure — a great overview of the site, the atmosphere, and what to expect on the ground.`; }
+function bTimeline()   { return `The advancing timeline is attached — this shows what we need from you and by when.`; }
+function bMerch()      { return `The merchandise policy is also attached — this covers the on-site process and revenue arrangements for selling merch at Electric Castle.`; }
+
+function bHotelDescs() {
+  const L = [`HOTEL OPTIONS\n`];
+  if (has('a'))    L.push(`   A-Party  →  ${HOTELS.a()} ${STARS.a}`);
+  if (has('b'))    L.push(`   B-Party  →  ${HOTELS.b()} ${STARS.b}`);
+  if (has('crew')) L.push(`   Crew     →  ${HOTELS.crew()} ${STARS.crew}`);
+  if (has('drv'))  L.push(`   Drivers  →  ${HOTELS.drv()} ${STARS.drv}`);
+  L.push(`\nAll properties are in central Cluj-Napoca. I'm happy to share more detail on any — just ask.`);
+  return L.join('\n');
+}
+
+function bDistances() {
+  if (S.travelMode === 'flying')
+    return `DISTANCES & JOURNEY TIMES\n   • ${S.flyAirport||'CLJ'} Airport → City Hotels:            approx. 8km / 15 min\n   • City Hotels → Festival site (Bonțida):  approx. 30km / 35–40 min`;
+  return `DISTANCES & JOURNEY TIMES\n   • City Hotels → Festival site (Bonțida):  approx. 30km / 35–40 min`;
+}
+
+function bSponsor() {
+  return `FESTIVAL SPONSORSHIP OBLIGATIONS\nElectric Castle has the following exclusivity arrangements that affect rider items:\n   • Beer:  Birra Moretti — no other beer brands can be supplied on site\n   • Water: Perla Harghitei — no other still water brands can be supplied on site\nWe'll flag any other items we're unable to fulfil exactly and offer alternatives for your approval.`;
+}
+
+function bHotelConfirm() {
+  const L = [`HOTEL CONFIRMATIONS\n`];
+  activeTiers().forEach(t => { L.push(hotelBlock(t,true)); L.push(''); });
+  L.push(`I'll introduce you to Sabina, who handles all hotel operations, for any room changes, billing queries, or special arrangements.`);
+  if (!S.extraCovered) L.push(`Any rooms beyond the contracted allocation are billed at the hotel's standard rate, settled directly with the property.`);
+  else                 L.push(`Additional nights are covered by the festival — flag any requirements to Sabina directly.`);
+  return L.join('\n');
+}
+
+function bAngelExplained() {
+  return `YOUR ARTIST LIAISON — ANGEL\nEvery artist at Electric Castle is assigned a dedicated on-site liaison we call an Angel. Your Angel will meet you at the festival arrival point and stay with you throughout your entire visit — they're your immediate point of contact for anything on the ground: getting to your dressing room, coordinating with catering, navigating the site, or anything else that comes up.\n\nWe'll confirm your Angel's name and contact details as soon as the allocation is finalised.`;
+}
+
+function bAngelAllocated() {
+  const angel = S.angelName || '[Angel Name TBC]';
+  const phone = S.angelPhone || '[Phone TBC]';
+  return `YOUR ANGEL — CONFIRMED\n   Name:  ${angel}\n   Phone: ${phone}\n\n${S.angelName ? `${S.angelName} will meet you at the festival arrival point and will be with you for the duration of your visit. For anything on the day — they are your first call.` : `Your Angel will be in touch directly ahead of the festival.`}`;
+}
+
+function bRider() {
+  if (S.riderRcvd) {
+    return `RIDER\nThank you — the rider has been received and we're working through it. The alternatives sheet is live here: [LINK]. Please review and approve the alternatives shown.\n\nFestival obligations (non-negotiable):\n   • Beer:  Birra Moretti\n   • Water: Perla Harghitei`;
+  }
+  return `RIDER\n⚠ We haven't yet received your hospitality rider. Please send the most current version as soon as possible, including all dietary requirements for the full travel party.\n\nPlease note our festival-wide exclusivity obligations:\n   • Beer:  Birra Moretti\n   • Water: Perla Harghitei\nWe'll flag any other items we can't fulfil exactly and share alternatives.`;
+}
+
+function bDrAllocated() {
+  if (S.drDetails) return `DRESSING ROOM\n${S.drDetails}\n\nYour Angel will take you there directly on arrival.`;
+  return `DRESSING ROOM\nAllocation is being finalised — full details to follow. If you have any specific setup requirements (furniture, AV, etc.), please send them now.`;
+}
+
+function bTransferOverview() {
+  const mode = S.travelMode;
+  if (mode === 'flying')
+    return `GROUND TRANSFERS\nWe'll arrange all transfers between the airport, hotels, and festival site. I'll follow up shortly with the route request form — please have an idea of passenger numbers per leg and whether you'd prefer a shared shuttle or dedicated vehicle.`;
+  if (mode === 'nightliner')
+    return `GROUND TRANSFERS — NIGHTLINER\nWe'll arrange secure parking in the artist compound at the festival site. Please confirm vehicle registration number(s) and approximate arrival time so we can prepare your site entry pass.`;
+  if (mode === 'selfdriving')
+    return `GROUND TRANSFERS — DRIVING\nArtist parking is adjacent to the backstage entrance. We'll prepare vehicle passes — please confirm registration number(s) and vehicle make/model.`;
+  return `GROUND TRANSFERS\nWe'll coordinate transfers separately for flying guests (airport ↔ hotel ↔ site) and driving/nightliner arrivals (parking in the artist compound). Details follow once travel plans are confirmed.`;
+}
+
+function bCatering() {
+  return `CATERING\nHot meals are served three times daily in the artist catering area on site. The à la carte menu will follow — please confirm meal time preferences and all dietary requirements for the travel party so we can brief the catering team in advance.`;
+}
+
+function bRouteForm() {
+  const mode = S.travelMode;
+  if (mode === 'flying')
+    return `TRANSFERS — ROUTE REQUEST FORM\nRoute request form: [LINK] — please complete with passenger numbers per leg, luggage needs, and preferred timings.\n\nReference timings:\n   • ${S.flyAirport||'CLJ'} Airport → Hotels:       approx. 15 min\n   • Hotels → Festival site (Bonțida):   approx. 35–40 min\n   • Festival site → ${S.flyAirport||'CLJ'} Airport: approx. 40 min`;
+  if (mode === 'nightliner')
+    return `NIGHTLINER PARKING\nParking in the artist compound is confirmed. The transport team will follow up with exact access instructions and shower facility timings.${S.nlReg ? `\n\nVehicle noted: ${S.nlReg}` : ''}`;
+  if (mode === 'selfdriving')
+    return `ARTIST PARKING\nParking passes are being prepared for the backstage entrance.${S.sdReg ? `\nVehicle: ${S.sdReg}${S.sdCar ? ` — ${S.sdCar}` : ''}` : '\nPlease confirm registration number(s) so we can prepare the pass.'}`;
+  return `TRANSFERS — ROUTE REQUEST FORM\nRoute request form: [LINK]\nPlease complete it for all sub-groups — flying guests and driving arrivals each have their own section.`;
+}
+
+function bItinerary() {
+  return `ITINERARY V1\nFirst draft itinerary: [LINK]\n\nThis is a live working document — please review and flag anything that needs adjusting. Press and interview slots are currently blank; let me know if you'd like to schedule any media.\n${S.perfDate ? `\nPerformance: ${fmtDate(S.perfDate)}${S.stageName ? ` — ${S.stageName}` : ''}` : ''}`;
+}
+
+function bMenu() {
+  return `CATERING — À LA CARTE MENU\nMenu attached. Please:\n   • Confirm preferred meal times (breakfast / lunch / dinner)\n   • Send advance pre-orders${S.dietaryReqs ? `\n\nDietary requirements on file: ${S.dietaryReqs}\nPlease confirm these are still accurate for all travel party members.` : '\n   • Confirm all dietary requirements for the full travel party'}`;
+}
+
+function bGuestList() {
+  return `GUEST LIST\nGuest list is available. Please send all names (first + last name, plus ID type) directly to me.\n⚠ Deadline: [DATE TBC] — requests cannot be accepted after this point.`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// EMAIL GENERATORS
+// ══════════════════════════════════════════════════════════════════════
+const SEP = '─'.repeat(40);
+
+function section(title, content) { return `${SEP}\n${title}\n${SEP}\n\n${content}\n`; }
+
+function genStep1() {
+  const att = ['Festival Brochure', 'Advancing Timeline', 'Merch Policy'];
+  const L = [
+    `Dear ${TM()},\n`,
+    `My name is ${LEAD()} and I'll be your dedicated hospitality contact for ${A()}'s performance at Electric Castle 2025.\n`,
+    `Electric Castle takes place at the Banffy Castle estate in Bonțida — a medieval setting around 30km outside Cluj-Napoca, Transylvania. We're really looking forward to welcoming you.\n`,
+    bBrochure(), bTimeline(), bMerch(), '',
+  ];
+  if (activeTiers().length) { L.push(section('HOTELS', bHotelDescs())); }
+  L.push(section('DISTANCES', bDistances()));
+  L.push(section('SPONSORSHIP OBLIGATIONS', bSponsor()));
+  L.push(`${SEP}\nWHAT WE NEED FROM YOU\n${SEP}\n`);
+  L.push(`Could you please confirm the following at your earliest convenience:\n`);
+  L.push(`1. TRAVEL PARTY SIZE`);
+  if (has('a'))    L.push(`   A-Party:  ${rooms(S.aCount)} contracted`);
+  if (has('b'))    L.push(`   B-Party:  ${rooms(S.bCount)} contracted`);
+  if (has('crew')) L.push(`   Crew:     ${rooms(S.crewCount)} contracted`);
+  if (has('drv'))  L.push(`   Drivers:  ${rooms(S.drvCount)} contracted`);
+  L.push(`   Please confirm whether these numbers are accurate and send a rooming list when ready.\n`);
+  L.push(`2. HOTEL REQUIREMENTS\n   Room types (double/twin/single), check-in/out dates, and any special requirements per group.\n`);
+  L.push(`3. TRAVEL DETAILS`);
+  if (S.travelMode==='flying') { L.push(`   Flight details when available — routing into ${S.flyAirport||'CLJ'} is recommended.`); if (S.flyFrom) L.push(`   Understood you'll be flying from ${S.flyFrom}.`); }
+  else if (S.travelMode==='nightliner') L.push(`   Vehicle registration number(s) and approximate site arrival time.`);
+  else if (S.travelMode==='selfdriving') L.push(`   Vehicle registration number(s) — needed for parking passes.`);
+  else L.push(`   Please confirm who is flying vs. arriving by nightliner/vehicle so we can plan each group's transfers.`);
+  L.push('\n4. HOSPITALITY RIDER\n   Please send the most current version of your rider, including all dietary requirements for the full travel party.\n');
+  L.push(`${SEP}\n\nAny questions — I'm here.\n\nWarm regards,\n${LEAD()}\nElectric Castle Hospitality Team`);
+  if (S.ccEmail) L.push(`\nCC: ${S.ccEmail}`);
+  return { body: L.join('\n'), att };
+}
+
+function genStep3() {
+  const att = [];
+  const L = [
+    `Dear ${TM()},\n`,
+    `Thank you for the information — I'm pleased to confirm the following for ${A()}'s visit to Electric Castle 2025.\n`,
+    section('HOTELS', bHotelConfirm()),
+    section('YOUR ANGEL', bAngelExplained()),
+    section('RIDER', bRider()),
+    section('DRESSING ROOM', bDrAllocated()),
+    section('GROUND TRANSFERS', bTransferOverview()),
+    section('CATERING', bCatering()),
+  ];
+  // Catch-up from Step 1
+  const catchups = [];
+  if (!S.brochureSent)  { catchups.push('festival brochure'); att.push('Festival Brochure'); }
+  if (!S.timelineSent)  { catchups.push('advancing timeline'); att.push('Advancing Timeline'); }
+  if (!S.merchSent)     { catchups.push('merchandise policy'); att.push('Merch Policy'); }
+  if (!S.distancesSent) { catchups.push('distances overview'); }
+  if (catchups.length)  { L.push(`Also attaching/including for reference: ${catchups.join(', ')}.\n`); }
+  L.push(`${SEP}\n\nI'll follow up shortly with the route request form, dressing room confirmation, and itinerary draft.\n\nWarm regards,\n${LEAD()}\nElectric Castle Hospitality Team`);
+  if (S.ccEmail) L.push(`\nCC: ${S.ccEmail}`);
+  return { body: L.join('\n'), att };
+}
+
+function genStep5() {
+  const att = [];
+  const catchup = hasCatchup(5);
+  const L = [`Dear ${TM()},\n`];
+
+  if (catchup) {
+    L.push(`I want to make sure everything is in order ahead of ${A()}'s visit to Electric Castle 2025. A number of threads have been running in parallel — this email brings everything together and covers any outstanding items.\n`);
+  } else {
+    L.push(`We're getting close — here is everything you need to know for ${A()}'s visit to Electric Castle 2025.\n`);
+  }
+
+  // ── General info (overdue from Step 1) ────
+  const generalBlocks = [];
+  if (include('brochureSent'))   { generalBlocks.push(bBrochure()); att.push('Festival Brochure'); }
+  if (include('distancesSent'))  generalBlocks.push(bDistances());
+  if (include('sponsorExpSent')) generalBlocks.push(bSponsor());
+  if (generalBlocks.length)      { L.push(section('GENERAL INFORMATION', generalBlocks.join('\n\n'))); }
+
+  // ── Hotels ────
+  const hotelContent = [];
+  if (include('hotelDescSent'))    hotelContent.push(bHotelDescs());
+  if (include('hotelConfirmed'))   hotelContent.push(bHotelConfirm());
+  else if (S.hotelConfirmed) {
+    // Already confirmed — quick recap
+    const recap = activeTiers().map(t => hotelBlock(t,true)).join('\n\n') + '\n\nFor room changes or billing, contact Sabina directly.';
+    hotelContent.push(recap);
+  }
+  if (hotelContent.length) L.push(section('HOTEL DETAILS', hotelContent.join('\n\n')));
+
+  // ── Angel ────
+  const angelBlocks = [];
+  if (include('angelExplained'))  angelBlocks.push(bAngelExplained());
+  if (include('angelAllocated')) {
+    if (S.angelName) angelBlocks.push(bAngelAllocated());
+    else angelBlocks.push(`Your Angel allocation is being finalised — I'll send name and contact as soon as confirmed.`);
+  }
+  if (angelBlocks.length) L.push(section('YOUR ANGEL', angelBlocks.join('\n\n')));
+
+  // ── Rider ────
+  if (include('riderAltShared')) L.push(section('RIDER', bRider()));
+
+  // ── Dressing room ────
+  if (include('drAllocated') || include('drConfirmed')) L.push(section('DRESSING ROOM', bDrAllocated()));
+
+  // ── Transfers ────
+  const xferBlocks = [];
+  if (include('transferOverviewSent')) xferBlocks.push(bTransferOverview());
+  if (include('routeFormSent'))        xferBlocks.push(bRouteForm());
+  if (xferBlocks.length) L.push(section('GROUND TRANSFERS', xferBlocks.join('\n\n')));
+
+  // ── Itinerary ────
+  if (include('itinSent')) L.push(section('ITINERARY V1', bItinerary()));
+
+  // ── Catering ────
+  const caterBlocks = [];
+  if (include('cateringDescSent')) caterBlocks.push(bCatering());
+  if (include('menuSent'))         { caterBlocks.push(bMenu()); att.push('À la carte menu'); }
+  if (caterBlocks.length) L.push(section('CATERING', caterBlocks.join('\n\n')));
+
+  // ── Guest list (if requested) ────
+  if (S.guestListReq && include('guestListExplained')) L.push(section('GUEST LIST', bGuestList()));
+
+  // ── Catch-up merch ────
+  if (include('merchSent')) { L.push(`Merchandise policy attached.`); att.push('Merch Policy'); }
+  if (include('timelineSent')) { att.push('Advancing Timeline'); }
+
+  L.push(`${SEP}\n\nWe're very much looking forward to welcoming ${A()} to Electric Castle. Any questions — I'm here.\n\nWarm regards,\n${LEAD()}\nElectric Castle Hospitality Team`);
+  if (S.ccEmail) L.push(`\nCC: ${S.ccEmail}`);
+  return { body: L.join('\n'), att };
+}
+
+function genStep7() {
+  const att = [];
+  const angel = S.angelName || '[Angel Name]';
+  const phone = S.angelPhone || '[Phone TBC]';
+  const bsm   = S.bsmName   || '[Backstage Manager]';
+  const L = [`Dear ${TM()},\n`, `Advancing is complete. Here is everything you need for ${A()}'s visit to Electric Castle 2025.\n`];
+
+  // Surface any still-outstanding items
+  const stillOut = Object.keys(DEADLINE).filter(f => !S[f]);
+  if (stillOut.length) {
+    L.push(`⚠ NOTE: The following were not covered in earlier advancing emails and are included here for the first time:\n   ${stillOut.join(', ')}\n`);
+  }
+
+  L.push(section('YOUR ON-SITE TEAM',
+    `BACKSTAGE MANAGER\n   ${bsm}\n   Available from [TIME] on show day — first contact for stage and backstage matters.\n\nARTIST LIAISON — ANGEL\n   ${angel}\n   ${phone}\n\nYour Angel will meet you at the arrival point and stay with you throughout your visit.`));
+
+  L.push(section('FINAL ITINERARY',
+    `Final itinerary: [LINK — always up to date]${S.perfDate ? `\nPerformance: ${fmtDate(S.perfDate)}${S.stageName ? ` — ${S.stageName}` : ''}` : ''}\n\nFor any last-minute changes, contact ${angel} directly on ${phone}.`));
+
+  L.push(section('HOTEL SUMMARY', activeTiers().map(t => hotelBlock(t,true)).join('\n\n')));
+
+  if (S.drDetails) {
+    L.push(section('DRESSING ROOM', `${S.drDetails}\n\nYour Angel will take you there on arrival.`));
+  }
+
+  L.push(section('GROUND TRANSFERS', `Transfers are confirmed and scheduled. Full schedule sent separately by the transport team.`));
+
+  L.push(`${SEP}\n\nIt's been a real pleasure advancing with you. We cannot wait to welcome ${A()} to Electric Castle.\n\nSee you at the castle,\n${LEAD()}\nElectric Castle Hospitality Team`);
+  if (S.ccEmail) L.push(`\nCC: ${S.ccEmail}`);
+  return { body: L.join('\n'), att };
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// TM CHECKLISTS
+// ══════════════════════════════════════════════════════════════════════
+function tmItems(step) {
+  if (step === 2) return [
+    {i:'👥', t:'Confirm travel party size', d:`Confirm vs contracted — A-Party${S.bCount>0?', B-Party':''}${S.crewCount>0?', Crew':''}${S.drvCount>0?', Drivers':''}`},
+    {i:'🏨', t:'Hotel requirements', d:'Room types, check-in/out dates, special requirements per group'},
+    {i:'✈️', t:'Travel details', d:S.travelMode==='flying'?`Flights routing into ${S.flyAirport||'CLJ'}`:S.travelMode==='nightliner'?'Vehicle reg + approx. arrival time':S.travelMode==='selfdriving'?'Reg number(s) + make/model':'Who is flying vs driving/nightliner'},
+    {i:'📋', t:'Hospitality rider', d:'Final version + all dietary requirements for full travel party'},
+  ];
+  if (step === 4) return [
+    {i:'✈️', t:'Confirmed flight details',        d:'Flight numbers, arrival + departure times'},
+    {i:'📋', t:'Rooming list',                    d:'One name per room, matching contracted numbers'},
+    {i:'🥗', t:'Dietary requirements confirmed',  d:'All travel party members; meal times if possible'},
+    {i:'🔀', t:'Transfer preferences',            d:'Passenger numbers per leg, shuttle vs. dedicated vehicle'},
+    {i:'✅', t:'Rider alternatives approval',     d:'Review and approve the alternatives sheet — required before fulfilment'},
+  ];
+  if (step === 6) {
+    const items = [];
+    if (S.guestListReq) items.push({i:'🎟️', t:'Guest list (final)', d:'First + last name, ID type per guest — deadline [DATE TBC]'});
+    items.push({i:'🍽️', t:'Confirm meal times', d:'Breakfast, lunch, and dinner — on site and at hotel'});
+    items.push({i:'📦', t:'Pre-orders from à la carte menu', d:'Advance orders ensure availability — send asap'});
+    if (!S.riderApproved) items.push({i:'✅', t:'Rider alternatives — URGENT', d:'Not yet approved — cannot guarantee fulfilment without sign-off'});
+    if (S.pressScheduled) items.push({i:'📸', t:'Media / press schedule', d:'Full details for interviews or photo calls'});
+    return items;
+  }
+  return [];
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// SUBJECT LINES
+// ══════════════════════════════════════════════════════════════════════
+function subject(step) {
+  const a = A();
+  const map = {
+    1:`${a}  //  Electric Castle 2025  //  Hospitality Advancing — Welcome`,
+    2:`${a}  //  Electric Castle 2025  //  Info Needed — Step 2`,
+    3:`${a}  //  Electric Castle 2025  //  Hotel Confirmations & On The Ground`,
+    4:`${a}  //  Electric Castle 2025  //  Travel Details Needed — Step 4`,
+    5: hasCatchup(5)
+      ? `${a}  //  Electric Castle 2025  //  Hospitality — Full Update & Outstanding Actions`
+      : `${a}  //  Electric Castle 2025  //  Itinerary V1, Transfers & Menus`,
+    6:`${a}  //  Electric Castle 2025  //  Guest List & Pre-Orders`,
+    7:`${a}  //  Electric Castle 2025  //  All Set — Final Details & Your Team`,
+  };
+  return map[step] || `${a}  //  EC 2025  //  Step ${step}`;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// FORM → STATE
+// ══════════════════════════════════════════════════════════════════════
+function upd() {
+  ['artistName','advLead','tmName','tmEmail','ccEmail','perfDate','stageName',
+   'aHotel','aIn','aOut','bHotel','bIn','bOut','crewHotel','crewIn','crewOut','drvHotel',
+   'flyFrom','flyAirport','flyArrival','flyDepart',
+   'nlReg','nlParking','sdReg','sdCar','mixedNotes',
+   'dietaryReqs','angelName','angelPhone','bsmName','drDetails']
+    .forEach(f => { const el = document.getElementById(f); if (el) S[f] = el.value; });
+
+  ['aCount','bCount','crewCount','drvCount']
+    .forEach(f => { const el = document.getElementById(f); if (el) S[f] = parseInt(el.value)||0; });
+
+  ['extraCovered','riderRcvd','riderApproved',
+   'brochureSent','timelineSent','merchSent','hotelDescSent','distancesSent','sponsorExpSent',
+   'hotelConfirmed','angelExplained','riderAltShared','drAllocated','transferOverviewSent','cateringDescSent',
+   'routeFormSent','itinSent','menuSent','drConfirmed','guestListExplained','angelAllocated',
+   'guestListReq','pressScheduled','mealTimesConf']
+    .forEach(f => { const el = document.getElementById(f); if (el) S[f] = el.checked; });
+
+  [['a','aCount'],['b','bCount'],['crew','crewCount'],['drivers','drvCount']].forEach(([t,k]) => {
+    const el = document.getElementById('tier-'+t);
+    if (el) el.classList.toggle('dim', S[k] === 0);
+  });
+
+  const ha = document.getElementById('headerArtist');
+  if (S.artistName) { ha.textContent = S.artistName; ha.classList.remove('empty'); }
+  else              { ha.textContent = 'No artist entered'; ha.classList.add('empty'); }
+
+  const pending = Object.keys(DEADLINE).filter(f => !S[f]).length;
+  const pc = document.getElementById('pendingCount');
+  if (pc) { pc.textContent = pending + ' pending'; pc.classList.toggle('show', pending > 0); }
+
+  render();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════════════
+const STEPS = [
+  {n:1, title:'First Email & RFI',             who:'EC'},
+  {n:2, title:'Party Size & Rider',            who:'TM'},
+  {n:3, title:'Confirmations & On The Ground', who:'EC'},
+  {n:4, title:'Travel Party Details',          who:'TM'},
+  {n:5, title:'On-Site & Itinerary V1',        who:'EC'},
+  {n:6, title:'Guest List & Pre-Orders',       who:'TM'},
+  {n:7, title:'Advancing Complete',            who:'EC'},
+];
+
+const BLOCK_LABELS = {
+  brochureSent:'Brochure', timelineSent:'Timeline', merchSent:'Merch policy',
+  hotelDescSent:'Hotel descriptions', distancesSent:'Distances', sponsorExpSent:'Sponsor exclusions',
+  hotelConfirmed:'Hotel confirmation', angelExplained:'Angel intro (what it is)', riderAltShared:'Rider alternatives',
+  drAllocated:'Dressing room', transferOverviewSent:'Transfer overview', cateringDescSent:'Catering info',
+  routeFormSent:'Route form', itinSent:'Itinerary V1', menuSent:'À la carte menu',
+  drConfirmed:'DR details confirmed', guestListExplained:'Guest list process', angelAllocated:'Angel allocation',
+};
+
+function render() {
+  // Tabs
+  document.getElementById('stepTabs').innerHTML = STEPS.map(s => {
+    const hasOD = s.who==='EC' && Object.keys(DEADLINE).some(f => !S[f] && DEADLINE[f] < s.n);
+    return `<div class="step-tab ${s.who==='EC'?'ec-step':'tm-step'} ${S.step===s.n?'active-tab':''}" onclick="goStep(${s.n})" title="${s.title}">
+      ${hasOD ? '<span class="tab-alert" style="display:block"></span>' : ''}
+      <span class="step-tab-badge">${s.who}</span>
+      <span class="step-tab-num">${s.n}</span>
+    </div>`;
+  }).join('');
+
+  // Ctx bar
+  const st = STEPS[S.step-1];
+  const catchup = st.who==='EC' && hasCatchup(S.step);
+  const odCount = Object.keys(DEADLINE).filter(f => !S[f] && DEADLINE[f] < S.step).length;
+  document.getElementById('ctxBar').innerHTML = `
+    <div class="ctx-item"><strong>${S.artistName||'—'}</strong></div>
+    <span class="ctx-sep">·</span>
+    <div class="ctx-item">Step ${S.step}: <strong>${st.title}</strong></div>
+    <span class="ctx-sep">·</span>
+    <div class="ctx-item">Advances: <span class="ctx-badge ${st.who==='EC'?'ec':'tm'}">${st.who}</span></div>
+    ${catchup ? `<span class="ctx-sep">·</span><div class="ctx-item"><span class="ctx-badge catchup">⚠ ${odCount} overdue block${odCount!==1?'s':''} pulled in</span></div>` : ''}
+  `;
+
+  // Output
+  const area = document.getElementById('outputArea');
+  const escH = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  if (st.who === 'EC') {
+    let result;
+    if      (S.step===1) result = genStep1();
+    else if (S.step===3) result = genStep3();
+    else if (S.step===5) result = genStep5();
+    else if (S.step===7) result = genStep7();
+    else result = {body:'// Template coming soon.', att:[]};
+
+    const od   = Object.keys(DEADLINE).filter(f => overdue(f));
+    const due  = Object.keys(DEADLINE).filter(f => !S[f] && DEADLINE[f] === S.step);
+
+    const catchupHtml = (catchup && od.length) ? `
+      <div class="catchup-notice">
+        <span style="font-size:14px;flex-shrink:0;margin-top:1px">⚠️</span>
+        <div class="catchup-notice-text">
+          <strong>${od.length} overdue block${od.length!==1?'s':''} included from earlier steps.</strong>
+          The subject line signals a full catch-up email to the TM.
+        </div>
+      </div>
+      <div class="blocks-summary">
+        ${od.map(f=>`<span class="block-chip overdue">${BLOCK_LABELS[f]||f}</span>`).join('')}
+        ${due.map(f=>`<span class="block-chip new">${BLOCK_LABELS[f]||f}</span>`).join('')}
+      </div>` : '';
+
+    const attHtml = result.att.length
+      ? `<div class="attach-row">${result.att.map(a=>`<span class="attach-tag">📎 ${a}</span>`).join('')}</div>` : '';
+
+    area.innerHTML = `
+      <div class="out-hd">
+        <div>
+          <div class="out-step-title">${st.title}</div>
+          <div class="out-step-meta">EC advances this step &nbsp;·&nbsp; Updates live as you fill the form</div>
+        </div>
+        <button class="btn btn-copy" id="copyBtn" onclick="copyEmail()">Copy Email</button>
+      </div>
+      ${catchupHtml}
+      <div class="subject-bar">
+        <span class="subject-label">Subject</span>
+        <span class="subject-text">${escH(subject(S.step))}</span>
+      </div>
+      ${attHtml}
+      <div class="email-body" id="emailBody">${escH(result.body)}</div>`;
+
+  } else {
+    const items = tmItems(S.step);
+    area.innerHTML = `
+      <div class="out-hd">
+        <div>
+          <div class="out-step-title">${st.title}</div>
+          <div class="out-step-meta">Tour Manager advances this step &nbsp;·&nbsp; Awaiting info from TM</div>
+        </div>
+        <button class="btn btn-chase" id="chaseBtn" onclick="copyChase()">Copy Chase Email</button>
+      </div>
+      <div class="tm-card">
+        <div class="tm-card-hd"><span class="tm-card-icon">📬</span><span class="tm-card-title">Information needed from Tour Manager — Step ${S.step}</span></div>
+        <div class="tm-card-body">${items.map(item=>`
+          <div class="tm-item">
+            <span class="tm-item-icon">${item.i}</span>
+            <div class="tm-item-body">
+              <div class="tm-item-title">${item.t}</div>
+              <div class="tm-item-desc">${item.d}</div>
+            </div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+  }
+}
+
+function goStep(n) { S.step = n; render(); }
+
+function copyEmail() {
+  const el = document.getElementById('emailBody');
+  if (!el) return;
+  navigator.clipboard.writeText(`Subject: ${subject(S.step)}\n\n${el.innerText}`).then(() => {
+    const btn = document.getElementById('copyBtn');
+    if (!btn) return;
+    btn.textContent = '✓ Copied!'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy Email'; btn.classList.remove('ok'); }, 2200);
+  });
+}
+
+function copyChase() {
+  const chase = `Hi ${TM()},\n\nJust a quick follow-up on the Electric Castle 2025 advancing for ${A()} — we're at Step ${S.step} and still waiting on the items above.\n\nCould you please send these across when you get a chance? Happy to jump on a call if easier.\n\nThanks,\n${LEAD()}\nElectric Castle Hospitality Team`;
+  navigator.clipboard.writeText(chase).then(() => {
+    const btn = document.getElementById('chaseBtn');
+    if (!btn) return;
+    btn.textContent = '✓ Copied!'; btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy Chase Email'; btn.classList.remove('ok'); }, 2200);
+  });
+}
+
+render();
+</script>
+</body>
+</html>

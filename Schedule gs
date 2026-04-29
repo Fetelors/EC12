@@ -1,0 +1,75 @@
+// EC26 Programme — Code.gs
+// Open this project via: Google Sheets → Extensions → Apps Script
+// That way getActiveSpreadsheet() automatically targets YOUR sheet.
+
+const SHEET_NAME = 'Master';
+const TIMEZONE   = 'Europe/Bucharest';
+
+// Serves the timetable HTML when the web app URL is opened
+function doGet() {
+  return HtmlService
+    .createHtmlOutputFromFile('index')
+    .setTitle('Electric Castle 2026 — Programme')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// Called from the HTML via google.script.run.updateActs(changes)
+function updateActs(changes) {
+  try {
+    var results = _applyChanges(changes);
+    var errors  = results.filter(function(r){ return !r.ok; });
+    if (errors.length > 0) {
+      return { ok: false, error: errors.map(function(r){ return r.error; }).join(' | ') };
+    }
+    return { ok: true, updated: results.length };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+function _applyChanges(changes) {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  var data  = sheet.getDataRange().getValues(); // returns computed values, not formulas
+
+  return changes.map(function(change) {
+    var stage  = String(change.stage  || '').trim();
+    var date   = String(change.date   || '').trim();   // "2026-07-16"
+    var artist = String(change.artist || '').trim().toLowerCase();
+    var ns     = Number(change.newStartMins);
+    var ne     = Number(change.newEndMins);
+
+    for (var i = 1; i < data.length; i++) {
+      var rowStage  = String(data[i][0] || '').trim();
+      var rowDate   = data[i][1];   // Date object (formula evaluated by Sheets)
+      var rowArtist = String(data[i][5] || '').trim().toLowerCase();
+
+      if (rowStage  !== stage)  continue;
+      if (rowArtist !== artist) continue;
+
+      // Match date: getValues() returns a JS Date for date cells
+      var rowDateStr = '';
+      if (rowDate instanceof Date) {
+        rowDateStr = Utilities.formatDate(rowDate, TIMEZONE, 'yyyy-MM-dd');
+      }
+      if (rowDateStr !== date) continue;
+
+      // Found the row — update it
+      // Sheets stores time as a fraction of 24h (e.g. 14:00 = 14/24 = 0.5833)
+      // For times past midnight (e.g. newStartMins=1500 = 25:00 = 01:00 next day)
+      // we use modulo 1440 to get the clock time, then divide by 1440
+      var durMins   = ne - ns;
+      var durFrac   = durMins / 1440;
+      var startFrac = (ns % 1440) / 1440;
+
+      var rowNum = i + 1; // Apps Script rows are 1-indexed
+      sheet.getRange(rowNum, 3).setValue(durFrac);   // C = Duration
+      sheet.getRange(rowNum, 4).setValue(startFrac); // D = Start time
+      // Column E = =D+C, recalculates automatically
+
+      SpreadsheetApp.flush(); // force write before moving to next change
+      return { ok: true, row: rowNum, artist: change.artist };
+    }
+
+    return { ok: false, error: 'Row not found: ' + stage + ' / ' + change.artist + ' / ' + date };
+  });
+}

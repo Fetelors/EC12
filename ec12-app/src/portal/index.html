@@ -2,205 +2,1394 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <title>EC12 · AIdvancing Portal</title>
+  <title>EC12 · AIdvancing</title>
   <meta name="viewport" content="width=1440">
-
-  <!--
-    FONTS
-    General Sans   — display font for hero titles (from Fontshare, free)
-    Geist          — clean body/UI font (from Google Fonts)
-    Geist Mono     — monospace for codes, metadata, table numbers (Google Fonts)
-  -->
   <link rel="preconnect" href="https://api.fontshare.com">
   <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-  <!-- Design system — all colours, fonts, component tokens -->
   <link rel="stylesheet" href="../shared/theme.css">
+
+  <style>
+    /* ── Lava lamp background ───────────────────────────────────────────────
+       The SVG filter creates the "metaball" merge effect: blobs that are
+       close together appear to join into one organic shape, like a real
+       lava lamp. The trick:
+         1. feGaussianBlur softens each blob into a gradient cloud
+         2. feColorMatrix applies a sharp alpha threshold to that cloud
+       The result: hard edges appear wherever two blurs overlap, creating
+       the liquid-merge look. The overall container opacity keeps it soft.
+    ──────────────────────────────────────────────────────────────────────── */
+    #lava-stage {
+      position: fixed; inset: 0; z-index: 0;
+      pointer-events: none; overflow: hidden;
+    }
+    /* Noise grain overlay — subtle film texture on top of the lava */
+    #lava-stage::after {
+      content: '';
+      position: absolute; inset: 0;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      mix-blend-mode: multiply;
+    }
+    #lava-container {
+      position: absolute; inset: -30%;
+      filter: url('#lava-goo');
+    }
+    .lb {
+      position: absolute;
+      border-radius: 50%;
+      /* will-change lets the browser GPU-composite these for smooth animation */
+      will-change: transform;
+    }
+    /* Seven blobs — sizes and base colors (JS moves them) */
+    .lb1 { width:700px; height:700px; background:#0aa39a; opacity:0.55; }
+    .lb2 { width:520px; height:520px; background:#a3d437; opacity:0.50; }
+    .lb3 { width:600px; height:600px; background:#2563eb; opacity:0.40; }
+    .lb4 { width:420px; height:420px; background:#4dc8be; opacity:0.45; }
+    .lb5 { width:360px; height:360px; background:#c7e577; opacity:0.40; }
+    .lb6 { width:480px; height:480px; background:#0aa39a; opacity:0.35; }
+    .lb7 { width:280px; height:280px; background:#6b95f5; opacity:0.45; }
+  </style>
 </head>
 <body>
-  <!-- React renders here -->
+  <!-- SVG filter for lava lamp merge effect — must be in the DOM before the canvas uses it -->
+  <svg width="0" height="0" style="position:absolute;overflow:hidden">
+    <defs>
+      <filter id="lava-goo" color-interpolation-filters="sRGB">
+        <!-- Step 1: blur each blob into a soft gradient cloud -->
+        <feGaussianBlur in="SourceGraphic" stdDeviation="28" result="blur"/>
+        <!-- Step 2: sharp alpha threshold — this is what creates the merge effect.
+             The matrix row "0 0 0 22 -9" means: multiply alpha by 22, subtract 9.
+             Anything below threshold (0) becomes transparent; above becomes opaque.
+             This turns overlapping blurs into one merged organic shape. -->
+        <feColorMatrix in="blur" mode="matrix"
+          values="1 0 0 0 0
+                  0 1 0 0 0
+                  0 0 1 0 0
+                  0 0 0 22 -9" result="goo"/>
+      </filter>
+    </defs>
+  </svg>
+
+  <!-- Lava lamp stage — blobs live here, moved by JS below -->
+  <div id="lava-stage">
+    <div id="lava-container">
+      <div class="lb lb1" id="lb1"></div>
+      <div class="lb lb2" id="lb2"></div>
+      <div class="lb lb3" id="lb3"></div>
+      <div class="lb lb4" id="lb4"></div>
+      <div class="lb lb5" id="lb5"></div>
+      <div class="lb lb6" id="lb6"></div>
+      <div class="lb lb7" id="lb7"></div>
+    </div>
+  </div>
+
   <div id="root"></div>
 
-  <!--
-    DATA + CONFIG
-    data.js    — mock artists, stages, hotels (replaced by Monday.com once boards are set up)
-    i18n.js    — EN/RO translation strings + the makeT() helper function
-    monday-columns.js — board IDs and column IDs (in ../../config/)
-    monday-client.js  — the shared Monday.com API client
-  -->
+  <!-- Regular JS files load fine on file:// — only Babel src="" is the problem -->
   <script src="data.js"></script>
   <script src="i18n.js"></script>
   <script src="../../config/monday-columns.js"></script>
   <script src="../shared/monday-client.js"></script>
 
-  <!--
-    REACT + BABEL
-    React 18  — the UI framework. Loaded from a CDN (no build step needed).
-    Babel     — lets us write JSX (HTML-in-JS syntax) directly in the browser.
+  <!-- Lava lamp animation — vanilla JS, runs before React mounts -->
+  <script>
+  (function() {
+    // Each blob is described by its centre (as % of container), travel range,
+    // and two independent sine-wave frequencies so motion is never periodic.
+    var blobs = [
+      { el:'lb1', cx:30, cy:25, rx:22, ry:18, f1:0.00031, f2:0.00019, p1:0.0,  p2:1.2  },
+      { el:'lb2', cx:72, cy:60, rx:18, ry:24, f1:0.00027, f2:0.00023, p1:2.1,  p2:0.7  },
+      { el:'lb3', cx:50, cy:45, rx:25, ry:20, f1:0.00020, f2:0.00017, p1:1.0,  p2:3.5  },
+      { el:'lb4', cx:15, cy:70, rx:15, ry:22, f1:0.00035, f2:0.00028, p1:3.8,  p2:0.4  },
+      { el:'lb5', cx:85, cy:20, rx:20, ry:16, f1:0.00024, f2:0.00032, p1:0.6,  p2:2.9  },
+      { el:'lb6', cx:60, cy:80, rx:17, ry:19, f1:0.00018, f2:0.00025, p1:4.2,  p2:1.8  },
+      { el:'lb7', cx:40, cy:10, rx:14, ry:18, f1:0.00040, f2:0.00022, p1:1.5,  p2:4.7  },
+    ];
 
-    In production you'd bundle these. For now, CDN + Babel is fine for local use.
-  -->
-  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
-  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+    // Resolve DOM refs once
+    var resolved = blobs.map(function(b) {
+      return { cfg: b, el: document.getElementById(b.el) };
+    });
 
-  <!--
-    COMPONENT FILES (loaded in order — each depends on the ones above it)
-    tweaks-panel.jsx — the floating design-tweak panel (language, blobs, dark mode)
-    components.jsx   — shared React components used by all views
-    view-*.jsx       — individual view implementations
-  -->
-  <script type="text/babel" src="tweaks-panel.jsx"></script>
-  <script type="text/babel" src="components.jsx"></script>
-  <script type="text/babel" src="view-tracker.jsx"></script>
-  <script type="text/babel" src="view-drawer.jsx"></script>
-  <script type="text/babel" src="view-email.jsx"></script>
-  <script type="text/babel" src="view-arrivals.jsx"></script>
-  <script type="text/babel" src="view-itinerary.jsx"></script>
-  <script type="text/babel" src="view-settings.jsx"></script>
+    var paused = false;
+    var opacity = 0.42;
 
-  <!--
-    APP SHELL
-    The root React component. Handles:
-    - Routing between views via the URL hash (#tracker, #email, etc.)
-    - The Tweaks panel (language, blob intensity, dark mode, accent colours)
-    - The artist drawer (slides in from the right when you click an artist row)
-    - Cross-view navigation (e.g. "Draft email" in the drawer jumps to #email)
-  -->
+    // applyLavaSettings is called by the React theme controller
+    window.applyLavaSettings = function(settings) {
+      paused  = settings.blobMotion === false;
+      opacity = (settings.blobIntensity || 42) / 100;
+      var stage = document.getElementById('lava-stage');
+      if (stage) stage.style.opacity = opacity;
+
+      // Accent colour overrides — each blob uses one of the three accent colours
+      var teal = settings.accentTeal || '#0aa39a';
+      var lime = settings.accentLime || '#a3d437';
+      var blue = settings.accentBlue || '#2563eb';
+      var map = { lb1:teal, lb2:lime, lb3:blue, lb4:teal, lb5:lime, lb6:teal, lb7:blue };
+      Object.keys(map).forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.background = map[id];
+      });
+
+      // Dark mode — increase blob contrast slightly
+      if (settings.darkMode) {
+        document.getElementById('lava-stage').style.mixBlendMode = 'screen';
+      } else {
+        document.getElementById('lava-stage').style.mixBlendMode = '';
+      }
+    };
+
+    // Animation loop — updates blob translate positions each frame
+    function tick(now) {
+      if (!paused) {
+        resolved.forEach(function(item) {
+          var b = item.cfg;
+          var x = b.cx + Math.sin(now * b.f1 + b.p1) * b.rx;
+          var y = b.cy + Math.cos(now * b.f2 + b.p2) * b.ry;
+          // Position relative to container (which is oversized by 30% each side)
+          // so 0–100% maps to the full visible viewport
+          item.el.style.left  = x + '%';
+          item.el.style.top   = y + '%';
+          // Blob centre offset (element is positioned by top-left corner)
+          item.el.style.transform = 'translate(-50%, -50%)';
+        });
+      }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  })();
+  </script>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin></script>
+
+  <!-- ── ALL JSX INLINED ─────────────────────────────────────────────────────
+       Inlining fixes the blank-page bug: <script type="text/babel" src="...">
+       fetches files via XHR, which Chrome blocks on file:// protocol.
+       With inline scripts Babel compiles directly from the DOM — no XHR needed.
+  ──────────────────────────────────────────────────────────────────────── -->
+
   <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
+  // ── TWEAKS PANEL ──────────────────────────────────────────────────────────
+  const __TWEAKS_STYLE = `
+    .twk-panel{position:fixed;right:16px;bottom:16px;z-index:2147483646;width:280px;
+      max-height:calc(100vh - 32px);display:flex;flex-direction:column;
+      background:rgba(250,249,247,.82);color:#29261b;
+      -webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%);
+      border:.5px solid rgba(255,255,255,.6);border-radius:14px;
+      box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 12px 40px rgba(0,0,0,.18);
+      font:11.5px/1.4 ui-sans-serif,system-ui,-apple-system,sans-serif;overflow:hidden}
+    .twk-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 8px 10px 14px;cursor:move;user-select:none}
+    .twk-hd b{font-size:12px;font-weight:600;letter-spacing:.01em}
+    .twk-x{appearance:none;border:0;background:transparent;color:rgba(41,38,27,.55);width:22px;height:22px;border-radius:6px;cursor:default;font-size:13px;line-height:1}
+    .twk-x:hover{background:rgba(0,0,0,.06);color:#29261b}
+    .twk-body{padding:2px 14px 14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;overflow-x:hidden;min-height:0;}
+    .twk-row{display:flex;flex-direction:column;gap:5px}
+    .twk-row-h{flex-direction:row;align-items:center;justify-content:space-between;gap:10px}
+    .twk-lbl{display:flex;justify-content:space-between;align-items:baseline;color:rgba(41,38,27,.72)}
+    .twk-lbl>span:first-child{font-weight:500}
+    .twk-val{color:rgba(41,38,27,.5);font-variant-numeric:tabular-nums}
+    .twk-sect{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgba(41,38,27,.45);padding:10px 0 0}
+    .twk-sect:first-child{padding-top:0}
+    .twk-field{appearance:none;width:100%;height:26px;padding:0 8px;border:.5px solid rgba(0,0,0,.1);border-radius:7px;background:rgba(255,255,255,.6);color:inherit;font:inherit;outline:none}
+    .twk-slider{appearance:none;-webkit-appearance:none;width:100%;height:4px;margin:6px 0;border-radius:999px;background:rgba(0,0,0,.12);outline:none}
+    .twk-slider::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#fff;border:.5px solid rgba(0,0,0,.12);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+    .twk-seg{position:relative;display:flex;padding:2px;border-radius:8px;background:rgba(0,0,0,.06);user-select:none}
+    .twk-seg-thumb{position:absolute;top:2px;bottom:2px;border-radius:6px;background:rgba(255,255,255,.9);box-shadow:0 1px 2px rgba(0,0,0,.12);transition:left .15s,width .15s}
+    .twk-seg button{appearance:none;position:relative;z-index:1;flex:1;border:0;background:transparent;color:inherit;font:inherit;font-weight:500;min-height:22px;border-radius:6px;cursor:default;padding:4px 6px;line-height:1.2}
+    .twk-toggle{position:relative;width:32px;height:18px;border:0;border-radius:999px;background:rgba(0,0,0,.15);transition:background .15s;cursor:default;padding:0}
+    .twk-toggle[data-on="1"]{background:#34c759}
+    .twk-toggle i{position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+    .twk-toggle[data-on="1"] i{transform:translateX(14px)}
+    .twk-swatch{appearance:none;-webkit-appearance:none;width:56px;height:22px;border:.5px solid rgba(0,0,0,.1);border-radius:6px;padding:0;cursor:default;background:transparent;flex-shrink:0}
+    .twk-swatch::-webkit-color-swatch-wrapper{padding:0}
+    .twk-swatch::-webkit-color-swatch{border:0;border-radius:5.5px}
+  `;
 
-    // Default tweak values — these are what the panel starts with.
-    // The /*EDITMODE-BEGIN*/.../*EDITMODE-END*/ markers are for the claude.ai/design
-    // tool to persist changes. You can edit them here directly too.
-    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-      "lang":          "en",
-      "blobIntensity": 42,
-      "blobMotion":    true,
-      "darkMode":      false,
-      "accentTeal":    "#0aa39a",
-      "accentLime":    "#a3d437",
-      "accentBlue":    "#2563eb"
-    }/*EDITMODE-END*/;
+  function useTweaks(defaults) {
+    const [values, setValues] = React.useState(defaults);
+    const setTweak = React.useCallback((keyOrEdits, val) => {
+      const edits = typeof keyOrEdits === 'object' && keyOrEdits !== null ? keyOrEdits : { [keyOrEdits]: val };
+      setValues(prev => ({ ...prev, ...edits }));
+    }, []);
+    return [values, setTweak];
+  }
 
-    function App() {
-      // useTweaks manages the live design settings (from tweaks-panel.jsx).
-      // t here is the tweak state object; setTweak updates one key at a time.
-      const [twk, setTweak] = useTweaks(TWEAK_DEFAULTS);
-
-      // tt is the translation function — tt('key') returns the localised string.
-      const tt = window.makeT(twk.lang);
-
-      // The current view — synced with the URL hash (#tracker, #email, etc.)
-      const [route, setRoute] = useState(() =>
-        window.location.hash.replace('#', '') || 'tracker'
-      );
-
-      // The artist being shown in the right-side drawer (null = drawer closed)
-      const [drawerArtistId, setDrawerArtistId] = useState(null);
-
-      // Pre-selected artist when jumping to the Email view from the drawer
-      const [emailInitialId, setEmailInitialId] = useState(null);
-
-      // Pre-selected artist when jumping to the Itinerary view from the drawer
-      const [itinInitialId, setItinInitialId] = useState(null);
-
-      // Sync route with URL hash changes (e.g. browser back button)
-      useEffect(() => {
-        const onHash = () => setRoute(window.location.hash.replace('#', '') || 'tracker');
-        window.addEventListener('hashchange', onHash);
-        return () => window.removeEventListener('hashchange', onHash);
-      }, []);
-
-      // Apply design tweaks to the document whenever they change.
-      // applyAppTheme() is defined in components.jsx — it sets CSS variables
-      // on document.documentElement directly so the whole page updates instantly.
-      useEffect(() => { applyAppTheme(twk); }, [twk]);
-
-      // navigate() is the internal router — it updates both the hash and the route state.
-      // Some routes carry a payload (e.g. jumping to Email pre-loaded for a specific artist).
-      const navigate = (r, payload) => {
-        if (r === 'email')     setEmailInitialId(payload || null);
-        if (r === 'itinerary') setItinInitialId(payload || null);
-        window.location.hash = r;
-        setRoute(r);
-        setDrawerArtistId(null); // close the drawer on navigation
+  function TweaksPanel({ title = 'Tweaks', children }) {
+    const [open, setOpen] = React.useState(false);
+    const dragRef = React.useRef(null);
+    const offsetRef = React.useRef({ x: 16, y: 16 });
+    const PAD = 16;
+    const clamp = React.useCallback(() => {
+      const panel = dragRef.current; if (!panel) return;
+      const maxRight  = Math.max(PAD, window.innerWidth  - panel.offsetWidth  - PAD);
+      const maxBottom = Math.max(PAD, window.innerHeight - panel.offsetHeight - PAD);
+      offsetRef.current = {
+        x: Math.min(maxRight,  Math.max(PAD, offsetRef.current.x)),
+        y: Math.min(maxBottom, Math.max(PAD, offsetRef.current.y)),
       };
+      panel.style.right  = offsetRef.current.x + 'px';
+      panel.style.bottom = offsetRef.current.y + 'px';
+    }, []);
+    React.useEffect(() => {
+      if (!open) return;
+      clamp();
+      const ro = new ResizeObserver(clamp);
+      ro.observe(document.documentElement);
+      return () => ro.disconnect();
+    }, [open]);
+    // Listen for activate message from claude.ai/design toolbar
+    React.useEffect(() => {
+      const onMsg = e => {
+        if (e?.data?.type === '__activate_edit_mode')   setOpen(true);
+        if (e?.data?.type === '__deactivate_edit_mode') setOpen(false);
+      };
+      window.addEventListener('message', onMsg);
+      window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+      return () => window.removeEventListener('message', onMsg);
+    }, []);
+    const dismiss = () => { setOpen(false); window.parent.postMessage({ type: '__edit_mode_dismissed' }, '*'); };
+    const onDragStart = e => {
+      const panel = dragRef.current; if (!panel) return;
+      const r = panel.getBoundingClientRect();
+      const sx = e.clientX, sy = e.clientY;
+      const sr = window.innerWidth - r.right, sb = window.innerHeight - r.bottom;
+      const move = ev => { offsetRef.current = { x: sr-(ev.clientX-sx), y: sb-(ev.clientY-sy) }; clamp(); };
+      const up   = ()  => { window.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); };
+      window.addEventListener('mousemove', move);
+      window.addEventListener('mouseup', up);
+    };
+    if (!open) return null;
+    return (
+      <>
+        <style>{__TWEAKS_STYLE}</style>
+        <div ref={dragRef} className="twk-panel" style={{ right: offsetRef.current.x, bottom: offsetRef.current.y }}>
+          <div className="twk-hd" onMouseDown={onDragStart}>
+            <b>{title}</b>
+            <button className="twk-x" onMouseDown={e=>e.stopPropagation()} onClick={dismiss}>✕</button>
+          </div>
+          <div className="twk-body">{children}</div>
+        </div>
+      </>
+    );
+  }
 
-      // Open or close the artist drawer
-      const openArtist  = (id) => setDrawerArtistId(id);
-      const closeDrawer = ()   => setDrawerArtistId(null);
+  function TweakSection({ label }) { return <div className="twk-sect">{label}</div>; }
+  function TweakRow({ label, value, children, inline=false }) {
+    return (
+      <div className={inline ? 'twk-row twk-row-h' : 'twk-row'}>
+        <div className="twk-lbl"><span>{label}</span>{value!=null&&<span className="twk-val">{value}</span>}</div>
+        {children}
+      </div>
+    );
+  }
+  function TweakSlider({ label, value, min=0, max=100, step=1, unit='', onChange }) {
+    return <TweakRow label={label} value={`${value}${unit}`}>
+      <input type="range" className="twk-slider" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))}/>
+    </TweakRow>;
+  }
+  function TweakToggle({ label, value, onChange }) {
+    return <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <button type="button" className="twk-toggle" data-on={value?'1':'0'} onClick={()=>onChange(!value)}><i/></button>
+    </div>;
+  }
+  function TweakRadio({ label, value, options, onChange }) {
+    const trackRef = React.useRef(null);
+    const opts = options.map(o => typeof o==='object'?o:{value:o,label:o});
+    const idx  = Math.max(0, opts.findIndex(o=>o.value===value));
+    const n    = opts.length;
+    const valueRef = React.useRef(value); valueRef.current = value;
+    const segAt = cx => { const r=trackRef.current.getBoundingClientRect(); const i=Math.floor(((cx-r.left-2)/(r.width-4))*n); return opts[Math.max(0,Math.min(n-1,i))].value; };
+    const onPD = e => {
+      const v0=segAt(e.clientX); if(v0!==valueRef.current) onChange(v0);
+      const move=ev=>{ const v=segAt(ev.clientX); if(v!==valueRef.current) onChange(v); };
+      const up=()=>{ window.removeEventListener('pointermove',move); window.removeEventListener('pointerup',up); };
+      window.addEventListener('pointermove',move); window.addEventListener('pointerup',up);
+    };
+    return <TweakRow label={label}>
+      <div ref={trackRef} role="radiogroup" onPointerDown={onPD} className="twk-seg">
+        <div className="twk-seg-thumb" style={{left:`calc(2px + ${idx}*(100% - 4px)/${n})`,width:`calc((100% - 4px)/${n})`}}/>
+        {opts.map(o=><button key={o.value} type="button" role="radio" aria-checked={o.value===value}>{o.label}</button>)}
+      </div>
+    </TweakRow>;
+  }
+  function TweakColor({ label, value, onChange }) {
+    return <div className="twk-row twk-row-h">
+      <div className="twk-lbl"><span>{label}</span></div>
+      <input type="color" className="twk-swatch" value={value} onChange={e=>onChange(e.target.value)}/>
+    </div>;
+  }
 
-      const drawerArtist = drawerArtistId
-        ? (window.ARTISTS || []).find(a => a.id === drawerArtistId) || null
-        : null;
+  Object.assign(window, { useTweaks, TweaksPanel, TweakSection, TweakRow, TweakSlider, TweakToggle, TweakRadio, TweakColor });
+  </script>
 
-      return (
-        <div className="stage">
-          {/* The five animated colour blobs — always rendered behind all content */}
-          <Blobs/>
+  <script type="text/babel">
+  // ── SHARED COMPONENTS ─────────────────────────────────────────────────────
+  const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-          {/* All page content sits in .content (z-index 2, above the blobs) */}
-          <div className="content">
+  function applyAppTheme(t) {
+    const r = document.documentElement.style;
+    if (t.accentTeal) r.setProperty('--teal', t.accentTeal);
+    if (t.accentLime) r.setProperty('--lime', t.accentLime);
+    if (t.accentBlue) r.setProperty('--blue', t.accentBlue);
+    // Forward settings to the lava lamp vanilla-JS controller
+    if (window.applyLavaSettings) window.applyLavaSettings(t);
+    if (t.darkMode) {
+      r.setProperty('--bg',    '#0d0d0c'); r.setProperty('--bg-soft','#171715');
+      r.setProperty('--paper', '#1c1c1a'); r.setProperty('--ink',    '#f5f3ee');
+      r.setProperty('--ink-2', '#e3e0d8'); r.setProperty('--ink-3',  '#b8b4ab');
+      r.setProperty('--ink-4', '#7a766f'); r.setProperty('--ink-5',  '#4a4844');
+      r.setProperty('--line',  'rgba(255,255,255,0.08)');
+      r.setProperty('--line-2','rgba(255,255,255,0.14)');
+    } else {
+      ['--bg','--bg-soft','--paper','--ink','--ink-2','--ink-3','--ink-4','--ink-5','--line','--line-2']
+        .forEach(k => r.removeProperty(k));
+    }
+  }
 
-            {/* Top navigation bar — shared across all views */}
-            <TopNav active={route} onNav={navigate} t={tt}/>
+  // Blobs is now a no-op — the lava lamp is pure vanilla JS above React
+  function Blobs() { return null; }
 
-            {/* View router — renders the correct view for the current hash */}
-            {route === 'tracker'   && <TrackerView   t={tt} onOpenArtist={openArtist}/>}
-            {route === 'email'     && <EmailView      t={tt} initialArtistId={emailInitialId} onOpenArtist={openArtist}/>}
-            {route === 'arrivals'  && <ArrivalsView   t={tt}/>}
-            {route === 'itinerary' && <ItineraryView  t={tt} initialArtistId={itinInitialId}/>}
-            {route === 'settings'  && <SettingsView   t={tt}/>}
+  function TopNav({ active, onNav, t }) {
+    const links = [
+      { id:'tracker',   label:t('nav.tracker')   },
+      { id:'email',     label:t('nav.email')      },
+      { id:'arrivals',  label:t('nav.arrivals')   },
+      { id:'itinerary', label:t('nav.itinerary')  },
+      { id:'settings',  label:t('nav.settings')   },
+    ];
+    return (
+      <nav className="nav">
+        <div className="brand" onClick={()=>onNav('tracker')}>
+          <span className="brand-dot"></span>{t('app.brand')}
+        </div>
+        <div className="nav-links">
+          {links.map(l=>(
+            <a key={l.id} className={active===l.id?'active':''} onClick={()=>onNav(l.id)}>{l.label}</a>
+          ))}
+        </div>
+        <div className="nav-spacer"></div>
+        <div className="nav-meta">
+          <div className="nav-pill"><span className="nav-pill-dot"></span> {t('nav.synced')}</div>
+          <div className="avatar">MP</div>
+        </div>
+      </nav>
+    );
+  }
 
-            {/* Footer — shown at the bottom of every view */}
-            <PageFoot t={tt}/>
+  function PageFoot({ t }) {
+    return <footer className="foot"><span>{t('foot.l')}</span><span>{t('foot.r')}</span></footer>;
+  }
+
+  const STATUS_META = {
+    confirmed:{ cls:'b-go',   key:'common.confirmed' },
+    partial:  { cls:'b-info', key:'common.partial'   },
+    pending:  { cls:'b-warn', key:'common.pending'   },
+    needed:   { cls:'b-stop', key:'common.needed'    },
+    idle:     { cls:'b-idle', key:'common.idle'      },
+    blocked:  { cls:'b-stop', key:'common.blocked'   },
+  };
+
+  function StatusBadge({ status, t }) {
+    const m = STATUS_META[status] || STATUS_META.idle;
+    return <span className={'badge '+m.cls}>{t(m.key)}</span>;
+  }
+  function StatusDot({ status }) {
+    const m  = STATUS_META[status] || STATUS_META.idle;
+    const cl = m.cls==='b-go'?'dot-go':m.cls==='b-warn'?'dot-warn':m.cls==='b-stop'?'dot-stop':'dot-idle';
+    return <span className={'dot '+cl}></span>;
+  }
+  function StepsBar({ statuses }) {
+    return (
+      <div style={{display:'flex',gap:3,height:5}}>
+        {statuses.map((s,i)=>{
+          const bg = s==='confirmed'?'var(--teal)':s==='partial'||s==='pending'?'var(--amber)':s==='needed'||s==='blocked'?'var(--st-stop)':'rgba(10,10,10,0.10)';
+          return <div key={i} style={{flex:1,borderRadius:100,background:bg}}></div>;
+        })}
+      </div>
+    );
+  }
+  function progressOf(statuses) {
+    const done = statuses.filter(s=>s==='confirmed').length;
+    return { done, total:statuses.length, pct:Math.round(100*done/statuses.length) };
+  }
+  function StageChip({ stageId }) {
+    const stage = window.STAGES.find(s=>s.id===stageId);
+    if (!stage) return null;
+    return <span className="dt-stage" style={{'--c':stage.color}}>{stage.name}</span>;
+  }
+  function PageHero({ eyebrow, title, sub, right }) {
+    return (
+      <header className="page-head">
+        <div>
+          <div className="page-eyebrow"><span className="page-eyebrow-line"></span> {eyebrow}</div>
+          <h1 className="page-title" dangerouslySetInnerHTML={{__html:title}}></h1>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:18,minWidth:280}}>
+          {sub && <div className="page-sub" style={{textAlign:'right'}}>{sub}</div>}
+          {right}
+        </div>
+      </header>
+    );
+  }
+  function StatStrip({ stats }) {
+    return (
+      <div className="stat-strip">
+        {stats.map((s,i)=>(
+          <div className="stat" key={i}>
+            <div className="stat-label">{s.label}</div>
+            <div className="stat-value">{s.value}{s.unit&&<span className="unit">{s.unit}</span>}</div>
+            {s.trend&&<div className={'stat-trend '+(s.trendVariant||'')}>{s.trend}</div>}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  Object.assign(window, { applyAppTheme, Blobs, TopNav, PageFoot, StatusBadge, StatusDot, StepsBar, progressOf, StageChip, PageHero, StatStrip });
+  </script>
+
+  <script type="text/babel">
+  // ── TRACKER VIEW ──────────────────────────────────────────────────────────
+  const TIER_LABEL = {
+    'Headliner':     { label:'HEADLINER', cls:'b-stop' },
+    'Sub-headliner': { label:'SUB-HEAD',  cls:'b-warn' },
+    'Support':       { label:'SUPPORT',   cls:'b-idle' },
+  };
+
+  function TrackerView({ t, onOpenArtist }) {
+    const [filter, setFilter] = useState('all');
+    const [query, setQuery]   = useState('');
+    const [sort, setSort]     = useState({ col:'date', dir:'asc' });
+
+    const artists = window.ARTISTS;
+    const filtered = useMemo(() => {
+      let list = artists.slice();
+      if (filter==='head')    list = list.filter(a=>a.tier==='Headliner'||a.tier==='Sub-headliner');
+      if (filter==='chasing') list = list.filter(a=>a.status.some(s=>s==='pending'||s==='needed'||s==='blocked'));
+      if (filter==='today')   list = list.filter(a=>a.showDate==='2026-07-17');
+      if (filter==='flying')  list = list.filter(a=>a.travelMode==='Flying'||a.travelMode==='Mixed');
+      if (query) { const q=query.toLowerCase(); list=list.filter(a=>a.name.toLowerCase().includes(q)||a.tmName.toLowerCase().includes(q)||(a.flights||[]).some(f=>f.no.toLowerCase().includes(q))); }
+      list.sort((a,b)=>{
+        if (sort.col==='name')     return a.name.localeCompare(b.name)*(sort.dir==='asc'?1:-1);
+        if (sort.col==='progress') return (progressOf(a.status).pct-progressOf(b.status).pct)*(sort.dir==='asc'?1:-1);
+        return (a.showDate+a.showTime).localeCompare(b.showDate+b.showTime)*(sort.dir==='asc'?1:-1);
+      });
+      return list;
+    }, [filter, query, sort]);
+
+    const totals = useMemo(()=>{
+      const total    = artists.length;
+      const advanced = artists.filter(a=>progressOf(a.status).pct>=80).length;
+      const chasing  = artists.filter(a=>a.status.some(s=>s==='pending'||s==='needed'||s==='blocked')).length;
+      const overdue  = artists.filter(a=>a.status.some(s=>s==='needed'||s==='blocked')).length;
+      return { total, advanced, chasing, overdue };
+    }, []);
+
+    const th = (col) => ({
+      cursor:'pointer',
+      onClick:()=>setSort(s=>({col,dir:s.col===col&&s.dir==='asc'?'desc':'asc'}))
+    });
+
+    return (
+      <main className="page">
+        <PageHero
+          eyebrow={t('tr.eyebrow')}
+          title={t('tr.title')}
+          sub={t('tr.sub')}
+          right={
+            <div style={{display:'flex',gap:8}}>
+              <a className="btn btn-soft btn-sm">
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M2 7h10M7 2v10"/></svg>
+                Add artist
+              </a>
+              <a className="btn btn-soft btn-sm">Export CSV</a>
+            </div>
+          }
+        />
+
+        <StatStrip stats={[
+          { label:t('tr.stat.total'),    value:totals.total,    unit:t('tr.stat.booked'), trend:'▲ 12 / week', trendVariant:'up' },
+          { label:t('tr.stat.advanced'), value:totals.advanced, unit:'/'+totals.total,    trend:Math.round(100*totals.advanced/totals.total)+'%', trendVariant:'dim' },
+          { label:t('tr.stat.chasing'),  value:totals.chasing,  trend:t('tr.stat.overdue',{n:totals.overdue}), trendVariant:'warn' },
+          { label:t('tr.stat.days'),     value:68, trend:t('tr.stat.gates'), trendVariant:'dim' },
+        ]}/>
+
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0 18px',borderBottom:'1px solid var(--line)',marginBottom:24}}>
+          <div style={{display:'flex',gap:4}}>
+            {[{id:'all',label:t('tr.filters.all')},{id:'head',label:t('tr.filters.head')},{id:'chasing',label:t('tr.filters.chasing')},{id:'today',label:t('tr.filters.today')},{id:'flying',label:t('tr.filters.flying')}].map(f=>(
+              <a key={f.id} onClick={()=>setFilter(f.id)} className={'btn btn-sm '+(filter===f.id?'btn-primary':'btn-soft')}>{f.label}</a>
+            ))}
+          </div>
+          <div style={{flex:1}}></div>
+          <div className="search-pill">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="5" cy="5" r="3.5"/><path d="M8 8l3 3"/></svg>
+            <input type="text" placeholder={t('tr.search')} value={query} onChange={e=>setQuery(e.target.value)}/>
+          </div>
+          <div className="dim mono" style={{fontSize:11}}>{filtered.length} / {artists.length}</div>
+        </div>
+
+        <div className="card" style={{marginBottom:40}}>
+          <table className="dt">
+            <thead>
+              <tr>
+                <th {...th('name')}>{t('tr.col.artist')}</th>
+                <th {...th('date')}>{t('tr.col.show')}</th>
+                <th>{t('tr.col.party')}</th>
+                <th>{t('tr.col.travel')}</th>
+                <th>{t('tr.col.hotel')}</th>
+                <th>{t('tr.col.tm')}</th>
+                <th {...th('progress')} style={{width:160}}>{t('tr.col.steps')}</th>
+                <th>{t('tr.col.status')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(a=>{
+                const hotel = window.HOTELS.find(h=>h.id===a.hotel);
+                const prog  = progressOf(a.status);
+                const tier  = TIER_LABEL[a.tier] || { label:a.tier.toUpperCase(), cls:'b-idle' };
+                const arrF  = (a.flights||[]).find(f=>f.dir==='arr');
+                const isChasing = a.status.some(s=>s==='pending'||s==='needed'||s==='blocked');
+                const showDate  = new Date(a.showDate).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+                return (
+                  <tr key={a.id} className="clickable" onClick={()=>onOpenArtist(a.id)}>
+                    <td>
+                      <div style={{display:'flex',flexDirection:'column',gap:3}}>
+                        <span className="dt-name">{a.name}</span>
+                        <span style={{display:'flex',gap:6,alignItems:'center'}}>
+                          <span className={'badge '+tier.cls} style={{fontSize:9,padding:'2px 7px'}}>{tier.label}</span>
+                          <StageChip stageId={a.stage}/>
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{display:'flex',flexDirection:'column'}}>
+                        <span className="dt-mono">{showDate}</span>
+                        <span className="mono dim" style={{fontSize:11}}>{a.showTime} · {a.actType}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{display:'flex',flexDirection:'column'}}>
+                        <span className="dt-num">{a.party} + {a.crew}</span>
+                        <span className="mono dim" style={{fontSize:11}}>{a.rooms} rooms</span>
+                      </div>
+                    </td>
+                    <td>
+                      {arrF ? (
+                        <div style={{display:'flex',flexDirection:'column'}}>
+                          <span className="dt-mono">{arrF.no}</span>
+                          <span className="mono dim" style={{fontSize:11}}>{arrF.from}→{arrF.to} · {arrF.date.slice(5)}</span>
+                        </div>
+                      ) : <span className="dim mono" style={{fontSize:11}}>{a.travelMode}</span>}
+                    </td>
+                    <td>
+                      {hotel ? (
+                        <div style={{display:'flex',flexDirection:'column'}}>
+                          <span style={{fontSize:13,color:'var(--ink-2)',fontWeight:500}}>{hotel.name}</span>
+                          <span className="mono dim" style={{fontSize:11}}>{hotel.tier} · {hotel.city}</span>
+                        </div>
+                      ) : <span className="dim">—</span>}
+                    </td>
+                    <td>
+                      <div style={{display:'flex',flexDirection:'column'}}>
+                        <span style={{fontSize:13,color:'var(--ink-2)',fontWeight:500}}>{a.tmName}</span>
+                        <span className="mono dim" style={{fontSize:11}}>{a.lead}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                        <StepsBar statuses={a.status}/>
+                        <span className="mono" style={{fontSize:11,color:'var(--ink-3)'}}>{prog.done}/{prog.total} · {prog.pct}%</span>
+                      </div>
+                    </td>
+                    <td>
+                      {isChasing
+                        ? <StatusBadge status={a.status.find(s=>s==='needed'||s==='blocked')?'needed':'pending'} t={t}/>
+                        : <StatusBadge status={prog.pct===100?'confirmed':'partial'} t={t}/>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    );
+  }
+  window.TrackerView = TrackerView;
+  </script>
+
+  <script type="text/babel">
+  // ── ARTIST DRAWER ─────────────────────────────────────────────────────────
+  const FIELDS = [
+    { key:'partySize',    label:'Party size & rooming',  owner:'TM' },
+    { key:'tmContact',    label:'TM contact details',    owner:'TM' },
+    { key:'rider',        label:'Hospitality rider',     owner:'TM' },
+    { key:'dietary',      label:'Dietary requirements',  owner:'TM' },
+    { key:'hotelDetails', label:'Hotel allocation',      owner:'EC' },
+    { key:'flightDetails',label:'Flight bookings',       owner:'TM' },
+    { key:'transfers',    label:'Ground transfers',      owner:'EC' },
+  ];
+  const ACTIVITY = [
+    { who:'Mara P.',    when:'14:32', what:'Marked rooming list confirmed.',                            kind:'go'   },
+    { who:'Lucas Beck', when:'12:08', what:'Replied to chase #2 — flights forwarded.',                  kind:'info' },
+    { who:'System',     when:'09:00', what:'Auto-chase email sent — dietary requirements pending 3 days.', kind:'warn' },
+    { who:'Vlad M.',    when:'Yest',  what:'Updated stage allocation: Mainstage → Hangar.',             kind:'info' },
+  ];
+
+  function ArtistDrawer({ artist, t, onClose, onNav }) {
+    const [tab, setTab] = useState('overview');
+    useEffect(() => {
+      const onKey = e => { if (e.key==='Escape') onClose(); };
+      window.addEventListener('keydown', onKey);
+      return () => window.removeEventListener('keydown', onKey);
+    }, [onClose]);
+    if (!artist) return null;
+    const stage = window.STAGES.find(s=>s.id===artist.stage);
+    const hotel = window.HOTELS.find(h=>h.id===artist.hotel);
+    const prog  = progressOf(artist.status);
+    const isChasing = artist.status.some(s=>s==='pending'||s==='needed'||s==='blocked');
+
+    const tabs = [
+      {id:'overview',label:t('dr.tabs.overview')},
+      {id:'fields',  label:t('dr.tabs.fields')},
+      {id:'travel',  label:t('dr.tabs.travel')},
+      {id:'activity',label:t('dr.tabs.activity')},
+    ];
+
+    return (
+      <>
+        <div className="drawer-overlay" onClick={onClose}></div>
+        <aside className="drawer">
+          <div style={{padding:'24px 28px 20px',borderBottom:'1px solid var(--line)'}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:18}}>
+              <div style={{display:'inline-flex',alignItems:'center',gap:8,fontSize:11,fontFamily:'var(--font-mono)',letterSpacing:'0.06em',color:'var(--ink-4)'}}>
+                {artist.tier.toUpperCase()} · {stage && stage.name.toUpperCase()}
+              </div>
+              <a className="btn btn-soft btn-sm" onClick={onClose}>
+                <svg width="12" height="12" viewBox="0 0 12 12" stroke="currentColor" strokeWidth="1.5"><path d="M3 3l6 6M9 3l-6 6"/></svg>
+                {t('common.close')}
+              </a>
+            </div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:48,lineHeight:0.95,letterSpacing:'-0.03em',fontWeight:500,marginBottom:12}}>{artist.name}</div>
+            <div style={{display:'flex',gap:14,fontSize:14,color:'var(--ink-3)',flexWrap:'wrap'}}>
+              <span className="mono">{new Date(artist.showDate).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})} · {artist.showTime}</span>
+              <span className="dimmer">·</span>
+              <span>{artist.party}+{artist.crew} party · {artist.rooms} rooms</span>
+              <span className="dimmer">·</span>
+              <span>{artist.travelMode}</span>
+            </div>
+            <div style={{display:'flex',gap:8,marginTop:20}}>
+              <a className="btn btn-primary btn-sm" onClick={()=>onNav('email',artist.id)}>{t('dr.action.email')}</a>
+              <a className="btn btn-soft btn-sm" onClick={()=>onNav('itinerary',artist.id)}>{t('dr.action.itin')}</a>
+              <a className="btn btn-ghost btn-sm">{t('dr.action.monday')}</a>
+            </div>
           </div>
 
-          {/* Artist drawer — slides in from the right when an artist row is clicked */}
-          {drawerArtist && (
-            <ArtistDrawer
-              artist={drawerArtist}
-              t={tt}
-              onClose={closeDrawer}
-              onNav={navigate}
-            />
-          )}
+          <div style={{display:'flex',gap:4,padding:'12px 28px 0',borderBottom:'1px solid var(--line)'}}>
+            {tabs.map(x=>(
+              <a key={x.id} onClick={()=>setTab(x.id)} style={{
+                padding:'10px 14px',fontSize:13,fontWeight:500,cursor:'pointer',
+                borderBottom:tab===x.id?'2px solid var(--ink)':'2px solid transparent',
+                color:tab===x.id?'var(--ink)':'var(--ink-4)',marginBottom:-1,
+              }}>{x.label}</a>
+            ))}
+          </div>
 
-          {/* Design tweaks panel — floating bottom-right panel for adjustments */}
-          <TweaksPanel title="Tweaks">
-            <TweakSection label="Language"/>
-            <TweakRadio
-              label="Language"
-              value={twk.lang}
-              options={[{ value:'en', label:'EN' }, { value:'ro', label:'RO' }]}
-              onChange={v => setTweak('lang', v)}
-            />
+          <div style={{flex:1,overflow:'auto',padding:'28px'}}>
+            {tab==='overview' && (
+              <>
+                {isChasing && (
+                  <div style={{display:'flex',gap:12,padding:'14px 16px',borderRadius:12,marginBottom:24,background:'rgba(217,119,6,0.07)',border:'1px solid rgba(217,119,6,0.22)'}}>
+                    <div style={{flex:'0 0 auto',width:20,height:20,borderRadius:'50%',background:'var(--amber)',color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:600}}>!</div>
+                    <div style={{fontSize:13,lineHeight:1.45,color:'var(--ink-2)'}}>
+                      <strong style={{color:'var(--amber)',fontWeight:600}}>Items still chasing:</strong>{' '}
+                      {FIELDS.filter(f=>artist.fields[f.key]!=='confirmed').map(f=>f.label).join(' · ')}.
+                    </div>
+                  </div>
+                )}
+                <div style={{marginBottom:32}}>
+                  <div className="mono" style={{fontSize:11,letterSpacing:'0.04em',color:'var(--ink-4)',marginBottom:14}}>
+                    {t('dr.advancing').toUpperCase()} · {prog.done}/{prog.total} · {prog.pct}%
+                  </div>
+                  <StepsBar statuses={artist.status}/>
+                  <div style={{display:'flex',gap:24,marginTop:14,flexWrap:'wrap',fontSize:11}} className="mono dim">
+                    {window.STEPS.map((s,i)=>(
+                      <span key={s.id} style={{color:artist.status[i]==='confirmed'?'var(--teal)':artist.status[i]==='pending'||artist.status[i]==='partial'?'var(--amber)':artist.status[i]==='needed'||artist.status[i]==='blocked'?'var(--st-stop)':'var(--ink-5)'}}>{s.short}</span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'18px 28px',padding:'20px 0 24px',borderTop:'1px solid var(--line)',borderBottom:'1px solid var(--line)'}}>
+                  {[
+                    { label:'HOTEL', value:hotel?hotel.name:'—', sub:hotel?`${hotel.tier} · ${hotel.city} · ${artist.rooms} rooms`:'', warn:artist.fields.hotelDetails!=='confirmed' },
+                    { label:'ARRIVAL', value:(artist.flights||[]).find(f=>f.dir==='arr')?((artist.flights||[]).find(f=>f.dir==='arr')).no+' · '+((artist.flights||[]).find(f=>f.dir==='arr')).from+'→'+((artist.flights||[]).find(f=>f.dir==='arr')).to:'—', sub:artist.travelMode, warn:artist.fields.flightDetails!=='confirmed' },
+                    { label:'GROUND TRANSFERS', value:artist.fields.transfers==='confirmed'?'Assigned':'Awaiting flights', sub:'Bogdan T. · +40 728 451 770', warn:artist.fields.transfers!=='confirmed' },
+                    { label:'DEPARTURE', value:(artist.flights||[]).find(f=>f.dir==='dep')?((artist.flights||[]).find(f=>f.dir==='dep')).no:'—', sub:'', warn:(artist.flights||[]).find(f=>f.dir==='dep')?.conf!=='confirmed' },
+                  ].map((it,i)=>(
+                    <div key={i} style={{display:'flex',flexDirection:'column',gap:4}}>
+                      <span className="mono" style={{fontSize:10,letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--ink-4)',fontWeight:500}}>{it.label}</span>
+                      <span style={{fontSize:14,color:it.warn?'var(--amber)':'var(--ink-2)',fontWeight:500}}>{it.value}</span>
+                      {it.sub&&<span className="mono" style={{fontSize:11,color:'var(--ink-4)'}}>{it.sub}</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
-            <TweakSection label="Background"/>
-            <TweakSlider
-              label="Blob intensity"
-              value={twk.blobIntensity}
-              min={0} max={80} unit="%"
-              onChange={v => setTweak('blobIntensity', v)}
-            />
-            <TweakToggle label="Blob motion"   value={twk.blobMotion}  onChange={v => setTweak('blobMotion', v)}/>
-            <TweakToggle label="Dark mode"     value={twk.darkMode}    onChange={v => setTweak('darkMode', v)}/>
+            {tab==='fields' && (
+              <div style={{display:'flex',flexDirection:'column',gap:0,border:'1px solid var(--line)',borderRadius:12,overflow:'hidden',background:'var(--paper)'}}>
+                {FIELDS.map((f,i)=>{
+                  const v = artist.fields[f.key] || 'idle';
+                  return (
+                    <div key={f.key} style={{display:'grid',gridTemplateColumns:'1fr auto auto',gap:16,alignItems:'center',padding:'14px 16px',borderBottom:i<FIELDS.length-1?'1px solid var(--line)':'none'}}>
+                      <div>
+                        <div style={{fontSize:13,fontWeight:500,color:'var(--ink-2)'}}>{f.label}</div>
+                        <div className="mono dim" style={{fontSize:10,letterSpacing:'0.04em',marginTop:2}}>OWNER · {f.owner}</div>
+                      </div>
+                      <StatusBadge status={v} t={t}/>
+                      <a className="btn btn-soft btn-sm" style={{padding:'4px 10px',fontSize:11}}>Update</a>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
-            <TweakSection label="Accents"/>
-            <TweakColor label="Teal"  value={twk.accentTeal} onChange={v => setTweak('accentTeal', v)}/>
-            <TweakColor label="Lime"  value={twk.accentLime} onChange={v => setTweak('accentLime', v)}/>
-            <TweakColor label="Blue"  value={twk.accentBlue} onChange={v => setTweak('accentBlue', v)}/>
-          </TweaksPanel>
+            {tab==='travel' && (
+              <>
+                <div style={{marginBottom:16,fontFamily:'var(--font-display)',fontSize:22,fontWeight:500,letterSpacing:'-0.02em'}}>{t('dr.travel.title')}</div>
+                {(artist.flights||[]).length===0
+                  ? <div className="card card-pad dim" style={{fontSize:13,marginBottom:24}}>{artist.travelMode} — no flights on file.</div>
+                  : <div className="card" style={{marginBottom:24}}>
+                    <table className="dt">
+                      <thead><tr><th>Dir</th><th>Flight</th><th>Route</th><th>Date</th><th>Time</th><th>Pax</th><th>Status</th></tr></thead>
+                      <tbody>
+                        {(artist.flights||[]).map((f,i)=>(
+                          <tr key={i}>
+                            <td><span className="mono dim" style={{fontSize:11,textTransform:'uppercase'}}>{f.dir}</span></td>
+                            <td><span className="dt-mono">{f.no}</span></td>
+                            <td><span className="dt-mono">{f.from} → {f.to}</span></td>
+                            <td><span className="dt-mono">{f.date.slice(5)}</span></td>
+                            <td><span className="dt-mono">{f.time}</span></td>
+                            <td><span className="dt-num">{f.pax}</span></td>
+                            <td><StatusBadge status={f.conf} t={t}/></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                }
+                {hotel && (
+                  <div className="card card-pad">
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'14px 28px'}}>
+                      {[['Hotel',hotel.name],['Tier',hotel.tier],['City',hotel.city],['Rooms',artist.rooms+' rooms'],['Check-in','14:00'],['Check-out','12:00']].map(([l,v])=>(
+                        <div key={l}>
+                          <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--ink-4)',marginBottom:4}}>{l}</div>
+                          <div style={{fontSize:13,color:'var(--ink-2)',fontWeight:500}}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {tab==='activity' && (
+              <div style={{display:'flex',flexDirection:'column',gap:0,borderLeft:'2px solid var(--line)'}}>
+                {ACTIVITY.map((a,i)=>(
+                  <div key={i} style={{padding:'12px 0 16px 18px',position:'relative'}}>
+                    <div style={{position:'absolute',left:-5,top:18,width:8,height:8,borderRadius:'50%',background:a.kind==='go'?'var(--teal)':a.kind==='warn'?'var(--amber)':'var(--ink-4)',boxShadow:'0 0 0 3px var(--paper)'}}></div>
+                    <div style={{display:'flex',gap:8,alignItems:'baseline',marginBottom:2}}>
+                      <span style={{fontSize:13,fontWeight:600,color:'var(--ink-2)'}}>{a.who}</span>
+                      <span className="mono dim" style={{fontSize:11}}>{a.when}</span>
+                    </div>
+                    <div style={{fontSize:13,color:'var(--ink-3)'}}>{a.what}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </aside>
+      </>
+    );
+  }
+  window.ArtistDrawer = ArtistDrawer;
+  </script>
+
+  <script type="text/babel">
+  // ── EMAIL VIEW ────────────────────────────────────────────────────────────
+  const CADENCES = [
+    { id:'first',   key:'em.cadence.first'   },
+    { id:'chase',   key:'em.cadence.chase'   },
+    { id:'confirm', key:'em.cadence.confirm' },
+    { id:'final',   key:'em.cadence.final'   },
+  ];
+  function urgencyOf(a) {
+    if (a.status.some(s=>s==='needed'||s==='blocked')) return 0;
+    if (a.status.some(s=>s==='pending'))               return 1;
+    if (a.status.some(s=>s==='partial'))               return 2;
+    return 3;
+  }
+  function urgencyLabel(u) {
+    return u===0?{label:'OVERDUE',cls:'b-stop'}:u===1?{label:'CHASE',cls:'b-warn'}:u===2?{label:'PARTIAL',cls:'b-info'}:{label:'CALM',cls:'b-idle'};
+  }
+  function EmailView({ t, initialArtistId, onOpenArtist }) {
+    const artists = window.ARTISTS;
+    const sorted  = useMemo(()=>artists.slice().sort((a,b)=>urgencyOf(a)-urgencyOf(b)),[]);
+    const [selId, setSelId]   = useState(initialArtistId || sorted[0].id);
+    const [cadence, setCadence] = useState('chase');
+    const artist = artists.find(a=>a.id===selId) || sorted[0];
+
+    return (
+      <main className="page">
+        <PageHero eyebrow={t('em.eyebrow')} title={t('em.title')} sub={t('em.sub')}/>
+        <div style={{display:'grid',gridTemplateColumns:'360px 1fr',gap:20,marginTop:24,marginBottom:40}}>
+          <div className="card">
+            <div className="card-head">
+              <div className="card-title">{t('em.list.title')}</div>
+              <div className="card-meta">{t('em.list.meta',{n:sorted.length})}</div>
+            </div>
+            <div style={{maxHeight:760,overflow:'auto'}}>
+              {sorted.map(a=>{
+                const u=urgencyOf(a); const meta=urgencyLabel(u);
+                const isSel=a.id===artist.id;
+                return (
+                  <div key={a.id} onClick={()=>setSelId(a.id)} style={{padding:'14px 18px',cursor:'pointer',borderBottom:'1px solid var(--line)',background:isSel?'rgba(10,163,154,0.06)':'transparent',borderLeft:isSel?'3px solid var(--teal)':'3px solid transparent',display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:8}}>
+                      <div className="dt-name" style={{fontSize:14}}>{a.name}</div>
+                      <span className={'badge '+meta.cls} style={{fontSize:9,padding:'2px 7px'}}>{meta.label}</span>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:10,fontSize:11}} className="mono dim">
+                      <StageChip stageId={a.stage}/>
+                      <span>{a.showDate.slice(5)} · {a.showTime}</span>
+                    </div>
+                    <div style={{fontSize:12,color:'var(--ink-3)'}}>{a.tmName} · <span className="mono">{a.tmEmail}</span></div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <DraftPreview artist={artist} cadence={cadence} setCadence={setCadence} t={t} onOpenArtist={onOpenArtist}/>
         </div>
-      );
-    }
+      </main>
+    );
+  }
+  function DraftPreview({ artist, cadence, setCadence, t, onOpenArtist }) {
+    const stage = window.STAGES.find(s=>s.id===artist.stage);
+    const hotel = window.HOTELS.find(h=>h.id===artist.hotel);
+    const arr   = (artist.flights||[]).filter(f=>f.dir==='arr');
+    const dep   = (artist.flights||[]).filter(f=>f.dir==='dep');
+    const flightLegs = [...arr,...dep].map(f=>`${f.no} ${f.from}→${f.to} ${f.date.slice(5)} ${f.time}`).join(' · ');
+    const showDate   = new Date(artist.showDate).toLocaleDateString('en-GB',{day:'numeric',month:'long'});
+    const subject    = `EC12 Advancing — ${artist.name} (${stage?stage.name:''}, ${showDate})`;
+    const firstName  = artist.tmName.split(' ')[0];
 
-    // Mount the App component into the #root div
-    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+    const copyDraft = () => {
+      const body = document.getElementById('draft-body');
+      if (body) navigator.clipboard.writeText(body.innerText).catch(()=>{});
+    };
+
+    return (
+      <div className="card" style={{display:'flex',flexDirection:'column'}}>
+        <div className="card-head" style={{justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:14}}>
+            <div className="card-title">{artist.name}</div>
+            <div className="mono dim" style={{fontSize:11}}>{stage&&stage.name} · {showDate} · {artist.showTime}</div>
+          </div>
+          <div style={{display:'flex',gap:6,marginLeft:'auto'}}>
+            <a className="btn btn-soft btn-sm" onClick={()=>onOpenArtist(artist.id)}>Open record</a>
+            <a className="btn btn-primary btn-sm" onClick={copyDraft}>{t('em.draft.copy')}</a>
+          </div>
+        </div>
+        <div style={{padding:'14px 22px',borderBottom:'1px solid var(--line)',display:'flex',alignItems:'center',gap:14}}>
+          <span className="mono" style={{fontSize:11,letterSpacing:'0.04em',color:'var(--ink-4)',textTransform:'uppercase'}}>{t('em.cadence')}</span>
+          <div style={{display:'flex',gap:4}}>
+            {CADENCES.map(c=>(
+              <a key={c.id} onClick={()=>setCadence(c.id)} className={'btn btn-sm '+(cadence===c.id?'btn-primary':'btn-soft')} style={{padding:'6px 12px',fontSize:12}}>{t(c.key)}</a>
+            ))}
+          </div>
+        </div>
+        <div style={{padding:'18px 22px',borderBottom:'1px solid var(--line)',background:'var(--bg-soft)'}}>
+          <div style={{display:'grid',gridTemplateColumns:'70px 1fr',rowGap:7,alignItems:'center',fontSize:13}}>
+            <span className="dim mono" style={{fontSize:11}}>{t('em.draft.to')}</span><span className="mono">{artist.tmEmail}</span>
+            <span className="dim mono" style={{fontSize:11}}>{t('em.draft.cc')}</span><span className="mono dim">advancing@electriccastle.ro</span>
+            <span className="dim mono" style={{fontSize:11}}>{t('em.draft.subject')}</span><span style={{fontWeight:600,color:'var(--ink-2)'}}>{subject}</span>
+          </div>
+        </div>
+        <div id="draft-body" style={{flex:1,padding:'28px 32px',fontSize:14,lineHeight:1.65,color:'var(--ink-2)',fontFamily:'Georgia,"Times New Roman",serif'}}>
+          <p style={{marginTop:0}}>{t('em.draft.greeting',{firstName})}</p>
+          <p style={{marginTop:14}}>{t('em.draft.lede',{artist:artist.name,stage:stage?stage.name:'',date:showDate,time:artist.showTime})}</p>
+          <h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.party')}</h4>
+          <p>{t('em.body.party',{a:artist.party,c:artist.crew,tot:artist.party+artist.crew,r:artist.rooms})}{' '}{artist.fields.partySize!=='confirmed'&&<em style={{color:'var(--amber)'}}>{t('em.body.party.q')}</em>}</p>
+          {hotel&&<><h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.hotel')}</h4><p>{t('em.body.hotel',{hotel:hotel.name,city:hotel.city})}</p></>}
+          {(artist.travelMode==='Flying'||artist.travelMode==='Mixed')&&(
+            <><h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.flights')}</h4>
+            {flightLegs?<p>{t('em.body.flights.have',{legs:flightLegs})}{' '}{artist.fields.flightDetails!=='confirmed'&&<em style={{color:'var(--amber)'}}>{t('em.body.flights.q')}</em>}</p>:<p style={{color:'var(--st-stop)'}}><em>{t('em.body.flights.none')}</em></p>}</>
+          )}
+          <h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.transfer')}</h4>
+          <p>{t('em.body.transfer')}{' '}{artist.fields.transfers!=='confirmed'&&<em style={{color:'var(--amber)'}}>{t('em.body.transfer.pending')}</em>}</p>
+          {artist.fields.dietary!=='confirmed'&&<><h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.dietary')}</h4><p><em style={{color:'var(--amber)'}}>{t('em.body.dietary.q',{n:artist.party+artist.crew})}</em></p></>}
+          <h4 style={{marginTop:22,marginBottom:6,fontFamily:'var(--font-display)',fontSize:13,letterSpacing:'0.08em',textTransform:'uppercase',color:'var(--ink-3)',fontWeight:600}}>{t('em.h.next')}</h4>
+          <p>{t('em.body.next')}</p>
+          <p style={{marginTop:22,whiteSpace:'pre-wrap'}}>{t('em.body.sign')}</p>
+        </div>
+        <div style={{padding:'12px 22px',borderTop:'1px solid var(--line)',display:'flex',alignItems:'center',gap:14}}>
+          <span className="mono dim" style={{fontSize:11}}>DRAFT · from board state · {new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})}</span>
+          <div style={{flex:1}}></div>
+          <a className="btn btn-soft btn-sm" onClick={copyDraft}>{t('em.draft.copy')}</a>
+        </div>
+      </div>
+    );
+  }
+  window.EmailView = EmailView;
+  </script>
+
+  <script type="text/babel">
+  // ── ARRIVALS VIEW ─────────────────────────────────────────────────────────
+  const DRIVERS  = ['Bogdan T.','Cristi A.','Iulia R.','Tudor L.','Andra M.','Smaranda V.','Matei P.','Ioana D.','Radu N.','—'];
+  const VEHICLES = ['SUV · CJ-77-FST','Sprinter · CJ-12-EC','SUV · CJ-44-MUS','Coach · CJ-99-EC','SUV · CJ-21-FST','Sprinter · CJ-08-EC','SUV · CJ-66-EC'];
+  function buildMovements() {
+    const list=[]; let di=0,vi=0;
+    window.ARTISTS.forEach(a=>{
+      (a.flights||[]).forEach(f=>{
+        const hotel=window.HOTELS.find(h=>h.id===a.hotel);
+        list.push({...f,artist:a.name,artistId:a.id,stage:a.stage,driver:DRIVERS[di++%DRIVERS.length],vehicle:VEHICLES[vi++%VEHICLES.length],hotelTo:hotel?hotel.name:'TBC'});
+      });
+    });
+    return list;
+  }
+  function statusForMovement(m) {
+    if (m.conf==='partial'||m.conf==='pending') return Math.random()>0.5?'delayed':'noDriver';
+    const h=parseInt(m.time.slice(0,2),10);
+    return h<14?'landed':h<16?'onTime':'scheduled';
+  }
+  function ArrivalsView({ t }) {
+    const [tab, setTab]     = useState('arr');
+    const [filter, setFilter] = useState('today');
+    const movements = useMemo(()=>buildMovements(),[]);
+    const arr = movements.filter(m=>m.dir==='arr');
+    const dep = movements.filter(m=>m.dir==='dep');
+    const list = (tab==='arr'?arr:dep).slice().sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const summary = { total:list.length, drivers:new Set(list.map(m=>m.driver).filter(d=>d!=='—')).size, vehicles:new Set(list.map(m=>m.vehicle)).size, gaps:list.filter(m=>m.driver==='—'||m.conf==='pending').length };
+
+    return (
+      <main className="page">
+        <PageHero eyebrow={t('ar.eyebrow')} title={t('ar.title')} sub={t('ar.sub')}
+          right={<div style={{display:'flex',gap:6,alignItems:'center'}}><span className="badge b-stop" style={{padding:'5px 12px'}}><span className="dot dot-stop" style={{marginRight:4}}></span>{t('ar.live')}</span><a className="btn btn-soft btn-sm">Print roster</a></div>}
+        />
+        <StatStrip stats={[
+          {label:t('ar.summary.tot').toUpperCase(),value:summary.total,  trend:'4 days to gates',  trendVariant:'dim'},
+          {label:t('ar.summary.drv').toUpperCase(),value:summary.drivers,trend:'6 vans · 4 SUVs',  trendVariant:'dim'},
+          {label:t('ar.summary.veh').toUpperCase(),value:summary.vehicles,trend:'2 reserve avail.',trendVariant:'up'},
+          {label:t('ar.summary.gap').toUpperCase(),value:summary.gaps,   trend:'requires action',  trendVariant:'warn'},
+        ]}/>
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 0 18px',borderBottom:'1px solid var(--line)',marginBottom:24}}>
+          <div style={{display:'flex',gap:4}}>
+            {['arr','dep'].map(x=><a key={x} onClick={()=>setTab(x)} className={'btn btn-sm '+(tab===x?'btn-primary':'btn-soft')}>{t('ar.tabs.'+x)}</a>)}
+          </div>
+          <div style={{flex:1}}></div>
+          <div style={{display:'flex',gap:6}}>
+            {['today','week','all'].map(f=><a key={f} onClick={()=>setFilter(f)} className={'btn btn-sm '+(filter===f?'btn-primary':'btn-soft')} style={{padding:'6px 12px',fontSize:11}}>{f==='today'?'Today':f==='week'?'This week':'All'}</a>)}
+          </div>
+        </div>
+        <div className="card" style={{marginBottom:40}}>
+          <table className="dt">
+            <thead>
+              <tr><th style={{width:90}}>{t('ar.col.time')}</th><th>{t('ar.col.flight')}</th><th>{t('ar.col.route')}</th><th>{t('ar.col.artist')}</th><th>{t('ar.col.pax')}</th><th>{t('ar.col.driver')}</th><th>{t('ar.col.vehicle')}</th><th>{t('ar.col.hotel')}</th><th>{t('ar.col.status')}</th></tr>
+            </thead>
+            <tbody>
+              {list.map((m,i)=>{
+                const st=statusForMovement(m);
+                const stCls=st==='landed'||st==='onTime'?'b-go':st==='boarding'?'b-info':st==='delayed'?'b-warn':st==='noDriver'?'b-stop':'b-idle';
+                const stLabel=st==='delayed'?t('ar.st.delayed',{n:25}):t('ar.st.'+st);
+                return (
+                  <tr key={i}>
+                    <td><div style={{display:'flex',flexDirection:'column'}}><span className="dt-mono" style={{fontSize:14,fontWeight:600,color:'var(--ink)'}}>{m.time}</span><span className="mono dim" style={{fontSize:10}}>{m.date.slice(5)}</span></div></td>
+                    <td><span className="dt-mono">{m.no}</span></td>
+                    <td><div style={{display:'flex',alignItems:'center',gap:8}}><span className="dt-mono">{m.from}</span><span style={{color:'var(--ink-4)',fontSize:12}}>→</span><span className="dt-mono">{m.to}</span></div></td>
+                    <td><div style={{display:'flex',flexDirection:'column'}}><span className="dt-name">{m.artist}</span><StageChip stageId={m.stage}/></div></td>
+                    <td><div style={{display:'flex',flexDirection:'column'}}><span className="dt-num">{m.pax}</span><span className="mono dim" style={{fontSize:10}}>{m.partyType}</span></div></td>
+                    <td><span className="dt-mono" style={{color:m.driver==='—'?'var(--st-stop)':'var(--ink-2)'}}>{m.driver}</span></td>
+                    <td><span className="mono dim" style={{fontSize:11}}>{m.vehicle}</span></td>
+                    <td><span style={{fontSize:13,color:'var(--ink-2)'}}>{m.hotelTo}</span></td>
+                    <td><span className={'badge '+stCls}>{stLabel}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </main>
+    );
+  }
+  window.ArrivalsView = ArrivalsView;
+  </script>
+
+  <script type="text/babel">
+  // ── ITINERARY VIEW ────────────────────────────────────────────────────────
+  function ItineraryView({ t, initialArtistId }) {
+    const artists = window.ARTISTS;
+    const [selId, setSelId]   = useState(initialArtistId || 'a01');
+    const [unlocked, setUnlocked] = useState(false);
+    const [pin, setPin]       = useState('');
+    const artist = artists.find(a=>a.id===selId);
+    useEffect(() => { setUnlocked(false); setPin(''); }, [selId]);
+
+    return (
+      <main className="page">
+        <PageHero
+          eyebrow="// itinerary microsite · artist-facing · sent on day 5"
+          title="What the artist sees, <em>before they land.</em>"
+          sub="A passcode-gated microsite. Same data, premium voice. Pick an artist to preview."
+          right={
+            <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:8}}>
+              <span className="mono dim" style={{fontSize:11}}>PREVIEW · ARTIST</span>
+              <select value={selId} onChange={e=>setSelId(e.target.value)} className="field field-mono" style={{minWidth:220,paddingTop:8,paddingBottom:8}}>
+                {artists.slice(0,12).map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <span className="mono dim" style={{fontSize:10}}>PIN preview: <strong style={{color:'var(--ink-2)'}}>4827</strong></span>
+            </div>
+          }
+        />
+        <div style={{marginTop:32,marginBottom:48}}>
+          <div style={{borderRadius:'var(--r-xl)',overflow:'hidden',border:'1px solid var(--line)',boxShadow:'0 30px 80px -40px rgba(10,10,10,0.30)',background:unlocked?'transparent':'rgba(10,10,10,0.92)',minHeight:720,position:'relative'}}>
+            {!unlocked
+              ? <PinGate artist={artist} pin={pin} setPin={setPin} onUnlock={()=>setUnlocked(true)} t={t}/>
+              : <ItineraryContent artist={artist} t={t}/>
+            }
+          </div>
+        </div>
+      </main>
+    );
+  }
+  function PinGate({ artist, pin, setPin, onUnlock, t }) {
+    return (
+      <div style={{minHeight:720,display:'flex',alignItems:'center',justifyContent:'center',background:'radial-gradient(circle at 30% 30%, rgba(10,163,154,0.35), transparent 50%), radial-gradient(circle at 70% 70%, rgba(37,99,235,0.30), transparent 50%), #0d0d0c',color:'#f5f3ee',padding:60,position:'relative'}}>
+        <div style={{position:'absolute',top:32,left:32,display:'flex',alignItems:'center',gap:10,fontFamily:'var(--font-display)',fontWeight:600,fontSize:15}}>
+          <span style={{width:10,height:10,borderRadius:'50%',background:'linear-gradient(135deg,var(--teal),var(--lime))'}}></span>
+          ELECTRIC CASTLE 12 · ARTIST PORTAL
+        </div>
+        <div style={{maxWidth:480,textAlign:'center'}}>
+          <div className="mono" style={{fontSize:11,letterSpacing:'0.12em',opacity:0.6,marginBottom:24}}>ARTIST · {artist.name.toUpperCase()}</div>
+          <h1 style={{fontFamily:'var(--font-display)',fontSize:56,lineHeight:0.98,letterSpacing:'-0.035em',fontWeight:500,margin:'0 0 18px',textWrap:'balance'}}>{t('it.lock.title',{artist:artist.name})}</h1>
+          <p style={{fontSize:16,lineHeight:1.5,opacity:0.7,marginBottom:36}}>{t('it.lock.sub')}</p>
+          <div style={{display:'flex',gap:10,justifyContent:'center',marginBottom:24}}>
+            {[0,1,2,3].map(i=>(
+              <div key={i} style={{width:54,height:60,borderRadius:14,background:'rgba(245,243,238,0.06)',border:'1px solid rgba(245,243,238,'+(pin.length===i?'0.5':'0.14')+')',display:'flex',alignItems:'center',justifyContent:'center',fontSize:24,fontWeight:500,fontFamily:'var(--font-display)',transition:'all .15s'}}>{pin[i]?'•':''}</div>
+            ))}
+          </div>
+          <input type="text" value={pin} autoFocus maxLength={4} onChange={e=>setPin(e.target.value.replace(/\D/g,'').slice(0,4))} onKeyDown={e=>{if(e.key==='Enter'&&pin.length===4)onUnlock();}} placeholder="0000" style={{width:200,padding:'12px 16px',borderRadius:100,border:'1px solid rgba(245,243,238,0.2)',background:'rgba(245,243,238,0.08)',color:'#f5f3ee',outline:'none',fontFamily:'var(--font-mono)',fontSize:14,letterSpacing:'0.4em',textAlign:'center'}}/>
+          <div style={{marginTop:24,display:'flex',justifyContent:'center',gap:10}}>
+            <a className="btn" onClick={()=>pin.length===4&&onUnlock()} style={{background:'#f5f3ee',color:'#0d0d0c',borderRadius:100,opacity:pin.length===4?1:0.4,cursor:pin.length===4?'pointer':'not-allowed'}}>{t('it.lock.unlock')} →</a>
+          </div>
+          <p style={{marginTop:32,fontSize:12,opacity:0.5}}>{t('it.lock.hint')}</p>
+        </div>
+      </div>
+    );
+  }
+  function ItineraryContent({ artist, t }) {
+    const stage = window.STAGES.find(s=>s.id===artist.stage);
+    const hotel = window.HOTELS.find(h=>h.id===artist.hotel);
+    const arr   = (artist.flights||[]).filter(f=>f.dir==='arr')[0];
+    const dep   = (artist.flights||[]).filter(f=>f.dir==='dep')[0];
+    const angelName  = artist.angel  ? artist.angel.split(' (')[0]              : 'Smaranda V.';
+    const angelPhone = artist.angel  ? artist.angel.replace(/.*\((.*)\)/,'$1')  : '+40 728 100 471';
+    const subH = (timeStr, h) => { const [hh,mm]=timeStr.split(':').map(Number); let tot=hh*60+mm-h*60; tot=((tot%1440)+1440)%1440; return String(Math.floor(tot/60)).padStart(2,'0')+':'+String(tot%60).padStart(2,'0'); };
+    return (
+      <div style={{position:'relative',background:'var(--paper)'}}>
+        <div style={{padding:'80px 60px 60px',background:'radial-gradient(circle at 15% 20%, rgba(10,163,154,0.18), transparent 50%),radial-gradient(circle at 80% 30%, rgba(163,212,55,0.22), transparent 50%),radial-gradient(circle at 60% 90%, rgba(37,99,235,0.13), transparent 60%),var(--paper)',overflow:'hidden'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,fontFamily:'var(--font-display)',fontWeight:600,fontSize:14,marginBottom:40}}>
+            <span style={{width:10,height:10,borderRadius:'50%',background:'linear-gradient(135deg,var(--teal),var(--lime))'}}></span>
+            ELECTRIC CASTLE 12
+          </div>
+          <div className="mono" style={{fontSize:11,letterSpacing:'0.12em',color:'var(--ink-3)',marginBottom:28}}>{t('it.eyebrow')} · BONȚIDA, ROMANIA · 16 — 19 JULY 2026</div>
+          <h1 style={{fontFamily:'var(--font-display)',fontSize:'clamp(56px,7vw,96px)',lineHeight:0.95,letterSpacing:'-0.04em',fontWeight:500,margin:'0 0 24px',maxWidth:900}} dangerouslySetInnerHTML={{__html:t('it.headline',{artist:artist.name})}}></h1>
+          <p style={{fontSize:20,color:'var(--ink-3)',maxWidth:560,lineHeight:1.45}}>{t('it.tagline')}</p>
+          <div style={{marginTop:56,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:0,paddingTop:28,borderTop:'1px solid var(--line)'}}>
+            {[
+              {label:'STAGE',   value:stage?stage.name:''},
+              {label:'SHOW DAY',value:new Date(artist.showDate).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'long'})},
+              {label:'SET TIME',value:artist.showTime},
+              {label:'PARTY',   value:`${artist.party} A-party · ${artist.crew} crew`,last:true},
+            ].map((it,i)=>(
+              <div key={i} style={{paddingRight:it.last?0:24,borderRight:it.last?'none':'1px solid var(--line)'}}>
+                <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',fontWeight:500,marginBottom:8}}>{it.label}</div>
+                <div style={{fontFamily:'var(--font-mono)',fontSize:16,fontWeight:500,color:'var(--ink)'}}>{it.value}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {[
+          { title:t('it.h.arrival'), day:t('it.day.thu'), rows:[{ time:arr?arr.time:'—', head:arr?`${arr.no} · ${arr.from} → ${arr.to}`:'Self-driving', sub:arr?`${arr.pax} pax`:artist.travelMode, tail:'Pickup at gate by '+angelName }] },
+          { title:t('it.h.hotel'),   day:hotel?hotel.tier:'', rows:hotel?[{time:'14:00',head:hotel.name,sub:`${hotel.city} · ${artist.rooms} rooms · 3 nights`,tail:'Breakfast 06:30 — 10:30'}]:[] },
+          { title:t('it.h.show'),    day:new Date(artist.showDate).toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long'}), rows:[
+            {time:'14:00',                     head:t('it.show.gates'),sub:'Festival doors open',tail:''},
+            {time:subH(artist.showTime,4),     head:t('it.show.sound'),sub:`${stage?stage.name:''} · 60 min slot`,tail:'Stage manager: Vlad I.'},
+            {time:artist.showTime,             head:t('it.show.set'),  sub:`${stage?stage.name:''} · 75 min`,tail:'Audio: Marko · Lights: Ada',hl:true},
+            {time:subH(artist.showTime,-2),    head:t('it.show.curfew'),sub:'All stages · 04:00 max',tail:''},
+          ]},
+          { title:t('it.h.depart'), day:t('it.day.sat'), rows:[{time:dep?dep.time:'—',head:dep?`${dep.no} · ${dep.from} → ${dep.to}`:'Departure TBC',sub:dep?`${dep.pax} pax`:'',tail:dep?`Pickup at hotel ${subH(dep.time,3)}`:''}] },
+        ].map((sec,si)=>(
+          <section key={si} style={{padding:'40px 60px',borderTop:'1px solid var(--line)'}}>
+            <div style={{display:'flex',alignItems:'baseline',gap:16,marginBottom:24}}>
+              <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',color:'var(--ink-4)',fontWeight:500,minWidth:120}}>{sec.day}</div>
+              <h3 style={{fontFamily:'var(--font-display)',fontSize:36,letterSpacing:'-0.025em',fontWeight:500,margin:0}}>{sec.title}</h3>
+            </div>
+            {sec.rows.map((row,ri)=>(
+              <div key={ri} style={{display:'grid',gridTemplateColumns:'120px 1fr 1fr',gap:24,padding:'18px 0',borderTop:'1px solid var(--line)',alignItems:'baseline',background:row.hl?'rgba(10,163,154,0.04)':'transparent',paddingLeft:row.hl?16:0,paddingRight:row.hl?16:0,borderLeft:row.hl?'2px solid var(--teal)':'none',marginLeft:row.hl?-16:0}}>
+                <div className="mono" style={{fontSize:18,fontWeight:500,color:row.hl?'var(--teal)':'var(--ink-2)'}}>{row.time}</div>
+                <div><div style={{fontSize:18,fontWeight:500,color:'var(--ink)',marginBottom:3}}>{row.head}</div>{row.sub&&<div style={{fontSize:13,color:'var(--ink-3)'}}>{row.sub}</div>}</div>
+                <div className="mono dim" style={{fontSize:12,paddingTop:5}}>{row.tail}</div>
+              </div>
+            ))}
+          </section>
+        ))}
+        <div style={{padding:'0 60px 80px'}}>
+          <div style={{padding:32,marginTop:8,borderRadius:'var(--r-xl)',background:'linear-gradient(135deg,rgba(10,163,154,0.08),rgba(163,212,55,0.05))',border:'1px solid rgba(10,163,154,0.18)'}}>
+            <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',color:'var(--teal)',marginBottom:14,fontWeight:600}}>{t('it.h.runner').toUpperCase()}</div>
+            <div style={{display:'flex',alignItems:'center',gap:24}}>
+              <div style={{width:64,height:64,borderRadius:'50%',background:'linear-gradient(135deg,var(--teal),var(--blue))',display:'flex',alignItems:'center',justifyContent:'center',color:'white',fontFamily:'var(--font-display)',fontWeight:600,fontSize:24,flexShrink:0}}>{angelName.split(' ').map(p=>p[0]).join('').slice(0,2)}</div>
+              <div style={{flex:1}}>
+                <div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.02em',marginBottom:4}}>{angelName}</div>
+                <div className="mono" style={{fontSize:12,color:'var(--ink-3)'}}>{t('it.runner.role')} · {angelPhone}</div>
+                <div style={{fontSize:13,color:'var(--ink-3)',marginTop:4}}>{t('it.runner.note')}</div>
+              </div>
+              <a className="btn btn-primary btn-sm" style={{flexShrink:0}}>WhatsApp</a>
+            </div>
+          </div>
+          <div style={{marginTop:32,paddingTop:24,borderTop:'1px solid var(--line)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span className="mono dim" style={{fontSize:11,letterSpacing:'0.04em'}}>ELECTRIC CASTLE 12 · ARTIST PORTAL · v2</span>
+            <span className="mono dim" style={{fontSize:11,letterSpacing:'0.04em'}}>UPDATED {new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})} · LIVE</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  window.ItineraryView = ItineraryView;
+  </script>
+
+  <script type="text/babel">
+  // ── SETTINGS VIEW ─────────────────────────────────────────────────────────
+  const FIELD_MAPPINGS = [
+    { step:'Contract',          col:'Contract status',        type:'Status',    owner:'EC Booking', req:true  },
+    { step:'Tech rider',         col:'Tech rider received',    type:'File',      owner:'TM',         req:true  },
+    { step:'Hospitality rider',  col:'Hosp. rider received',   type:'File',      owner:'TM',         req:true  },
+    { step:'Accommodation',      col:'Hotel allocation',       type:'Connect',   owner:'EC Hosp.',   req:true  },
+    { step:'Travel & flights',   col:'Flight bookings',        type:'Long text', owner:'TM',         req:true  },
+    { step:'Arrivals confirmed', col:'Arrival confirmed',      type:'Date',      owner:'EC Hosp.',   req:true  },
+    { step:'Load-in scheduled',  col:'Load-in slot',           type:'Timeline',  owner:'EC Prod.',   req:false },
+    { step:'Advancing complete', col:'Advancing complete',     type:'Status',    owner:'EC Hosp.',   req:true  },
+  ];
+  const TEAM = [
+    { name:'Mara P.',     role:'Hospitality lead', access:'Admin',     artists:24 },
+    { name:'Sofia R.',    role:'Hospitality',      access:'Editor',    artists:18 },
+    { name:'Andrei C.',   role:'Booking',          access:'Editor',    artists:32 },
+    { name:'Vlad M.',     role:'Booking lead',     access:'Admin',     artists:41 },
+    { name:'Smaranda V.', role:'Runner coord.',    access:'Editor',    artists:0  },
+    { name:'Bogdan T.',   role:'Transport',        access:'Read-only', artists:0  },
+  ];
+  const TEMPLATES = [
+    { id:'first',   label:'First-touch',  sub:'Sent within 48h of contract' },
+    { id:'chase',   label:'Chase',        sub:'Auto-send when fields stall 3+ days' },
+    { id:'confirm', label:'Confirm',      sub:'Recap of locked fields' },
+    { id:'final',   label:'Final brief',  sub:'Sent 5 days before show' },
+  ];
+  const INTEGRATIONS = [
+    { id:'monday',   key:'se.con.monday',   status:'connected', sub:'"Advancing 26" board · 14 items · last sync 12s ago' },
+    { id:'outlook',  key:'se.con.outlook',  status:'connected', sub:'mara@electriccastle.ro · sent 47 emails this week' },
+    { id:'amadeus',  key:'se.con.amadeus',  status:'degraded',  sub:'Read-only access · last refresh 2h ago' },
+    { id:'whatsapp', key:'se.con.whatsapp', status:'connected', sub:'+40 728 100 471 · Smaranda V. · 3 active threads' },
+    { id:'maps',     key:'se.con.maps',     status:'connected', sub:'Routes from Cluj airport to all hotels · cached' },
+  ];
+
+  function SettingsView({ t }) {
+    const [tab, setTab] = useState('fields');
+    const [selTpl, setSelTpl] = useState('chase');
+    const tpl = TEMPLATES.find(x=>x.id===selTpl);
+    const tabStyle = id => ({ padding:'12px 16px',fontSize:13,fontWeight:500,cursor:'pointer',borderBottom:tab===id?'2px solid var(--ink)':'2px solid transparent',color:tab===id?'var(--ink)':'var(--ink-4)',marginBottom:-1 });
+
+    return (
+      <main className="page">
+        <PageHero eyebrow={t('se.eyebrow')} title={t('se.title')} sub={t('se.sub')}/>
+        <div style={{display:'flex',gap:4,padding:'20px 0 0',borderBottom:'1px solid var(--line)',marginBottom:32}}>
+          {[{id:'fields',label:t('se.tabs.fields')},{id:'templates',label:t('se.tabs.templates')},{id:'team',label:t('se.tabs.team')},{id:'brand',label:t('se.tabs.brand')},{id:'connect',label:t('se.tabs.connect')}].map(x=>(
+            <a key={x.id} onClick={()=>setTab(x.id)} style={tabStyle(x.id)}>{x.label}</a>
+          ))}
+        </div>
+
+        {tab==='fields' && (
+          <section>
+            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:24}}>
+              <div><div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.025em',marginBottom:6}}>{t('se.fields.title')}</div><div style={{fontSize:14,color:'var(--ink-3)',maxWidth:560}}>{t('se.fields.sub')}</div></div>
+              <div style={{display:'flex',gap:8}}><a className="btn btn-ghost btn-sm">{t('common.cancel')}</a><a className="btn btn-primary btn-sm">{t('common.save')}</a></div>
+            </div>
+            <div className="card"><table className="dt"><thead><tr><th></th><th>{t('se.fields.col.step')}</th><th>{t('se.fields.col.col')}</th><th>{t('se.fields.col.type')}</th><th>{t('se.fields.col.owner')}</th><th>{t('se.fields.col.req')}</th></tr></thead><tbody>
+              {FIELD_MAPPINGS.map((f,i)=>(
+                <tr key={i}><td className="dim" style={{cursor:'grab'}}>⋮⋮</td><td><span className="dt-name">{f.step}</span></td><td><span className="badge b-info" style={{fontFamily:'var(--font-mono)'}}>monday: {f.col}</span></td><td><span className="mono" style={{fontSize:11,color:'var(--ink-3)'}}>{f.type}</span></td><td>{f.owner}</td><td>{f.req?<span className="badge b-stop">required</span>:<span className="badge b-idle">optional</span>}</td></tr>
+              ))}
+            </tbody></table></div>
+          </section>
+        )}
+
+        {tab==='templates' && (
+          <section>
+            <div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.025em',marginBottom:24}}>{t('se.tpl.title')}</div>
+            <div style={{display:'grid',gridTemplateColumns:'280px 1fr',gap:20}}>
+              <div className="card">
+                {TEMPLATES.map((x,i)=>(
+                  <div key={x.id} onClick={()=>setSelTpl(x.id)} style={{padding:'16px 18px',cursor:'pointer',borderBottom:i<TEMPLATES.length-1?'1px solid var(--line)':'none',background:x.id===selTpl?'rgba(10,163,154,0.06)':'transparent',borderLeft:x.id===selTpl?'3px solid var(--teal)':'3px solid transparent'}}>
+                    <div style={{fontWeight:600,fontSize:14,color:'var(--ink)',marginBottom:4}}>{x.label}</div>
+                    <div className="mono" style={{fontSize:11,color:'var(--ink-4)'}}>{x.sub}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="card card-pad">
+                <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:14,fontWeight:500,textTransform:'uppercase'}}>{tpl&&tpl.label} · subject line</div>
+                <input className="field" defaultValue="EC12 Advancing — {{artist}} ({{stage}}, {{showDate}})" style={{marginBottom:18,fontFamily:'var(--font-mono)'}}/>
+                <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:14,fontWeight:500,textTransform:'uppercase'}}>body</div>
+                <textarea className="field" rows={12} defaultValue={`Hi {{tmFirst}},\n\nMara from EC12 hospitality picking up advancing for {{artist}}. You're playing {{stage}} on {{showDate}} at {{showTime}}.\n\nBest,\nMara P.`} style={{fontFamily:'var(--font-mono)',fontSize:12,resize:'vertical'}}/>
+                <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:14}}><a className="btn btn-ghost btn-sm">Reset</a><a className="btn btn-primary btn-sm">{t('common.save')}</a></div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab==='team' && (
+          <section>
+            <div style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:24}}>
+              <div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.025em'}}>{t('se.team.title')}</div>
+              <a className="btn btn-primary btn-sm">+ Invite</a>
+            </div>
+            <div className="card"><table className="dt"><thead><tr><th>{t('se.team.col.name')}</th><th>{t('se.team.col.role')}</th><th>{t('se.team.col.access')}</th><th>{t('se.team.col.artists')}</th><th></th></tr></thead><tbody>
+              {TEAM.map((m,i)=>(
+                <tr key={i}><td><div style={{display:'flex',alignItems:'center',gap:10}}><div className="avatar" style={{width:28,height:28,fontSize:10}}>{m.name.split(/\s+/).map(p=>p[0]).join('').slice(0,2)}</div><span className="dt-name">{m.name}</span></div></td><td>{m.role}</td><td><span className={'badge '+(m.access==='Admin'?'b-info':m.access==='Editor'?'b-go':'b-idle')}>{m.access}</span></td><td><span className="dt-num">{m.artists}</span></td><td><a className="btn btn-soft btn-sm" style={{padding:'4px 10px',fontSize:11}}>Edit</a></td></tr>
+              ))}
+            </tbody></table></div>
+          </section>
+        )}
+
+        {tab==='brand' && (
+          <section>
+            <div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.025em',marginBottom:24}}>{t('se.brand.title')}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:20}}>
+              <div className="card card-pad">
+                {[['Header voice','Welcome to the castle, {{artist}}.'],['Tagline','Three days. One stage. Everything below is live — refresh anytime.'],['Runner phone','+40 728 100 471']].map(([l,v])=>(
+                  <div key={l} style={{marginBottom:14}}><div className="mono" style={{fontSize:11,letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--ink-4)',marginBottom:8}}>{l}</div><input className="field" defaultValue={v}/></div>
+                ))}
+              </div>
+              <div className="card card-pad">
+                <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',textTransform:'uppercase',color:'var(--ink-4)',marginBottom:12}}>Theme preset</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+                  {[{name:'Festival',tags:['#0aa39a','#a3d437','#2563eb'],active:true},{name:'After dark',tags:['#0d0d0c','#0aa39a','#d97706']},{name:'Pastel',tags:['#f5f3ee','#c7e577','#6b95f5']}].map((th,i)=>(
+                    <div key={i} style={{padding:14,borderRadius:12,border:th.active?'2px solid var(--ink)':'1px solid var(--line)',cursor:'pointer'}}>
+                      <div style={{display:'flex',gap:4,marginBottom:10}}>{th.tags.map((c,j)=><div key={j} style={{flex:1,height:32,borderRadius:6,background:c}}></div>)}</div>
+                      <div style={{fontSize:12,fontWeight:500}}>{th.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {tab==='connect' && (
+          <section>
+            <div style={{fontFamily:'var(--font-display)',fontSize:28,fontWeight:500,letterSpacing:'-0.025em',marginBottom:24}}>{t('se.con.title')}</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+              {INTEGRATIONS.map(it=>(
+                <div key={it.id} className="card card-pad" style={{display:'flex',gap:16,alignItems:'flex-start'}}>
+                  <div style={{width:42,height:42,borderRadius:12,flexShrink:0,background:it.status==='connected'?'linear-gradient(135deg,rgba(10,163,154,0.18),rgba(10,163,154,0.05))':'linear-gradient(135deg,rgba(217,119,6,0.18),rgba(217,119,6,0.05))',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:'var(--font-display)',fontWeight:600,fontSize:14,color:it.status==='connected'?'var(--teal)':'var(--amber)'}}>{t(it.key)[0]}</div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:4}}><span style={{fontWeight:600,fontSize:14}}>{t(it.key)}</span><span className={'badge '+(it.status==='connected'?'b-go':'b-warn')}>{t('se.con.'+it.status)}</span></div>
+                    <div className="mono dim" style={{fontSize:11,marginBottom:10}}>{it.sub}</div>
+                    <a className="btn btn-soft btn-sm" style={{padding:'4px 10px',fontSize:11}}>{t('se.con.config')}</a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        <div style={{height:60}}></div>
+      </main>
+    );
+  }
+  window.SettingsView = SettingsView;
+  </script>
+
+  <script type="text/babel">
+  // ── APP SHELL ─────────────────────────────────────────────────────────────
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "lang":          "en",
+    "blobIntensity": 42,
+    "blobMotion":    true,
+    "darkMode":      false,
+    "accentTeal":    "#0aa39a",
+    "accentLime":    "#a3d437",
+    "accentBlue":    "#2563eb"
+  }/*EDITMODE-END*/;
+
+  function App() {
+    const [twk, setTweak] = useTweaks(TWEAK_DEFAULTS);
+    const tt = window.makeT(twk.lang);
+
+    const [route, setRoute] = React.useState(()=>window.location.hash.replace('#','')||'tracker');
+    const [drawerArtistId, setDrawerArtistId] = React.useState(null);
+    const [emailInitialId, setEmailInitialId] = React.useState(null);
+    const [itinInitialId,  setItinInitialId]  = React.useState(null);
+
+    React.useEffect(()=>{
+      const onHash=()=>setRoute(window.location.hash.replace('#','')||'tracker');
+      window.addEventListener('hashchange',onHash);
+      return ()=>window.removeEventListener('hashchange',onHash);
+    },[]);
+
+    React.useEffect(()=>{ applyAppTheme(twk); },[twk]);
+
+    const navigate=(r,payload)=>{
+      if(r==='email')     setEmailInitialId(payload||null);
+      if(r==='itinerary') setItinInitialId(payload||null);
+      window.location.hash=r;
+      setRoute(r);
+      setDrawerArtistId(null);
+    };
+
+    const drawerArtist = drawerArtistId?(window.ARTISTS||[]).find(a=>a.id===drawerArtistId)||null:null;
+
+    return (
+      <div style={{position:'relative',zIndex:2}}>
+        <TopNav active={route} onNav={navigate} t={tt}/>
+
+        {route==='tracker'   && <TrackerView   t={tt} onOpenArtist={id=>setDrawerArtistId(id)}/>}
+        {route==='email'     && <EmailView      t={tt} initialArtistId={emailInitialId} onOpenArtist={id=>setDrawerArtistId(id)}/>}
+        {route==='arrivals'  && <ArrivalsView   t={tt}/>}
+        {route==='itinerary' && <ItineraryView  t={tt} initialArtistId={itinInitialId}/>}
+        {route==='settings'  && <SettingsView   t={tt}/>}
+
+        <PageFoot t={tt}/>
+
+        {drawerArtist && <ArtistDrawer artist={drawerArtist} t={tt} onClose={()=>setDrawerArtistId(null)} onNav={navigate}/>}
+
+        <TweaksPanel title="Tweaks">
+          <TweakSection label="Language"/>
+          <TweakRadio label="Language" value={twk.lang} options={[{value:'en',label:'EN'},{value:'ro',label:'RO'}]} onChange={v=>setTweak('lang',v)}/>
+          <TweakSection label="Background"/>
+          <TweakSlider label="Blob intensity" value={twk.blobIntensity} min={0} max={80} unit="%" onChange={v=>setTweak('blobIntensity',v)}/>
+          <TweakToggle label="Blob motion" value={twk.blobMotion} onChange={v=>setTweak('blobMotion',v)}/>
+          <TweakToggle label="Dark mode"   value={twk.darkMode}   onChange={v=>setTweak('darkMode',v)}/>
+          <TweakSection label="Accents"/>
+          <TweakColor label="Teal" value={twk.accentTeal} onChange={v=>setTweak('accentTeal',v)}/>
+          <TweakColor label="Lime" value={twk.accentLime} onChange={v=>setTweak('accentLime',v)}/>
+          <TweakColor label="Blue" value={twk.accentBlue} onChange={v=>setTweak('accentBlue',v)}/>
+        </TweaksPanel>
+      </div>
+    );
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
   </script>
 </body>
 </html>

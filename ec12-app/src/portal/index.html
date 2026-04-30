@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>EC12 · AIdvancing Portal</title>
+  <meta name="viewport" content="width=1440">
+
+  <!--
+    FONTS
+    General Sans   — display font for hero titles (from Fontshare, free)
+    Geist          — clean body/UI font (from Google Fonts)
+    Geist Mono     — monospace for codes, metadata, table numbers (Google Fonts)
+  -->
+  <link rel="preconnect" href="https://api.fontshare.com">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Design system — all colours, fonts, component tokens -->
+  <link rel="stylesheet" href="../shared/theme.css">
+</head>
+<body>
+  <!-- React renders here -->
+  <div id="root"></div>
+
+  <!--
+    DATA + CONFIG
+    data.js    — mock artists, stages, hotels (replaced by Monday.com once boards are set up)
+    i18n.js    — EN/RO translation strings + the makeT() helper function
+    monday-columns.js — board IDs and column IDs (in ../../config/)
+    monday-client.js  — the shared Monday.com API client
+  -->
+  <script src="data.js"></script>
+  <script src="i18n.js"></script>
+  <script src="../../config/monday-columns.js"></script>
+  <script src="../shared/monday-client.js"></script>
+
+  <!--
+    REACT + BABEL
+    React 18  — the UI framework. Loaded from a CDN (no build step needed).
+    Babel     — lets us write JSX (HTML-in-JS syntax) directly in the browser.
+
+    In production you'd bundle these. For now, CDN + Babel is fine for local use.
+  -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!--
+    COMPONENT FILES (loaded in order — each depends on the ones above it)
+    tweaks-panel.jsx — the floating design-tweak panel (language, blobs, dark mode)
+    components.jsx   — shared React components used by all views
+    view-*.jsx       — individual view implementations
+  -->
+  <script type="text/babel" src="tweaks-panel.jsx"></script>
+  <script type="text/babel" src="components.jsx"></script>
+  <script type="text/babel" src="view-tracker.jsx"></script>
+  <script type="text/babel" src="view-drawer.jsx"></script>
+  <script type="text/babel" src="view-email.jsx"></script>
+  <script type="text/babel" src="view-arrivals.jsx"></script>
+  <script type="text/babel" src="view-itinerary.jsx"></script>
+  <script type="text/babel" src="view-settings.jsx"></script>
+
+  <!--
+    APP SHELL
+    The root React component. Handles:
+    - Routing between views via the URL hash (#tracker, #email, etc.)
+    - The Tweaks panel (language, blob intensity, dark mode, accent colours)
+    - The artist drawer (slides in from the right when you click an artist row)
+    - Cross-view navigation (e.g. "Draft email" in the drawer jumps to #email)
+  -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // Default tweak values — these are what the panel starts with.
+    // The /*EDITMODE-BEGIN*/.../*EDITMODE-END*/ markers are for the claude.ai/design
+    // tool to persist changes. You can edit them here directly too.
+    const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+      "lang":          "en",
+      "blobIntensity": 42,
+      "blobMotion":    true,
+      "darkMode":      false,
+      "accentTeal":    "#0aa39a",
+      "accentLime":    "#a3d437",
+      "accentBlue":    "#2563eb"
+    }/*EDITMODE-END*/;
+
+    function App() {
+      // useTweaks manages the live design settings (from tweaks-panel.jsx).
+      // t here is the tweak state object; setTweak updates one key at a time.
+      const [twk, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+      // tt is the translation function — tt('key') returns the localised string.
+      const tt = window.makeT(twk.lang);
+
+      // The current view — synced with the URL hash (#tracker, #email, etc.)
+      const [route, setRoute] = useState(() =>
+        window.location.hash.replace('#', '') || 'tracker'
+      );
+
+      // The artist being shown in the right-side drawer (null = drawer closed)
+      const [drawerArtistId, setDrawerArtistId] = useState(null);
+
+      // Pre-selected artist when jumping to the Email view from the drawer
+      const [emailInitialId, setEmailInitialId] = useState(null);
+
+      // Pre-selected artist when jumping to the Itinerary view from the drawer
+      const [itinInitialId, setItinInitialId] = useState(null);
+
+      // Sync route with URL hash changes (e.g. browser back button)
+      useEffect(() => {
+        const onHash = () => setRoute(window.location.hash.replace('#', '') || 'tracker');
+        window.addEventListener('hashchange', onHash);
+        return () => window.removeEventListener('hashchange', onHash);
+      }, []);
+
+      // Apply design tweaks to the document whenever they change.
+      // applyAppTheme() is defined in components.jsx — it sets CSS variables
+      // on document.documentElement directly so the whole page updates instantly.
+      useEffect(() => { applyAppTheme(twk); }, [twk]);
+
+      // navigate() is the internal router — it updates both the hash and the route state.
+      // Some routes carry a payload (e.g. jumping to Email pre-loaded for a specific artist).
+      const navigate = (r, payload) => {
+        if (r === 'email')     setEmailInitialId(payload || null);
+        if (r === 'itinerary') setItinInitialId(payload || null);
+        window.location.hash = r;
+        setRoute(r);
+        setDrawerArtistId(null); // close the drawer on navigation
+      };
+
+      // Open or close the artist drawer
+      const openArtist  = (id) => setDrawerArtistId(id);
+      const closeDrawer = ()   => setDrawerArtistId(null);
+
+      const drawerArtist = drawerArtistId
+        ? (window.ARTISTS || []).find(a => a.id === drawerArtistId) || null
+        : null;
+
+      return (
+        <div className="stage">
+          {/* The five animated colour blobs — always rendered behind all content */}
+          <Blobs/>
+
+          {/* All page content sits in .content (z-index 2, above the blobs) */}
+          <div className="content">
+
+            {/* Top navigation bar — shared across all views */}
+            <TopNav active={route} onNav={navigate} t={tt}/>
+
+            {/* View router — renders the correct view for the current hash */}
+            {route === 'tracker'   && <TrackerView   t={tt} onOpenArtist={openArtist}/>}
+            {route === 'email'     && <EmailView      t={tt} initialArtistId={emailInitialId} onOpenArtist={openArtist}/>}
+            {route === 'arrivals'  && <ArrivalsView   t={tt}/>}
+            {route === 'itinerary' && <ItineraryView  t={tt} initialArtistId={itinInitialId}/>}
+            {route === 'settings'  && <SettingsView   t={tt}/>}
+
+            {/* Footer — shown at the bottom of every view */}
+            <PageFoot t={tt}/>
+          </div>
+
+          {/* Artist drawer — slides in from the right when an artist row is clicked */}
+          {drawerArtist && (
+            <ArtistDrawer
+              artist={drawerArtist}
+              t={tt}
+              onClose={closeDrawer}
+              onNav={navigate}
+            />
+          )}
+
+          {/* Design tweaks panel — floating bottom-right panel for adjustments */}
+          <TweaksPanel title="Tweaks">
+            <TweakSection label="Language"/>
+            <TweakRadio
+              label="Language"
+              value={twk.lang}
+              options={[{ value:'en', label:'EN' }, { value:'ro', label:'RO' }]}
+              onChange={v => setTweak('lang', v)}
+            />
+
+            <TweakSection label="Background"/>
+            <TweakSlider
+              label="Blob intensity"
+              value={twk.blobIntensity}
+              min={0} max={80} unit="%"
+              onChange={v => setTweak('blobIntensity', v)}
+            />
+            <TweakToggle label="Blob motion"   value={twk.blobMotion}  onChange={v => setTweak('blobMotion', v)}/>
+            <TweakToggle label="Dark mode"     value={twk.darkMode}    onChange={v => setTweak('darkMode', v)}/>
+
+            <TweakSection label="Accents"/>
+            <TweakColor label="Teal"  value={twk.accentTeal} onChange={v => setTweak('accentTeal', v)}/>
+            <TweakColor label="Lime"  value={twk.accentLime} onChange={v => setTweak('accentLime', v)}/>
+            <TweakColor label="Blue"  value={twk.accentBlue} onChange={v => setTweak('accentBlue', v)}/>
+          </TweaksPanel>
+        </div>
+      );
+    }
+
+    // Mount the App component into the #root div
+    ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+  </script>
+</body>
+</html>

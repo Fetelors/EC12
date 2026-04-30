@@ -1,827 +1,819 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   EC12 — Design System
-   ═══════════════════════════════════════════════════════════════════════════
+/* ========================================================================
+   AIdvancing — EC12 Design Language v2
+   Near-white canvas + drifting teal/lime/blue blooms · General Sans + Geist
+   ========================================================================
 
-   This file is the single source of truth for how EC12 looks.
-   Every component imports this file. If you want to change a colour, font,
-   spacing value, or shadow — change it here and it updates everywhere.
+   HOW THIS FILE WORKS
+   This is the single source of truth for how the whole portal looks.
+   Everything — colours, fonts, components, animations — is defined here.
+   Every HTML file in the project loads this file first.
 
-   HOW CSS CUSTOM PROPERTIES WORK:
-   Custom properties (also called CSS variables) are defined with -- in front.
-   You define them once on :root (which means "apply to the whole page"),
-   then use them anywhere with var(--name).
+   CSS CUSTOM PROPERTIES (CSS VARIABLES)
+   We define values once on :root (which applies to the whole page)
+   and then reference them everywhere with var(--name).
+   Change one value here → every component using it updates instantly.
 
-   Example:
-     :root { --brand-blue: #003844; }
-     .header { background: var(--brand-blue); }
+   FILE STRUCTURE:
+   1.  Core palette        — the named raw colour values
+   2.  Status colours      — the four-state advancing system
+   3.  Typography tokens   — fonts, sizes, weights
+   4.  Radius tokens       — corner rounding values
+   5.  Base reset          — box model, scrollbar, antialiasing
+   6.  Blob background     — the animated drifting colour washes
+   7.  Navigation          — top nav bar + links
+   8.  Page layout         — max-width, hero, section heads, stat strip
+   9.  Cards               — white content containers
+   10. Buttons             — primary / ghost / soft
+   11. Form elements       — inputs, fields, search pill
+   12. Table               — the data table used by tracker + arrivals
+   13. Badges              — status badges and tier labels
+   14. Status dots         — the small coloured circles
+   15. Drawer              — the right-side slide-out panel
+   16. Helpers             — single-purpose utility classes
+   ======================================================================== */
 
-   If you change --brand-blue later, every element using it updates instantly.
 
-   STRUCTURE OF THIS FILE:
-   1. Brand palette      — the raw named colours
-   2. Status colours     — the neon traffic-light system
-   3. Semantic aliases   — what each colour MEANS in context (don't use raw colours outside here)
-   4. Typography         — fonts, sizes, weights, line heights
-   5. Spacing            — consistent gap/padding values
-   6. Borders & radius   — corners and lines
-   7. Shadows            — elevation levels
-   8. Component tokens   — reusable styles for buttons, cards, badges, status dots
-   9. Utility classes    — single-purpose helper classes used throughout
-   10. Animations        — subtle motion for status indicators
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* ── 1. CORE PALETTE ─────────────────────────────────────────────────────────
 
-
-/* ── 1. BRAND PALETTE ────────────────────────────────────────────────────────
-   These are the raw colour values — named exactly as they are.
-   Only use these directly inside the :root block below to create semantic aliases.
-   Components should never reference these directly (use the aliases instead).
+   The raw colour values. Components always reference the semantic tokens
+   below (--teal, --lime, etc.) rather than these hex values directly,
+   so we can tweak the palette in one place.
    ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  --palette-dark-teal:    #003844;   /* very dark, almost black-teal — headers, nav */
-  --palette-stormy-teal:  #006c67;   /* mid-dark teal — primary actions, buttons    */
-  --palette-plum:         #f9b9f2;   /* soft pink-purple — tags, badges, accents    */
-  --palette-amber-flame:  #ffb100;   /* warm amber — highlights, selected states    */
-  --palette-dry-sage:     #cacc90;   /* muted yellow-green — secondary accents      */
+  /* Canvas — the near-white background with a warm organic feel */
+  --bg:        #f5f3ee;   /* main page background */
+  --bg-soft:   #efece5;   /* slightly darker — used for table headers, tag backgrounds */
+  --paper:     #ffffff;   /* pure white — cards, modals, inputs */
 
-  /* Neon status colours — used ONLY for status/state indicators */
-  --palette-neon-pink:    #f72585;   /* ● blocked / action needed / overdue         */
-  --palette-neon-gold:    #f3b61f;   /* ● in progress / asked / waiting             */
-  --palette-neon-green:   #b9f18c;   /* ● confirmed / complete / done               */
+  /* Ink — the text scale from near-black to light grey */
+  --ink:       #050505;   /* primary text — near-black */
+  --ink-2:     #141414;   /* secondary headings */
+  --ink-3:     #2e2e2c;   /* body text, descriptions */
+  --ink-4:     #6b6964;   /* muted labels, sub-text */
+  --ink-5:     #a8a6a0;   /* disabled, placeholder text */
 
-  /* Neutral scale — greys for text, borders, disabled states */
-  --palette-white:        #ffffff;
-  --palette-off-white:    #f5f7f7;   /* very slightly teal-tinted white for surfaces */
-  --palette-grey-100:     #eaecec;
-  --palette-grey-200:     #d0d4d4;
-  --palette-grey-400:     #8f9e9e;
-  --palette-grey-600:     #4a5c5c;
-  --palette-black:        #0a0f10;   /* near-black with a teal tint                 */
+  /* Dividers — translucent lines that work on light and dark surfaces */
+  --line:      rgba(10,10,10,0.08);
+  --line-2:    rgba(10,10,10,0.14);
+
+  /* Brand accents — the three colour pillars of the design */
+  --teal:      #0aa39a;   /* primary action colour, confirmed states */
+  --teal-soft: #4dc8be;   /* lighter teal — blob backgrounds */
+  --lime:      #a3d437;   /* secondary accent — blob + brand gradient */
+  --lime-soft: #c7e577;   /* lighter lime — background blooms */
+  --blue:      #2563eb;   /* tertiary accent — informational states */
+  --blue-soft: #6b95f5;   /* lighter blue — background blooms */
+  --amber:     #d97706;   /* warning / chasing states */
+
+  /* Status semantic aliases — used by StatusBadge and dot components */
+  --st-go:     #0aa39a;   /* all good / confirmed / on-time */
+  --st-warn:   #d97706;   /* attention / partial / pending */
+  --st-stop:   #d84020;   /* action required / blocked / overdue */
 }
 
 
-/* ── 2. SEMANTIC ALIASES ──────────────────────────────────────────────────────
-   Semantic means "named by what it DOES, not what it looks like".
-   Example: --color-nav-bg is better than --color-dark-teal because
-   if you ever change the nav colour, the name still makes sense.
+/* ── 2. STATUS COLOURS — FOUR ADVANCING STATES ───────────────────────────────
 
-   RULE: Components only reference semantic aliases, never raw palette values.
+   Every data field and every advancing step sits in one of these states.
+   They form a progression: not asked → asked → partial → confirmed.
+   "Blocked" is a fifth override state that can appear at any point.
+
+   These semantic names are what the components reference:
+     confirmed = we have everything we need
+     partial   = some info received, more still needed
+     pending   = asked, waiting on a reply
+     needed    = not yet requested — action required
+     idle      = not relevant / not started yet
+     blocked   = stuck — something is preventing progress
    ─────────────────────────────────────────────────────────────────────────── */
 :root {
+  --color-confirmed:    rgba(10, 163, 154, 0.12);   /* badge bg — teal wash */
+  --color-confirmed-fg: var(--teal);
+  --color-partial:      rgba(37, 99, 235, 0.10);    /* badge bg — blue wash */
+  --color-partial-fg:   var(--blue);
+  --color-pending:      rgba(217, 119, 6, 0.14);    /* badge bg — amber wash */
+  --color-pending-fg:   var(--amber);
+  --color-needed:       rgba(216, 64, 32, 0.12);    /* badge bg — red wash */
+  --color-needed-fg:    var(--st-stop);
+  --color-idle:         rgba(10, 10, 10, 0.06);     /* badge bg — grey wash */
+  --color-idle-fg:      var(--ink-3);
+  --color-blocked:      rgba(216, 64, 32, 0.12);    /* same as needed */
+  --color-blocked-fg:   var(--st-stop);
 
-  /* Surfaces — background colours for different layers of the UI */
-  --color-bg:            var(--palette-off-white);    /* main page background         */
-  --color-surface:       var(--palette-white);        /* cards, panels, modals        */
-  --color-surface-raised:var(--palette-white);        /* elevated cards (with shadow) */
-  --color-nav:           var(--palette-dark-teal);    /* top navigation bar           */
-  --color-nav-secondary: var(--palette-stormy-teal);  /* sub-nav / context bar        */
-  --color-sidebar:       var(--palette-dark-teal);    /* sidebar backgrounds          */
-
-  /* Text — what goes on top of those surfaces */
-  --color-text:          var(--palette-black);        /* primary body text            */
-  --color-text-muted:    var(--palette-grey-600);     /* secondary / hint text        */
-  --color-text-disabled: var(--palette-grey-400);     /* placeholder, disabled labels */
-  --color-text-inverse:  var(--palette-white);        /* text on dark (nav/sidebar)   */
-  --color-text-accent:   var(--palette-stormy-teal);  /* links, labels on light bg    */
-
-  /* Primary action (buttons, links, focus rings) */
-  --color-action:        var(--palette-stormy-teal);
-  --color-action-hover:  #005a56;                     /* slightly darker stormy teal  */
-  --color-action-text:   var(--palette-white);        /* text on action-coloured bg   */
-
-  /* Accent — for tags, chips, non-status highlights */
-  --color-accent-plum:   var(--palette-plum);
-  --color-accent-amber:  var(--palette-amber-flame);
-  --color-accent-sage:   var(--palette-dry-sage);
-
-  /* Borders */
-  --color-border:        var(--palette-grey-200);     /* default borders              */
-  --color-border-strong: var(--palette-grey-400);     /* stronger dividers            */
-  --color-border-dark:   rgba(255,255,255,0.12);      /* borders on dark surfaces     */
-
-  /* Focus — keyboard navigation ring */
-  --color-focus:         var(--palette-amber-flame);  /* amber focus ring             */
-
-
-  /* ── STATUS COLOURS (neon system) ────────────────────────────────────────
-     These are the only three states anything can be in:
-       confirmed  = we have what we need       → light green
-       pending    = asked, waiting for reply   → sunflower gold
-       needed     = not yet requested          → neon pink
-     ────────────────────────────────────────────────────────────────────── */
-
-  /* ── FOUR ADVANCING STATES ────────────────────────────────────────────────
-     Every data field and every advancing step sits in one of these four states.
-     They form a progression: not asked → asked → partial → confirmed.
-     "Blocked" is a fifth override state that can apply at any point.
-
-     not asked  = nothing done yet, action required        → neon pink
-     asked      = requested, waiting on reply              → sunflower gold
-     partial    = some confirmed, more fields still needed → dry sage
-     confirmed  = fully complete, all fields received      → light green
-     blocked    = stuck, something preventing progress     → neon pink (same as not asked,
-                  but pulsing — distinguished by context and icon)
-  ──────────────────────────────────────────────────────────────────────────── */
-
-  /* Confirmed / complete / done */
-  --color-status-confirmed:      var(--palette-neon-green);
-  --color-status-confirmed-bg:   rgba(185, 241, 140, 0.15);
-  --color-status-confirmed-text: #2a5c10;
-
-  /* Partial / some confirmed, more to do */
-  --color-status-partial:        var(--palette-dry-sage);           /* #cacc90 — muted sage */
-  --color-status-partial-bg:     rgba(202, 204, 144, 0.2);
-  --color-status-partial-text:   #4a5010;
-
-  /* Asked / in progress / waiting on reply */
-  --color-status-pending:        var(--palette-neon-gold);
-  --color-status-pending-bg:     rgba(243, 182, 31, 0.15);
-  --color-status-pending-text:   #7a5500;
-
-  /* Not asked / action required */
-  --color-status-needed:         var(--palette-neon-pink);
-  --color-status-needed-bg:      rgba(247, 37, 133, 0.12);
-  --color-status-needed-text:    #9a0040;
-
-  /* Idle / not started (no neon — neutral) */
-  --color-status-idle:           var(--palette-grey-400);
-  --color-status-idle-bg:        var(--palette-grey-100);
-  --color-status-idle-text:      var(--palette-grey-600);
+  /* Dot glow rings */
+  --dot-go-ring:   rgba(10, 163, 154, 0.18);
+  --dot-warn-ring: rgba(217, 119, 6, 0.18);
+  --dot-stop-ring: rgba(216, 64, 32, 0.16);
 }
 
 
 /* ── 3. TYPOGRAPHY ────────────────────────────────────────────────────────────
-   We use two fonts:
-   • Inter              — the body/UI font. Sits exactly between Helvetica
-                          (very neutral) and Barlow (more personality). Extremely
-                          legible at small sizes, widely used in professional tools.
-   • Barlow Condensed   — used only for the app logo/wordmark. Tight, impactful,
-                          gives the festival identity without touching the UI text.
 
-   Both are loaded from Google Fonts. The @import line must be at the very top
-   of the first HTML file that loads this CSS (not here, because @import in
-   the middle of a stylesheet can be slow).
+   Three fonts:
+   • General Sans  — display font for hero titles and large headings.
+                     Loaded from Fontshare (fontshare.com).
+   • Geist         — clean body/UI font. Loaded from Google Fonts.
+   • Geist Mono    — monospace for codes, metadata, table numbers.
+                     Loaded from Google Fonts.
+
+   Both are loaded via <link> in the HTML, not here, for performance.
    ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  --font-body:    'Inter', system-ui, sans-serif;
-  --font-display: 'Barlow Condensed', system-ui, sans-serif;
-  --font-mono:    'JetBrains Mono', 'Fira Code', monospace; /* for codes, IDs */
-
-  /* Size scale — use these instead of raw px values */
-  --text-xs:   11px;
-  --text-sm:   12px;
-  --text-base: 14px;   /* default body size */
-  --text-md:   16px;
-  --text-lg:   18px;
-  --text-xl:   22px;
-  --text-2xl:  28px;
-  --text-3xl:  36px;
-
-  /* Weight scale */
-  --weight-regular: 400;
-  --weight-medium:  500;
-  --weight-semi:    600;
-  --weight-bold:    700;
-
-  /* Line heights */
-  --leading-tight:  1.2;   /* headings */
-  --leading-normal: 1.5;   /* body text */
-  --leading-loose:  1.75;  /* long-form reading */
-
-  /* Letter spacing */
-  --tracking-tight:  -0.02em;  /* large headings */
-  --tracking-normal:  0;
-  --tracking-wide:    0.05em;  /* small caps, labels */
-  --tracking-widest:  0.12em;  /* uppercase micro-labels */
+  --font-display: 'General Sans', 'Geist', system-ui, sans-serif;
+  --font-body:    'Geist', system-ui, sans-serif;
+  --font-mono:    'Geist Mono', ui-monospace, monospace;
 }
 
 
-/* ── 4. SPACING ───────────────────────────────────────────────────────────────
-   A consistent spacing scale keeps the layout feeling organised.
-   All gaps, paddings, and margins should use these values.
-   The scale is based on 4px units (4, 8, 12, 16, 24, 32, 48, 64...).
+/* ── 4. RADIUS ────────────────────────────────────────────────────────────────
+
+   Consistent corner rounding. Using these tokens means we can change
+   the "roundedness" of the whole design by editing four values.
    ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-5:  20px;
-  --space-6:  24px;
-  --space-8:  32px;
-  --space-10: 40px;
-  --space-12: 48px;
-  --space-16: 64px;
+  --r-sm: 6px;   /* small elements: badges, chips */
+  --r-md: 12px;  /* cards, inputs */
+  --r-lg: 20px;  /* large cards, modals */
+  --r-xl: 28px;  /* very large panels — itinerary frame */
 }
 
 
-/* ── 5. BORDERS & RADIUS ──────────────────────────────────────────────────────
-   Consistent corner rounding and border widths.
+/* ── 5. BASE RESET ────────────────────────────────────────────────────────────
+
+   Applied to every element. Removes browser defaults that would otherwise
+   cause inconsistencies across Chrome, Firefox, Safari, etc.
    ─────────────────────────────────────────────────────────────────────────── */
-:root {
-  --border-width: 1px;
+* { box-sizing: border-box; }
 
-  --radius-sm:   4px;    /* small elements: tags, badges, inputs        */
-  --radius-md:   8px;    /* cards, buttons, panels                      */
-  --radius-lg:   12px;   /* large cards, modals                         */
-  --radius-xl:   20px;   /* pill buttons, large accents                 */
-  --radius-full: 9999px; /* fully rounded: status dots, avatar circles  */
-}
-
-
-/* ── 6. SHADOWS ───────────────────────────────────────────────────────────────
-   Shadows create a sense of elevation (what's "above" what).
-   We use teal-tinted shadows instead of grey to stay on-brand.
-   ─────────────────────────────────────────────────────────────────────────── */
-:root {
-  --shadow-sm:  0 1px 3px rgba(0, 56, 68, 0.08);
-  --shadow-md:  0 4px 12px rgba(0, 56, 68, 0.12);
-  --shadow-lg:  0 8px 24px rgba(0, 56, 68, 0.16);
-  --shadow-xl:  0 16px 48px rgba(0, 56, 68, 0.20);
-
-  /* Neon glows — used on status dots and highlighted elements */
-  --glow-green: 0 0 8px rgba(185, 241, 140, 0.6);
-  --glow-gold:  0 0 8px rgba(243, 182, 31,  0.6);
-  --glow-pink:  0 0 8px rgba(247, 37,  133, 0.6);
-}
-
-
-/* ── 7. TRANSITIONS ───────────────────────────────────────────────────────────
-   Consistent animation timing so all hover effects feel the same speed.
-   ─────────────────────────────────────────────────────────────────────────── */
-:root {
-  --transition-fast:   0.1s ease;
-  --transition-normal: 0.2s ease;
-  --transition-slow:   0.35s ease;
-}
-
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   GLOBAL RESET & BASE STYLES
-   Applied to every element. Sets consistent defaults that browsers would
-   otherwise handle differently.
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* box-sizing: border-box means padding and borders are included in element widths.
-   Without this, adding padding to a 200px box would make it wider than 200px —
-   which is counterintuitive. border-box is the sane default. */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
+html, body {
+  margin:  0;
   padding: 0;
 }
 
-html {
-  font-size: var(--text-base);
-  -webkit-font-smoothing: antialiased;  /* makes fonts look sharper on Mac/retina */
-  -moz-osx-font-smoothing: grayscale;
-}
-
 body {
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  font-weight: var(--weight-regular);
-  line-height: var(--leading-normal);
-  color: var(--color-text);
-  background: var(--color-bg);
-  min-height: 100vh;
+  background:              var(--bg);
+  color:                   var(--ink);
+  font-family:             var(--font-body);
+  font-size:               14px;
+  line-height:             1.5;
+  -webkit-font-smoothing:  antialiased;  /* sharper text on Mac/retina */
+  overflow-x:              hidden;       /* no horizontal scroll from blobs */
 }
 
-/* Remove default list styling — we'll add our own when needed */
-ul, ol { list-style: none; }
-
-/* Make images behave like block elements and scale sensibly */
+ul, ol { list-style: none; margin: 0; padding: 0; }
 img { display: block; max-width: 100%; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; font-size: inherit; }
+input, textarea, select { font-family: inherit; font-size: inherit; }
+a { cursor: pointer; }
 
-/* Remove button defaults — we'll style them ourselves */
-button {
-  cursor: pointer;
-  border: none;
-  background: none;
-  font-family: inherit;
-  font-size: inherit;
-}
-
-/* Make inputs inherit the page font (browsers don't do this by default) */
-input, textarea, select {
-  font-family: inherit;
-  font-size: inherit;
-}
-
-/* Accessible focus ring — shown when navigating by keyboard */
 :focus-visible {
-  outline: 2px solid var(--color-focus);
+  outline: 2px solid var(--teal);
   outline-offset: 2px;
 }
 
 
-/* ══════════════════════════════════════════════════════════════════════════════
-   COMPONENT TOKENS — reusable styles for the building blocks of the UI
-   ══════════════════════════════════════════════════════════════════════════════ */
+/* ── 6. BLOB BACKGROUND ───────────────────────────────────────────────────────
+
+   The signature "drifting gradient bloom" background.
+   Five large blurred circles drift slowly across the near-white canvas,
+   giving the page a living, breathing quality without being distracting.
+
+   HOW IT WORKS:
+   • .stage is a full-page wrapper that contains both the blobs and the content.
+   • .blobs holds the five circles — they're positioned fixed so they stay
+     in place while the page content scrolls on top.
+   • filter: blur(80px) turns hard circles into soft blooms.
+   • mix-blend-mode: multiply means the blobs darken wherever they overlap,
+     creating rich colour-mixing without looking like flat coloured shapes.
+   • Each blob has its own slow drift animation (38–52 second cycles).
+   • A noise SVG overlay adds subtle film-grain texture to prevent the blobs
+     from looking too digital/smooth.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* The outer wrapper — must be on every page's root element */
+.stage {
+  position:   relative;
+  min-height: 100vh;
+  overflow:   hidden;
+}
+
+/* The blob container — fixed so it doesn't scroll with content */
+.blobs {
+  position:       fixed;
+  inset:          0;
+  z-index:        0;
+  pointer-events: none;       /* blobs don't intercept mouse clicks */
+  filter:         blur(80px) saturate(1.05);
+  opacity:        0.42;       /* pulled back so text stays readable */
+}
+
+/* Individual blob — each is a big coloured circle */
+.blob {
+  position:       absolute;
+  border-radius:  50%;
+  mix-blend-mode: multiply;
+  will-change:    transform; /* hints browser to use GPU for smooth animation */
+}
+
+/* Five blobs with different sizes and starting positions */
+.blob-1 { width:720px; height:720px; left:-180px;  top:-200px;   background:var(--teal);      animation:drift1 38s ease-in-out infinite alternate; }
+.blob-2 { width:560px; height:560px; right:-120px; top:120px;    background:var(--lime);      animation:drift2 44s ease-in-out infinite alternate; }
+.blob-3 { width:640px; height:640px; left:35%;     top:38%;      background:var(--blue);      animation:drift3 52s ease-in-out infinite alternate; opacity:0.7; }
+.blob-4 { width:480px; height:480px; right:18%;    bottom:-120px; background:var(--teal-soft); animation:drift4 46s ease-in-out infinite alternate; }
+.blob-5 { width:380px; height:380px; left:8%;      bottom:8%;    background:var(--lime-soft); animation:drift5 40s ease-in-out infinite alternate; opacity:0.6; }
+
+/* Each blob drifts to a different destination */
+@keyframes drift1 { 0%{transform:translate(0,0) scale(1)}    100%{transform:translate(160px,80px) scale(1.15)} }
+@keyframes drift2 { 0%{transform:translate(0,0) scale(1)}    100%{transform:translate(-180px,200px) scale(1.1)} }
+@keyframes drift3 { 0%{transform:translate(0,0) scale(0.95)} 100%{transform:translate(-120px,-160px) scale(1.2)} }
+@keyframes drift4 { 0%{transform:translate(0,0) scale(1.05)} 100%{transform:translate(140px,-120px) scale(0.9)} }
+@keyframes drift5 { 0%{transform:translate(0,0) scale(1)}    100%{transform:translate(220px,-80px) scale(1.15)} }
+
+/* Film grain noise texture overlay — applied via CSS pseudo-element */
+.stage::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+/* All actual content goes in .content, which sits above the blobs (z-index 2) */
+.content { position: relative; z-index: 2; }
 
 
-/* ── NAVIGATION BAR ──────────────────────────────────────────────────────────
-   The sticky header that stays at the top as you scroll.
-   Uses dark teal as the background with light text. */
+/* ── 7. NAVIGATION ────────────────────────────────────────────────────────────
 
-.nav-bar {
-  background:  var(--color-nav);
-  padding:     var(--space-3) var(--space-6);
+   The top nav is minimal — transparent with backdrop blur.
+   It sits on top of the blob layer without covering it.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Nav bar — horizontal flex container */
+.nav {
+  display:         flex;
+  align-items:     center;
+  gap:             28px;
+  padding:         22px 40px;
+  backdrop-filter: blur(8px);   /* frosted glass effect over the blobs */
+}
+
+/* Brand mark — the logo area (dot + name) */
+.brand {
+  font-family:    var(--font-display);
+  font-weight:    600;
+  font-size:      18px;
+  letter-spacing: -0.02em;
+  display:        flex;
+  align-items:    center;
+  gap:            10px;
+  cursor:         pointer;
+}
+
+/* The small teal-to-lime gradient dot before the brand name */
+.brand-dot {
+  width:       12px;
+  height:      12px;
+  border-radius: 50%;
+  background:  linear-gradient(135deg, var(--teal), var(--lime));
+}
+
+/* Nav link group */
+.nav-links { display: flex; gap: 4px; margin-left: 24px; }
+
+.nav-links a {
+  padding:        8px 14px;
+  border-radius:  100px;
+  font-size:      13px;
+  font-weight:    500;
+  color:          var(--ink-3);
+  text-decoration: none;
+  transition:     all .15s;
+}
+
+.nav-links a:hover { background: rgba(10,10,10,0.05); color: var(--ink); }
+
+/* Active nav item — filled dark pill */
+.nav-links a.active { background: var(--ink); color: var(--bg); }
+
+/* Right-side spacer pushes meta content to the far right */
+.nav-spacer { flex: 1; }
+
+/* Metadata area — sync status pill + avatar */
+.nav-meta {
+  font-size:   12px;
+  color:       var(--ink-4);
   display:     flex;
   align-items: center;
-  gap:         var(--space-6);
-  position:    sticky;
-  top:         0;
-  z-index:     100;                         /* stays above page content when scrolling */
-  border-bottom: 1px solid var(--color-border-dark);
+  gap:         16px;
 }
 
-.nav-logo {
+/* Sync status pill — rounded tag with status dot */
+.nav-pill {
+  display:     inline-flex;
+  align-items: center;
+  gap:         6px;
+  padding:     6px 12px;
+  background:  var(--paper);
+  border:      1px solid var(--line);
+  border-radius: 100px;
+  font-size:   12px;
+  font-weight: 500;
+}
+
+.nav-pill-dot {
+  width:       6px;
+  height:      6px;
+  border-radius: 50%;
+  background:  var(--st-go);
+}
+
+/* User avatar — gradient circle with initials */
+.avatar {
+  width:       30px;
+  height:      30px;
+  border-radius: 50%;
+  background:  linear-gradient(135deg, var(--blue), var(--teal));
+  display:     inline-flex;
+  align-items: center;
+  justify-content: center;
+  color:       white;
+  font-weight: 600;
+  font-size:   11px;
+  font-family: var(--font-display);
+}
+
+
+/* ── 8. PAGE LAYOUT ───────────────────────────────────────────────────────────
+
+   Three layout layers:
+   1. .page       — the content width constraint (max 1280px, centred)
+   2. .page-head  — the large hero section at the top of each view
+   3. .stat-strip — the four-stat horizontal bar below the hero
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Page container — limits width and centres content */
+.page {
+  max-width: 1280px;
+  margin:    0 auto;
+  padding:   0 40px;
+}
+
+/* Page hero — large display title + subtitle + right-side actions */
+.page-head {
+  padding:         56px 0 40px;
+  display:         flex;
+  align-items:     flex-end;
+  justify-content: space-between;
+  gap:             40px;
+  border-bottom:   1px solid var(--line);
+}
+
+/* Small eyebrow above the title — monospace label like "// tracker · live" */
+.page-eyebrow {
+  font-family:    var(--font-mono);
+  font-size:      12px;
+  letter-spacing: 0.04em;
+  color:          var(--ink-3);
+  margin-bottom:  18px;
+  display:        flex;
+  align-items:    center;
+  gap:            10px;
+}
+
+/* The short line before the eyebrow text */
+.page-eyebrow-line {
+  width:      28px;
+  height:     1px;
+  background: currentColor;
+  opacity:    0.5;
+}
+
+/* The big hero title — clamp() scales it between 48px and 72px based on viewport */
+.page-title {
   font-family:    var(--font-display);
-  font-size:      var(--text-xl);
-  color:          var(--color-text-inverse);
-  letter-spacing: var(--tracking-tight);
-  flex-shrink:    0;                        /* logo never shrinks on small screens */
+  font-weight:    500;
+  font-size:      clamp(48px, 6vw, 72px);
+  line-height:    0.98;
+  letter-spacing: -0.035em;
+  margin:         0;
+  text-wrap:      balance;
+  max-width:      900px;
 }
 
-.nav-subtitle {
-  font-size:      var(--text-xs);
-  color:          rgba(255, 255, 255, 0.45);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-widest);
-  font-weight:    var(--weight-medium);
+/* Italic emphasis within titles — slightly lighter colour */
+.page-title em { font-style: italic; font-weight: 400; color: var(--ink-3); }
+
+/* Sub-text below the title — descriptive sentence */
+.page-sub {
+  font-size:   18px;
+  color:       var(--ink-3);
+  max-width:   480px;
+  line-height: 1.45;
 }
 
-/* Nav links — the component navigation items in the top bar */
-.nav-link {
-  color:          rgba(255, 255, 255, 0.6);
-  font-size:      var(--text-sm);
-  font-weight:    var(--weight-medium);
-  text-decoration: none;
-  padding:        var(--space-2) var(--space-3);
-  border-radius:  var(--radius-sm);
-  transition:     background var(--transition-fast), color var(--transition-fast);
-  letter-spacing: var(--tracking-wide);
+/* Section head — smaller version of the page head for sub-sections */
+.section-head {
+  display:         flex;
+  align-items:     flex-end;
+  justify-content: space-between;
+  margin:          56px 0 24px;
+  padding-bottom:  18px;
+  border-bottom:   1px solid var(--line);
+  gap:             32px;
 }
 
-.nav-link:hover {
-  color:       var(--color-text-inverse);
-  background:  rgba(255, 255, 255, 0.1);
+.section-eyebrow {
+  font-family:    var(--font-mono);
+  font-size:      12px;
+  color:          var(--ink-3);
+  margin-bottom:  8px;
 }
 
-/* Active = the component currently being viewed */
-.nav-link.active {
-  color:      var(--color-text-inverse);
-  background: var(--palette-stormy-teal);
+.section-title {
+  font-family:    var(--font-display);
+  font-size:      32px;
+  line-height:    1.05;
+  letter-spacing: -0.025em;
+  font-weight:    500;
+  max-width:      640px;
 }
 
+.section-title em { font-style: italic; color: var(--ink-3); font-weight: 400; }
 
-/* ── SUB-NAV / CONTEXT BAR ───────────────────────────────────────────────────
-   The second row under the main nav — holds filters, view toggles, search. */
-
-.sub-nav {
-  background:    var(--color-nav-secondary);
-  padding:       0 var(--space-6);
-  display:       flex;
-  align-items:   stretch;
-  gap:           var(--space-4);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
-  overflow-x:    auto;                      /* scrollable on narrow screens */
+/* Stat strip — four numbered stats in a horizontal grid */
+.stat-strip {
+  padding: 28px 0 32px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
 }
 
-.sub-nav::-webkit-scrollbar { display: none; } /* hide scrollbar (still scrollable) */
+/* Individual stat cell */
+.stat {
+  padding:      0 28px 0 0;
+  border-right: 1px solid var(--line);
+}
+.stat:first-child { padding-left: 0; }
+.stat:last-child  { border-right: none; padding-right: 0; }
 
-/* Tab buttons inside the sub-nav */
-.sub-nav-tab {
-  color:          rgba(255,255,255,0.55);
-  font-size:      var(--text-sm);
-  font-weight:    var(--weight-medium);
-  padding:        var(--space-3) var(--space-4);
-  border-bottom:  2px solid transparent;    /* invisible underline, shows on active */
-  cursor:         pointer;
-  white-space:    nowrap;
-  transition:     color var(--transition-fast), border-color var(--transition-fast);
+/* Monospace label above the number */
+.stat-label {
+  font-family:    var(--font-mono);
+  font-size:      11px;
+  letter-spacing: 0.04em;
+  color:          var(--ink-3);
+  margin-bottom:  12px;
+  font-weight:    500;
 }
 
-.sub-nav-tab:hover  { color: rgba(255,255,255,0.85); }
-.sub-nav-tab.active {
-  color:         var(--color-text-inverse);
-  border-bottom-color: var(--palette-amber-flame); /* amber underline on active tab */
+/* The big number */
+.stat-value {
+  font-family:    var(--font-display);
+  font-size:      44px;
+  line-height:    1;
+  font-weight:    400;
+  letter-spacing: -0.03em;
+  margin-bottom:  8px;
 }
 
+/* The smaller unit label after the number (e.g. "booked") */
+.stat-value .unit {
+  font-size:   18px;
+  color:       var(--ink-4);
+  margin-left: 4px;
+  font-weight: 400;
+}
 
-/* ── CARDS ────────────────────────────────────────────────────────────────────
-   The white content containers that hold information. */
+/* Trend line below the number (e.g. "▲ 12 overdue") */
+.stat-trend {
+  font-size:   12px;
+  color:       var(--ink-2);
+  font-weight: 500;
+  display:     flex;
+  align-items: center;
+  gap:         6px;
+}
+
+.stat-trend.up   { color: var(--teal); }
+.stat-trend.warn { color: var(--amber); }
+.stat-trend.dim  { color: var(--ink-4); }
+
+
+/* ── 9. CARDS ─────────────────────────────────────────────────────────────────
+
+   White content containers that float on the canvas.
+   Two variants:
+   • .card         — solid white with a subtle border
+   • .card-frosted — semi-transparent with backdrop blur (used in itinerary)
+   ─────────────────────────────────────────────────────────────────────────── */
 
 .card {
-  background:    var(--color-surface);
-  border-radius: var(--radius-md);
-  border:        var(--border-width) solid var(--color-border);
-  padding:       var(--space-6);
+  background:    var(--paper);
+  border-radius: var(--r-lg);
+  border:        1px solid var(--line);
+  overflow:      hidden;
 }
 
-.card-raised {
-  background:    var(--color-surface-raised);
-  border-radius: var(--radius-md);
-  border:        var(--border-width) solid var(--color-border);
-  box-shadow:    var(--shadow-md);
-  padding:       var(--space-6);
+.card-frosted {
+  background:          rgba(255,255,255,0.7);
+  backdrop-filter:     blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border:              1px solid var(--line);
+  border-radius:       var(--r-xl);
 }
 
-.card-header {
-  font-size:     var(--text-md);
-  font-weight:   var(--weight-semi);
-  color:         var(--color-text);
-  margin-bottom: var(--space-4);
+/* Convenience padding class */
+.card-pad { padding: 24px; }
+
+/* Card header — title row with border at the bottom */
+.card-head {
+  padding:       22px 24px;
+  border-bottom: 1px solid var(--line);
   display:       flex;
   align-items:   center;
-  gap:           var(--space-3);
+  gap:           16px;
+}
+
+.card-title {
+  font-family:    var(--font-display);
+  font-size:      18px;
+  font-weight:    500;
+  letter-spacing: -0.01em;
+}
+
+/* Metadata pushed to the far right of the card header */
+.card-meta {
+  font-family: var(--font-mono);
+  font-size:   11px;
+  color:       var(--ink-4);
+  margin-left: auto;
+}
+
+/* Page footer */
+.foot {
+  max-width:  1280px;
+  margin:     80px auto 0;
+  padding:    28px 40px;
+  border-top: 1px solid var(--line);
+  display:    flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size:  11px;
+  color:      var(--ink-4);
+  letter-spacing: 0.04em;
 }
 
 
-/* ── BUTTONS ──────────────────────────────────────────────────────────────────
-   Three sizes (sm, md, lg) × three styles (primary, secondary, ghost). */
+/* ── 10. BUTTONS ─────────────────────────────────────────────────────────────
 
-/* Base button — applied to all buttons, then modified by variant */
+   Three visual styles × two sizes.
+   All buttons use 100px border-radius (pill shape).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Base button */
 .btn {
   display:        inline-flex;
   align-items:    center;
-  gap:            var(--space-2);
-  font-weight:    var(--weight-medium);
-  border-radius:  var(--radius-md);
-  transition:     background var(--transition-fast),
-                  color var(--transition-fast),
-                  box-shadow var(--transition-fast);
-  white-space:    nowrap;
+  gap:            8px;
+  padding:        12px 18px;
+  border-radius:  100px;
+  font-family:    var(--font-body);
+  font-size:      13px;
+  font-weight:    500;
   cursor:         pointer;
+  border:         1px solid transparent;
+  text-decoration: none;
+  transition:     all .15s;
+  background:     transparent;
+  color:          var(--ink);
 }
 
-/* Sizes */
-.btn-sm  { font-size: var(--text-xs);   padding: var(--space-1) var(--space-3); }
-.btn-md  { font-size: var(--text-sm);   padding: var(--space-2) var(--space-4); }
-.btn-lg  { font-size: var(--text-base); padding: var(--space-3) var(--space-6); }
+/* Primary — dark ink fill (main action) */
+.btn-primary { background: var(--ink); color: var(--bg); }
+.btn-primary:hover { background: var(--ink-2); transform: translateY(-1px); }
 
-/* Primary — solid dark teal, used for the main action on a page */
-.btn-primary {
-  background: var(--color-action);
-  color:      var(--color-action-text);
-}
-.btn-primary:hover {
-  background:  var(--color-action-hover);
-  box-shadow:  var(--shadow-sm);
-}
+/* Ghost — outlined (secondary actions) */
+.btn-ghost { border-color: var(--line-2); }
+.btn-ghost:hover { background: rgba(10,10,10,0.04); }
 
-/* Secondary — outlined, used for secondary actions */
-.btn-secondary {
-  background: transparent;
-  color:      var(--color-action);
-  border:     1px solid var(--color-action);
-}
-.btn-secondary:hover {
-  background: rgba(0, 108, 103, 0.08);
-}
+/* Soft — white with border (tertiary / inline actions) */
+.btn-soft { background: var(--paper); border-color: var(--line); }
+.btn-soft:hover { background: var(--bg-soft); }
 
-/* Ghost — no border, minimal — used for subtle actions inside cards */
-.btn-ghost {
-  background: transparent;
-  color:      var(--color-text-muted);
-}
-.btn-ghost:hover {
-  background: var(--palette-grey-100);
-  color:      var(--color-text);
-}
-
-/* Danger — neon pink, used for destructive or urgent actions */
-.btn-danger {
-  background: var(--palette-neon-pink);
-  color:      var(--palette-white);
-}
-.btn-danger:hover {
-  background:  #d91e72;
-  box-shadow:  var(--glow-pink);
-}
+/* Small size — used in tables, card headers */
+.btn-sm { padding: 8px 14px; font-size: 12px; }
 
 
-/* ── FORM INPUTS ──────────────────────────────────────────────────────────────
-   Text inputs, selects, textareas. Consistent styling across all forms. */
+/* ── 11. FORM ELEMENTS ────────────────────────────────────────────────────────
 
-.input {
-  width:         100%;
-  padding:       var(--space-2) var(--space-3);
-  border:        1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  font-size:     var(--text-sm);
-  color:         var(--color-text);
-  background:    var(--color-surface);
-  transition:    border-color var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.input:hover  { border-color: var(--color-border-strong); }
-.input:focus  {
-  border-color: var(--color-action);
-  box-shadow:   0 0 0 3px rgba(0, 108, 103, 0.15);
-  outline:      none;
-}
-
-.input::placeholder { color: var(--color-text-disabled); }
-
-.label {
-  display:       block;
-  font-size:     var(--text-xs);
-  font-weight:   var(--weight-medium);
-  color:         var(--color-text-muted);
-  letter-spacing: var(--tracking-wide);
-  text-transform: uppercase;
-  margin-bottom: var(--space-1);
-}
-
-
-/* ── STATUS DOTS & BADGES ─────────────────────────────────────────────────────
-   The neon indicators used throughout the pipeline and email draft center.
-
-   A "dot" is a small circle (●) inline with text.
-   A "badge" is a larger pill shape that can contain text.
+   Inputs, textareas, and the search pill in the filter bar.
    ─────────────────────────────────────────────────────────────────────────── */
 
-/* Status dot — tiny coloured circle */
-.dot {
-  display:       inline-block;
-  width:         10px;
-  height:        10px;
-  border-radius: var(--radius-full);
-  flex-shrink:   0;
-}
-
-.dot-confirmed { background: var(--color-status-confirmed); box-shadow: var(--glow-green); }
-.dot-partial   { background: var(--color-status-partial);                                   }
-.dot-pending   { background: var(--color-status-pending);   box-shadow: var(--glow-gold);  }
-.dot-needed    { background: var(--color-status-needed);    box-shadow: var(--glow-pink);  }
-.dot-idle      { background: var(--color-status-idle);                                      }
-
-/* Status badge — pill shape with background wash + coloured text */
-.badge {
+/* Search pill — compact inline search bar in filter strips */
+.search-pill {
+  background:    var(--bg-soft);
+  border:        1px solid var(--line);
+  border-radius: 100px;
+  padding:       8px 14px;
+  font-size:     12px;
+  color:         var(--ink-3);
   display:       inline-flex;
   align-items:   center;
-  gap:           var(--space-1);
-  padding:       2px var(--space-2);
-  border-radius: var(--radius-full);
-  font-size:     var(--text-xs);
-  font-weight:   var(--weight-semi);
-  letter-spacing: var(--tracking-wide);
-  white-space:   nowrap;
+  gap:           8px;
+  font-family:   var(--font-mono);
 }
 
-.badge-confirmed {
-  background: var(--color-status-confirmed-bg);
-  color:      var(--color-status-confirmed-text);
-}
-.badge-partial {
-  background: var(--color-status-partial-bg);
-  color:      var(--color-status-partial-text);
-}
-.badge-pending {
-  background: var(--color-status-pending-bg);
-  color:      var(--color-status-pending-text);
-}
-.badge-needed {
-  background: var(--color-status-needed-bg);
-  color:      var(--color-status-needed-text);
-}
-.badge-idle {
-  background: var(--color-status-idle-bg);
-  color:      var(--color-status-idle-text);
+.search-pill input {
+  border:      none;
+  outline:     none;
+  background:  transparent;
+  font-family: var(--font-mono);
+  font-size:   12px;
+  color:       var(--ink-2);
+  width:       180px;
 }
 
-/* Accent badges — use brand colours, not neons, for non-status labels like tier */
-.badge-plum  { background: rgba(249, 185, 242, 0.3); color: #7a1f70; }
-.badge-amber { background: rgba(255, 177,   0, 0.2); color: #7a5500; }
-.badge-sage  { background: rgba(202, 204, 144, 0.3); color: #4a5010; }
-.badge-teal  { background: rgba(  0, 108, 103, 0.15); color: var(--palette-stormy-teal); }
+/* Standard text input / textarea */
+.field {
+  width:         100%;
+  padding:       10px 14px;
+  background:    var(--paper);
+  border:        1px solid var(--line);
+  border-radius: var(--r-md);
+  font-family:   var(--font-body);
+  font-size:     13px;
+  color:         var(--ink-2);
+  outline:       none;
+}
+
+.field:focus { border-color: var(--ink-3); }
+
+/* Mono variant — for subject lines, template bodies */
+.field-mono { font-family: var(--font-mono); font-size: 12px; }
 
 
-/* ── TWO-STATE FIELD ROW ──────────────────────────────────────────────────────
-   The core UI unit of the Email Draft Center.
-   Each piece of data (hotel, flight, dietary, etc.) appears as a row with:
-     - A label on the left
-     - A status badge in the middle
-     - An action button on the right
+/* ── 12. TABLE ────────────────────────────────────────────────────────────────
 
-   The row colour changes based on the current state.
+   Used by the artist tracker and arrivals board.
+   Class prefix: .dt (data table)
    ─────────────────────────────────────────────────────────────────────────── */
 
-.field-row {
-  display:       flex;
-  align-items:   center;
-  gap:           var(--space-4);
-  padding:       var(--space-3) var(--space-4);
-  border-radius: var(--radius-sm);
-  border-left:   3px solid transparent;   /* coloured stripe on the left edge */
-  transition:    background var(--transition-fast);
-}
-
-/* Label takes up the available space */
-.field-row-label {
-  flex:        1;
-  font-size:   var(--text-sm);
-  font-weight: var(--weight-medium);
-  color:       var(--color-text);
-}
-
-/* The confirmed value (shown when state = confirmed) */
-.field-row-value {
-  font-size: var(--text-sm);
-  color:     var(--color-text-muted);
-  max-width: 200px;
-  overflow:  hidden;
-  text-overflow: ellipsis;
-  white-space:   nowrap;
-}
-
-/* State-specific row appearances */
-.field-row-confirmed {
-  background:    var(--color-status-confirmed-bg);
-  border-left-color: var(--color-status-confirmed);
-}
-.field-row-pending {
-  background:    var(--color-status-pending-bg);
-  border-left-color: var(--color-status-pending);
-}
-.field-row-needed {
-  background:    var(--color-status-needed-bg);
-  border-left-color: var(--color-status-needed);
-}
-
-
-/* ── DATA TABLES ──────────────────────────────────────────────────────────────
-   Used in Artist Overview (pipeline table) and Arrivals Board. */
-
-.table-wrap {
-  overflow-x: auto;   /* horizontal scroll on narrow screens */
-  border:     1px solid var(--color-border);
-  border-radius: var(--radius-md);
-}
-
-.table {
+table.dt {
   width:           100%;
-  border-collapse: collapse;   /* removes double-borders between cells */
-  font-size:       var(--text-sm);
+  border-collapse: collapse;
+  font-size:       13px;
 }
 
-.table thead th {
-  background:     var(--palette-off-white);
-  color:          var(--color-text-muted);
-  font-weight:    var(--weight-semi);
-  font-size:      var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-wide);
-  padding:        var(--space-3) var(--space-4);
-  text-align:     left;
-  border-bottom:  2px solid var(--color-border);
-  white-space:    nowrap;
+/* Column headers — small uppercase mono labels */
+table.dt th {
+  font-family:      var(--font-mono);
+  font-size:        10px;
+  letter-spacing:   0.06em;
+  text-transform:   uppercase;
+  color:            var(--ink-4);
+  text-align:       left;
+  padding:          10px 16px;
+  font-weight:      500;
+  border-bottom:    1px solid var(--line);
+  background:       var(--bg-soft);
 }
 
-.table tbody tr {
-  border-bottom: 1px solid var(--color-border);
-  transition:    background var(--transition-fast);
+/* Data cells */
+table.dt td {
+  padding:        12px 16px;
+  border-bottom:  1px solid var(--line);
+  color:          var(--ink-2);
+  vertical-align: middle;
 }
 
-.table tbody tr:last-child { border-bottom: none; }
+table.dt tr:last-child td { border-bottom: none; }
+table.dt tr:hover td      { background: rgba(10,10,10,0.02); }
+table.dt tr.is-selected td { background: rgba(10,163,154,0.06); }
+table.dt tr.clickable td   { cursor: pointer; }
 
-.table tbody tr:hover { background: rgba(0, 108, 103, 0.04); }  /* very subtle teal wash on hover */
+/* Table cell type helpers */
+.dt-time  { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.dt-name  { font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+.dt-stage {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--ink-3);
+}
+/* The coloured dot before the stage name — uses --c CSS var set inline */
+.dt-stage::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--c, var(--ink-4));
+}
+.dt-mono { font-family: var(--font-mono); font-size: 12px; color: var(--ink-3); font-weight: 500; }
+.dt-num  { font-family: var(--font-mono); font-weight: 500; color: var(--ink-2); font-size: 12px; }
 
-.table tbody td {
-  padding:    var(--space-3) var(--space-4);
-  color:      var(--color-text);
-  white-space: nowrap;
+
+/* ── 13. BADGES ──────────────────────────────────────────────────────────────
+
+   Status badges — pill-shaped coloured labels.
+   Class prefix: .b- (badge variant)
+
+   Used by StatusBadge component and inline in tables.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.badge {
+  display:        inline-flex;
+  align-items:    center;
+  gap:            4px;
+  padding:        3px 10px;
+  border-radius:  100px;
+  font-size:      11px;
+  font-weight:    500;
+  font-family:    var(--font-mono);
+  letter-spacing: 0.02em;
 }
 
-/* Sticky first column — keeps the artist name visible when scrolling horizontally */
-.table .col-sticky {
-  position:   sticky;
-  left:       0;
-  background: var(--color-surface);
-  z-index:    1;
-  font-weight: var(--weight-medium);
-  box-shadow: 2px 0 4px rgba(0, 56, 68, 0.06);
+.b-go    { background: var(--color-confirmed); color: var(--teal); }
+.b-warn  { background: var(--color-pending);   color: var(--amber); }
+.b-stop  { background: var(--color-needed);    color: var(--st-stop); }
+.b-idle  { background: var(--color-idle);      color: var(--ink-3); }
+.b-info  { background: var(--color-partial);   color: var(--blue); }
+.b-lime  { background: rgba(163,212,55,0.18);  color: #5d7a17; }
+
+
+/* ── 14. STATUS DOTS ─────────────────────────────────────────────────────────
+
+   Tiny coloured circles used in the nav pill and inline with text.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.dot {
+  width:         7px;
+  height:        7px;
+  border-radius: 50%;
+  display:       inline-block;
 }
 
+/* Glow rings — subtle halo around status dots */
+.dot-go   { background: var(--st-go);   box-shadow: 0 0 0 3px var(--dot-go-ring); }
+.dot-warn { background: var(--amber);   box-shadow: 0 0 0 3px var(--dot-warn-ring); }
+.dot-stop { background: var(--st-stop); box-shadow: 0 0 0 3px var(--dot-stop-ring); }
+.dot-idle { background: var(--ink-5); }
 
-/* ── LOADER / SPINNER ─────────────────────────────────────────────────────────
-   Shown while waiting for Monday.com data to load. */
 
-.loader-overlay {
+/* ── 15. DRAWER ──────────────────────────────────────────────────────────────
+
+   The right-side slide-in panel — used by the artist detail drawer.
+   Covers the page with a dark overlay, panel animates in from the right.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.drawer-overlay {
   position:        fixed;
   inset:           0;
-  background:      rgba(0, 56, 68, 0.85);   /* dark teal overlay */
-  z-index:         9999;
-  display:         flex;
-  flex-direction:  column;
-  align-items:     center;
-  justify-content: center;
-  gap:             var(--space-4);
+  z-index:         50;
+  background:      rgba(20,20,18,0.32);
+  backdrop-filter: blur(2px);
 }
 
-.spinner {
-  width:        36px;
-  height:       36px;
-  border:       3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: var(--palette-neon-green);   /* spinning green arc */
-  border-radius: 50%;
-  animation:    spin 0.7s linear infinite;
+.drawer {
+  position:   fixed;
+  right:      0;
+  top:        0;
+  bottom:     0;
+  z-index:    51;
+  width:      640px;
+  max-width:  92vw;
+  background: var(--paper);
+  border-left: 1px solid var(--line);
+  display:    flex;
+  flex-direction: column;
+  box-shadow: -16px 0 60px rgba(10,10,10,0.10);
+  animation:  drawerIn .22s ease-out;
 }
 
-.loader-text {
-  color:          rgba(255, 255, 255, 0.5);
-  font-size:      var(--text-xs);
-  letter-spacing: var(--tracking-wide);
+@keyframes drawerIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
 
 
-/* ── EMPTY STATE ──────────────────────────────────────────────────────────────
-   Shown when a list/table has no results. */
+/* ── 16. HELPERS ─────────────────────────────────────────────────────────────
 
-.empty-state {
-  padding:         var(--space-16);
-  display:         flex;
-  flex-direction:  column;
-  align-items:     center;
-  gap:             var(--space-3);
-  color:           var(--color-text-muted);
-  text-align:      center;
-}
+   Single-purpose utility classes used inline in JSX.
+   ─────────────────────────────────────────────────────────────────────────── */
 
-.empty-state-icon { font-size: 32px; opacity: 0.4; }
-.empty-state h3   { font-size: var(--text-md); color: var(--color-text); }
-.empty-state p    { font-size: var(--text-sm); max-width: 320px; }
-
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   UTILITY CLASSES
-   Single-purpose classes to use inline in HTML for quick layout adjustments.
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-/* Layout */
-.flex         { display: flex; }
-.flex-col     { display: flex; flex-direction: column; }
-.items-center { align-items: center; }
-.justify-between { justify-content: space-between; }
-.gap-2  { gap: var(--space-2); }
-.gap-3  { gap: var(--space-3); }
-.gap-4  { gap: var(--space-4); }
-.gap-6  { gap: var(--space-6); }
-
-/* Spacing */
-.p-4   { padding: var(--space-4); }
-.p-6   { padding: var(--space-6); }
-.px-4  { padding-left: var(--space-4); padding-right: var(--space-4); }
-.py-3  { padding-top: var(--space-3); padding-bottom: var(--space-3); }
-.mt-4  { margin-top: var(--space-4); }
-.mb-4  { margin-bottom: var(--space-4); }
-
-/* Text */
-.text-xs    { font-size: var(--text-xs); }
-.text-sm    { font-size: var(--text-sm); }
-.text-muted { color: var(--color-text-muted); }
-.text-upper { text-transform: uppercase; letter-spacing: var(--tracking-wide); }
-.truncate   { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.font-semi  { font-weight: var(--weight-semi); }
-
-/* Display */
+.mono    { font-family: var(--font-mono); font-weight: 500; }
+.dim     { color: var(--ink-4); }
+.dimmer  { color: var(--ink-5); }
+.warnc   { color: var(--amber); }
+.goc     { color: var(--teal); }
+.stopc   { color: var(--st-stop); }
+.divider { height: 1px; background: var(--line); margin: 24px 0; }
 .hidden  { display: none !important; }
-.sr-only {   /* visually hidden but readable by screen readers */
-  position: absolute;
-  width: 1px; height: 1px;
-  padding: 0; margin: -1px;
-  overflow: hidden;
-  clip: rect(0,0,0,0);
-  white-space: nowrap;
-  border: 0;
-}
 
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   ANIMATIONS
-   ══════════════════════════════════════════════════════════════════════════════ */
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Pulse glow — used on status dots that need attention (needed state) */
-@keyframes pulse-glow {
-  0%, 100% { box-shadow: var(--glow-pink); }
-  50%       { box-shadow: 0 0 14px rgba(247, 37, 133, 0.9); }
-}
-
-.dot-needed.pulse {
-  animation: pulse-glow 2s ease-in-out infinite;
-}
-
-/* Fade in — used when content loads in after a Monday.com fetch */
+/* Fade-in animation — used when content loads after an async fetch */
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.fade-in {
-  animation: fade-in 0.25s ease forwards;
-}
+.fade-in { animation: fade-in 0.25s ease forwards; }
+
+/* Spin animation — used by loading spinners */
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,107 +1,96 @@
-# EC12 Build Session — Summary
-**Date:** 2026-04-30
-**Status:** Artist Tracker v2 committed. Moving to Email Draft Center next.
+# EC12 Build Session Summary
+**Last updated:** 2026-04-30
+**Latest commit:** f7b5e80 (pushed to GitHub)
 
 ---
 
-## What was built
+## What exists right now
 
-### Shared infrastructure
-| File | Purpose |
-|---|---|
-| `src/shared/monday-client.js` | Single Monday.com API client used by all components. Handles fetch, write, column parsing, and the four-state (not_asked / asked / partial / confirmed) tracking logic |
-| `src/shared/theme.css` | Full design system: Inter + Barlow Condensed fonts, brand palette (dark/stormy teal, plum, amber, sage), neon status colours (pink/gold/green), all component tokens |
-| `config/monday-columns.js` | Central map of every Monday.com board ID and column ID — fill this in once boards are set up |
-| `config/get-columns.graphql` | GraphQL query to run in Monday.com API Explorer to find column IDs |
+### Main portal
+**File:** `src/portal/index.html` (~1,740 lines, single self-contained HTML)
+**Open in Chrome** from Finder — no server needed.
 
-### Artist Tracker (`src/artist-overview/index.html`)
-- Pipeline table showing all artists with tier, origin, lead, booked by
-- 8 advancing step dots (neon colour-coded: idle / asked / partial / confirmed / blocked)
-- Advanced filter panel with dimensions auto-built from data: Travel Mode, Flights, Transfers, Hotel, Party Size, Rider, Dietary, TM Contact
-- Four-state filter per dimension: `○ Not requested` / `~ Asked` / `◑ Partial` / `✓ Confirmed`
-- Active filter chips with clear-all
-- Artist detail panel (slide-in): full action checklist per step, three-state per action
-- Create artist modal → writes to Monday.com + adds locally immediately
-- Settings panel: API key, board ID, workspace URL
-- Falls back to demo data (6 mock artists) when not connected
-- First git commit: `4494c9b`
+**Why single file:** Babel standalone uses XHR to load external JSX, which Chrome blocks on `file://`. All JSX is inlined as `<script type="text/babel">` blocks.
 
-### Claude Code config (`.claude/`)
-| File | Purpose |
-|---|---|
-| `settings.json` | Pre-approved permissions for ec12-app read/write/git |
-| `commands/ec12-commit.md` | `/ec12-commit` — guided git commit scoped to ec12-app |
-| `commands/ec12-memory.md` | `/ec12-memory` — review conversation, decide what to save |
-| `commands/ec12-monday.md` | `/ec12-monday` — walk through Monday.com column ID setup |
+### Seven views
 
----
+| Route | View | Notes |
+|---|---|---|
+| `#welcome` | Landing page | Default. No top nav. Stats + view-card grid |
+| `#tracker` | Artist Tracker | Full pipeline table, 8 steps, filters, search, drawer |
+| `#email` | Email Draft Center | Cadence selector, auto-draft, copy button |
+| `#timeline` | General Timeline | Foldable Gantt: in-town + show-day by stage |
+| `#schedule` | Stage Schedule | Visual timetable per day/stage. Google Sheets sync UI ready, not wired |
+| `#flights` | Flights & Transfers | Flight manifest + Arrival/Internal/Departure transfer filter |
+| `#itinerary` | Artist Itinerary | Passcode gate (PIN: 4827 for demo) |
+| `#settings` | Settings | Field mapping, templates, team, brand, integrations |
 
-## Key decisions made
+### Supporting files
+- `src/portal/data.js` — 14 mock artists, 8 stages, 7 hotels, 8 angels (used while Monday.com is not connected)
+- `src/portal/i18n.js` — EN/RO translations + `window.makeT()` helper
+- `src/shared/theme.css` — full design system
+- `src/shared/monday-client.js` — Monday.com GraphQL API client (four-state logic)
+- `config/monday-columns.js` — board + column IDs (all placeholders — fill once boards are live)
 
-| Decision | Detail |
-|---|---|
-| Monday.com = single source of truth | All 5 components read/write to Monday. No separate database. |
-| Four-state system | not_asked → asked → partial → confirmed (+ blocked as override) |
-| Partial for travel | Deferred — sum of travel segment passengers vs total party size |
-| Partial for transfers | Deferred — route types required depend on flight timing + act type (live needs soundcheck route) |
-| Hosting | Not decided yet — deferred |
-| Font | Inter (UI) + Barlow Condensed (logo only) |
-| Status colours | Neon: pink = needed, gold = asked, dry sage = partial, green = confirmed |
-| Brand colours | Dark teal (nav/surfaces), stormy teal (actions), plum/amber/sage (accents/badges) |
+### Project root (legacy/reference)
+- `EC12 - Program.xlsx` — festival schedule (3 sheets)
+- `EC12_Change_Plan_1777576221.xlsx` — user stories by persona
+- `Schedule_later version code.gs` — Google Apps Script backend for schedule
+- `Schedule_later version html` — enhanced schedule viewer (v5b)
 
 ---
 
-## Monday.com boards needed
+## Design system
 
-| Board | Used by |
-|---|---|
-| Artists | All components — core artist info, status steps |
-| Schedule / Programme | Schedule component, Arrivals Board |
-| Flights | Arrivals Board, Artist Itinerary, transfer logic |
-| Hotels | Artist Itinerary, Arrivals Board |
-| Ground Transfers | Arrivals Board, Artist Itinerary |
-
-Column IDs are all placeholders in `config/monday-columns.js` — need to be filled once boards exist.
+- **Background:** Lava lamp (SVG metaball filter + 7 JS blobs)
+  - Settles after 10 s to 8% amplitude (3 s ease)
+  - Gentle cursor pull when settled
+- **Fonts:** General Sans (display), Geist (body), Geist Mono (mono)
+- **Palette:** `#f5f3ee` canvas, teal/lime/blue accents, amber = warning, red = needed
+- **Status:** confirmed (teal) / partial (blue) / pending (amber) / needed (red) / idle (grey)
+- **Tweaks panel:** bottom-right float — language, blob, dark mode, accent colours
 
 ---
 
-## Components remaining to build
+## Next to build (in priority order)
 
-1. **Email Draft Center** — next up
-   - Reads artist data from Monday.com
-   - Four-state per data field (not_asked / asked / partial / confirmed)
-   - Auto-generates email drafts based on what's missing
-   - Writes confirmed data back to Monday.com
-   - Shares state with Artist Tracker (emailModules key in localStorage)
+1. **User permissions system** — 4 levels: Owner / Admin / User / Viewer
+   - Login screen for protected views
+   - Role-based view rendering
 
-2. **Schedule** — after Email
-   - Reads stage timings, soundchecks from Monday.com programme board
-   - Connects to Arrivals Board for transfer timing logic
+2. **Team views** (password-protected per role):
+   - Angel: assigned artists' timings + info
+   - Driver: transfer assignments + delayed flights
+   - Backstage: stage-level arrivals + advancing notes
+   - Riders coordinator: rider requirements + alternatives
 
-3. **Arrivals Board** — after Schedule
-   - Four views: by stage / by flight / by hotel / by date
-   - User stories to be shared by user before building
+3. **Itinerary enhancement:**
+   - Passkey = Monday item ID (artist or travel party member)
+   - Travel party member level shows personal + adjacent band info
 
-4. **Artist Itinerary** — after Arrivals
-   - Per-artist document shared WITH the artist
-   - Generated from Monday.com logistics data
+4. **Stage Schedule → Google Sheets sync:**
+   - Wire up the "Sync Sheet" button to the Apps Script web app endpoint
+   - Configure URL in Settings → Integrations
+   - Existing backend: `Schedule_later version code.gs`
 
-5. **Navigation hub** — last
-   - Links all components together
+5. **Fill Monday.com column IDs** once boards exist (run the query in `config/get-columns.graphql`)
 
 ---
 
-## Deferred work (do not start until full infrastructure is confirmed)
+## Deferred (do not start until full infrastructure confirmed)
 
-- **Partial state logic for travel**: sum of travel segment passengers must equal total party size
-- **Partial state logic for transfers**: required route types depend on flight-to-show-time gap and act type (live = needs soundcheck route)
-- **Hosting decision**: domain not yet chosen
-- **Advanced filter criteria**: user will specify additional filter dimensions once more components exist
+- Partial state logic for travel (segment passenger sum vs party size)
+- Partial state logic for transfers (route types by flight timing + act type)
+- Email Draft Center .docx template reading (mammoth.js + File System Access API)
+- Control Panel (stage category → downstream rules)
+- Config/Mapping page ({{field}} → Monday column translator)
+- Hosting / deployment
 
 ---
 
 ## How to continue in a new session
 
-1. Read `MEMORY.md` in the Claude memory folder — all key decisions are indexed there
-2. Run `/ec12-monday` to configure Monday.com column IDs when ready
-3. Next task: build `src/email-draft-center/index.html`
+1. Open `src/portal/index.html` in Chrome to see current state
+2. Read `MEMORY.md` in the Claude memory folder — all decisions indexed there
+3. Check `EC12_Change_Plan_1777576221.xlsx` for full user stories by persona
+4. Start with whichever "Next to build" item the user prioritises

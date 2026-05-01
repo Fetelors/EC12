@@ -356,11 +356,13 @@
 
   function TopNav({ active, onNav, t }) {
     const links = [
-      { id:'tracker',   label:t('nav.tracker')   },
-      { id:'email',     label:t('nav.email')      },
-      { id:'arrivals',  label:t('nav.arrivals')   },
-      { id:'itinerary', label:t('nav.itinerary')  },
-      { id:'settings',  label:t('nav.settings')   },
+      { id:'tracker',  label:t('nav.tracker')  },
+      { id:'email',    label:t('nav.email')    },
+      { id:'timeline', label:t('nav.timeline') },
+      { id:'schedule', label:t('nav.schedule') },
+      { id:'flights',  label:t('nav.flights')  },
+      { id:'itinerary',label:t('nav.itinerary')},
+      { id:'settings', label:t('nav.settings') },
     ];
     return (
       <nav className="nav">
@@ -1320,7 +1322,343 @@
   window.SettingsView = SettingsView;
   </script>
 
+
   <script type="text/babel">
+  // ── WELCOME VIEW ──────────────────────────────────────────────────────────
+  function WelcomeView({ onNav, t }) {
+    const now    = new Date();
+    const hour   = now.getHours();
+    const greet  = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+    const artists= window.ARTISTS||[];
+    const TODAY  = '2026-07-17';
+    const todayActs = artists.filter(a=>a.showDate===TODAY);
+    const chasing   = artists.filter(a=>a.status.some(s=>s==='pending'||s==='needed'||s==='blocked'));
+    const flying    = artists.filter(a=>(a.flights||[]).some(f=>f.dir==='arr'&&f.date===TODAY));
+    const pct       = artists.length?Math.round(100*artists.filter(a=>progressOf(a.status).pct>=80).length/artists.length):0;
+    const VIEWS = [
+      {id:'tracker',  icon:'◎',title:'Artist Tracker',       sub:'Advancing pipeline · all artists'},
+      {id:'email',    icon:'✉',title:'Email Draft Center',    sub:'Generate the next advancing email'},
+      {id:'timeline', icon:'▬',title:'General Timeline',      sub:'Advancing Gantt across festival week'},
+      {id:'schedule', icon:'♩',title:'Stage Schedule',        sub:'Live programme by stage & slot type'},
+      {id:'flights',  icon:'↗',title:'Flights & Transfers',   sub:'Flight manifest & ground movements'},
+      {id:'itinerary',icon:'★',title:'Artist Itinerary',      sub:'Passcode-gated artist microsite'},
+      {id:'settings', icon:'⚙',title:'Settings',             sub:'Config, team, templates & integrations'},
+    ];
+    const FESTIVAL_DAYS=['2026-07-16','2026-07-17','2026-07-18','2026-07-19'];
+    return (
+      <div style={{minHeight:'100vh',position:'relative',zIndex:2}}>
+        <div style={{maxWidth:1280,margin:'0 auto',padding:'80px 40px 60px'}}>
+          <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:56,fontFamily:'var(--font-display)',fontWeight:600,fontSize:15,letterSpacing:'-0.01em',color:'var(--ink-3)'}}>
+            <span style={{width:10,height:10,borderRadius:'50%',background:'linear-gradient(135deg,var(--teal),var(--lime))',display:'inline-block'}}></span>
+            ELECTRIC CASTLE 12 · AIDVANCING
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 340px',gap:56,marginBottom:64,alignItems:'start'}}>
+            <div>
+              <div className="mono" style={{fontSize:12,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:20}}>
+                {now.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).toUpperCase()}
+              </div>
+              <h1 style={{fontFamily:'var(--font-display)',fontSize:'clamp(52px,6.5vw,84px)',lineHeight:0.95,letterSpacing:'-0.04em',fontWeight:500,margin:'0 0 32px'}}>
+                {greet},<br/><em style={{fontStyle:'italic',color:'var(--ink-3)',fontWeight:400}}>let's advance.</em>
+              </h1>
+              <div style={{display:'flex',gap:32,paddingTop:28,borderTop:'1px solid var(--line)'}}>
+                {[
+                  {label:'SHOWS TODAY',   value:todayActs.length,color:'var(--teal)' },
+                  {label:'STILL CHASING', value:chasing.length,  color:'var(--amber)'},
+                  {label:'FLYING TODAY',  value:flying.length,   color:'var(--blue)' },
+                  {label:'ROSTER ADV.',   value:pct+'%',         color:'var(--ink-2)'},
+                ].map((s,i)=>(
+                  <div key={i}>
+                    <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:8,fontWeight:500}}>{s.label}</div>
+                    <div style={{fontFamily:'var(--font-display)',fontSize:40,lineHeight:1,fontWeight:400,letterSpacing:'-0.03em',color:s.color}}>{s.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:14,fontWeight:500}}>COMING UP</div>
+              <div style={{background:'var(--paper)',borderRadius:'var(--r-lg)',border:'1px solid var(--line)',overflow:'hidden'}}>
+                {FESTIVAL_DAYS.map(day=>{
+                  const acts=artists.filter(a=>a.showDate===day);
+                  if(!acts.length)return null;
+                  const dl=new Date(day).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'});
+                  return (
+                    <div key={day} style={{padding:'14px 18px',borderBottom:'1px solid var(--line)'}}>
+                      <div className="mono" style={{fontSize:10,letterSpacing:'0.05em',color:'var(--ink-4)',marginBottom:10}}>{dl.toUpperCase()}</div>
+                      {acts.slice(0,3).map(a=>(
+                        <div key={a.id} style={{display:'flex',justifyContent:'space-between',fontSize:13,color:'var(--ink-2)',marginBottom:4}}>
+                          <span style={{fontWeight:500}}>{a.name}</span>
+                          <span className="mono" style={{fontSize:11,color:'var(--ink-4)'}}>{a.showTime}</span>
+                        </div>
+                      ))}
+                      {acts.length>3&&<div className="mono" style={{fontSize:10,color:'var(--ink-5)',marginTop:4}}>+{acts.length-3} more</div>}
+                    </div>
+                  );
+                }).filter(Boolean)}
+              </div>
+            </div>
+          </div>
+          <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',marginBottom:16,fontWeight:500}}>OPEN A VIEW</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+            {VIEWS.map(v=>(
+              <div key={v.id} onClick={()=>onNav(v.id)}
+                style={{padding:24,background:'var(--paper)',borderRadius:'var(--r-lg)',border:'1px solid var(--line)',cursor:'pointer',transition:'border-color .15s,transform .15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--teal)';e.currentTarget.style.transform='translateY(-2px)';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='';e.currentTarget.style.transform='';}}>
+                <div style={{fontSize:24,marginBottom:14,opacity:0.65}}>{v.icon}</div>
+                <div style={{fontFamily:'var(--font-display)',fontSize:17,fontWeight:500,letterSpacing:'-0.01em',color:'var(--ink)',marginBottom:6}}>{v.title}</div>
+                <div style={{fontSize:12,color:'var(--ink-4)',lineHeight:1.4}}>{v.sub}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{marginTop:56,paddingTop:24,borderTop:'1px solid var(--line)',display:'flex',justifyContent:'space-between'}}>
+            <span className="mono" style={{fontSize:11,color:'var(--ink-5)',letterSpacing:'0.04em'}}>EC12 ADVANCING · INTERNAL TOOL · DO NOT SHARE</span>
+            <span className="mono" style={{fontSize:11,color:'var(--ink-5)',letterSpacing:'0.04em'}}>CLUJ-NAPOCA · BONȚIDA · 16 — 19 JULY 2026</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  window.WelcomeView = WelcomeView;
+  </script>
+
+  <script type="text/babel">
+  // ── TIMELINE / GANTT VIEW ─────────────────────────────────────────────────
+  function TimelineView({ t }) {
+    const DAYS   = ['2026-07-15','2026-07-16','2026-07-17','2026-07-18','2026-07-19'];
+    const LABELS = ['Wed 15','Thu 16','Fri 17','Sat 18','Sun 19'];
+    const [collapsed,setCollapsed] = useState({});
+    const artists = window.ARTISTS||[];
+    const stages  = window.STAGES||[];
+    const groups  = stages.map(st=>({stage:st,acts:artists.filter(a=>a.stage===st.id)})).filter(g=>g.acts.length>0);
+    const inTown  = (a)=>{ const si=DAYS.indexOf(a.showDate); return {arr:Math.max(0,si-1),dep:Math.min(DAYS.length-1,si+1),show:si}; };
+    return (
+      <main className="page">
+        <PageHero eyebrow="// timeline · advancing + in-town" title="Every artist, <em>every day.</em>"
+          sub="In-town windows, show-day markers and advancing progress across the festival week. Click a stage to fold."/>
+        <div style={{marginBottom:40,overflowX:'auto'}}>
+          <div style={{minWidth:860}}>
+            <div style={{display:'grid',gridTemplateColumns:'200px repeat(5,1fr)',gap:0,paddingBottom:12,borderBottom:'2px solid var(--line)',marginBottom:8}}>
+              <div className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',fontWeight:500}}>ARTIST</div>
+              {LABELS.map((d,i)=><div key={i} className="mono" style={{fontSize:10,letterSpacing:'0.06em',color:'var(--ink-4)',fontWeight:500,textAlign:'center'}}>{d}</div>)}
+            </div>
+            {groups.map(({stage,acts})=>(
+              <div key={stage.id}>
+                <div onClick={()=>setCollapsed(c=>({...c,[stage.id]:!c[stage.id]}))}
+                  style={{display:'flex',alignItems:'center',gap:8,padding:'10px 0',cursor:'pointer',borderBottom:'1px solid var(--line)',userSelect:'none'}}>
+                  <span style={{width:8,height:8,borderRadius:'50%',background:stage.color,flexShrink:0}}></span>
+                  <span style={{fontFamily:'var(--font-display)',fontSize:14,fontWeight:600,color:'var(--ink-2)'}}>{stage.name}</span>
+                  <span className="mono" style={{fontSize:10,color:'var(--ink-4)'}}>· {acts.length}</span>
+                  <span style={{marginLeft:'auto',color:'var(--ink-4)',fontSize:13}}>{collapsed[stage.id]?'▸':'▾'}</span>
+                </div>
+                {!collapsed[stage.id]&&acts.map(a=>{
+                  const {arr,dep,show}=inTown(a);
+                  const p=progressOf(a.status);
+                  return (
+                    <div key={a.id} style={{display:'grid',gridTemplateColumns:'200px repeat(5,1fr)',gap:0,alignItems:'center',borderBottom:'1px solid var(--line)',padding:'7px 0'}}>
+                      <div style={{paddingRight:16}}>
+                        <div style={{fontWeight:500,fontSize:13,color:'var(--ink-2)',marginBottom:2}}>{a.name}</div>
+                        <div style={{display:'flex',gap:2,alignItems:'center'}}>
+                          {a.status.slice(0,8).map((s,si)=>{const bg=s==='confirmed'?'var(--teal)':s==='partial'||s==='pending'?'var(--amber)':s==='needed'||s==='blocked'?'var(--st-stop)':'rgba(10,10,10,0.10)';return<div key={si} style={{width:8,height:4,borderRadius:100,background:bg}}></div>;})}
+                          <span className="mono" style={{fontSize:10,color:'var(--ink-4)',marginLeft:4}}>{p.pct}%</span>
+                        </div>
+                      </div>
+                      {DAYS.map((_,di)=>{
+                        const inRange=di>=arr&&di<=dep,isShow=di===show,isArr=di===arr,isDep=di===dep;
+                        return (
+                          <div key={di} style={{position:'relative',height:32,padding:'0 4px',display:'flex',alignItems:'center'}}>
+                            {inRange&&<div style={{position:'absolute',left:isArr?'25%':'0',right:isDep?'25%':'0',height:6,borderRadius:100,background:isShow?stage.color:'rgba(10,10,10,0.08)'}}></div>}
+                            {isShow&&<div style={{position:'absolute',left:'50%',transform:'translateX(-50%)',width:14,height:14,borderRadius:'50%',background:stage.color,border:'2px solid var(--paper)',zIndex:1}}></div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{display:'flex',gap:24,paddingTop:20,borderTop:'1px solid var(--line)',marginBottom:40}}>
+          {[
+            {icon:<div style={{width:24,height:6,borderRadius:100,background:'rgba(10,10,10,0.08)'}}/>,label:'In town'},
+            {icon:<div style={{width:12,height:12,borderRadius:'50%',background:'var(--teal)'}}/>,label:'Show day'},
+          ].map((l,i)=>(
+            <div key={i} style={{display:'flex',alignItems:'center',gap:8,fontSize:12,color:'var(--ink-4)'}}>{l.icon}{l.label}</div>
+          ))}
+        </div>
+      </main>
+    );
+  }
+  window.TimelineView = TimelineView;
+  </script>
+
+  <script type="text/babel">
+  // ── STAGE SCHEDULE VIEW ───────────────────────────────────────────────────
+  function ScheduleView({ t }) {
+    const DAYS=[{date:'2026-07-16',label:'Thursday 16'},{date:'2026-07-17',label:'Friday 17'},{date:'2026-07-18',label:'Saturday 18'},{date:'2026-07-19',label:'Sunday 19'}];
+    const SMETA={'Live act':{bg:'rgba(10,163,154,0.14)',fg:'var(--teal)',bd:'rgba(10,163,154,0.35)'},'DJ set':{bg:'rgba(37,99,235,0.12)',fg:'var(--blue)',bd:'rgba(37,99,235,0.30)'},'Soundcheck':{bg:'rgba(217,119,6,0.12)',fg:'var(--amber)',bd:'rgba(217,119,6,0.30)'},'Line check':{bg:'rgba(163,212,55,0.16)',fg:'#5d7a17',bd:'rgba(163,212,55,0.40)'},'Load-in':{bg:'rgba(10,10,10,0.05)',fg:'var(--ink-4)',bd:'rgba(10,10,10,0.12)'}};
+    const [selDay,setSelDay]=useState('2026-07-17');
+    const artists=window.ARTISTS||[],stages=window.STAGES||[];
+    const slots=[];
+    artists.filter(a=>a.showDate===selDay).forEach(a=>{
+      const [h,m]=a.showTime.split(':').map(Number),showM=h*60+m,durM=a.actType==='Live'?90:60;
+      slots.push({stage:a.stage,artist:a.name,type:a.actType==='Live'?'Live act':'DJ set',start:showM,dur:durM});
+      if(a.actType==='Live'){slots.push({stage:a.stage,artist:a.name,type:'Soundcheck',start:showM-240,dur:60});slots.push({stage:a.stage,artist:a.name,type:'Load-in',start:showM-300,dur:60});}
+      else slots.push({stage:a.stage,artist:a.name,type:'Line check',start:showM-60,dur:30});
+    });
+    const START=12*60,SPAN=18*60;
+    const pct=m=>((m-START)/SPAN*100).toFixed(2)+'%';
+    const wPct=d=>(d/SPAN*100).toFixed(2)+'%';
+    const fmt=m=>{const H=Math.floor(m/60)%24,M=m%60;return String(H).padStart(2,'0')+':'+String(M).padStart(2,'0');};
+    const hours=Array.from({length:10},(_,i)=>START+i*120).filter(h=>h<=START+SPAN);
+    const active=stages.filter(s=>artists.some(a=>a.stage===s.id&&a.showDate===selDay));
+    return (
+      <main className="page">
+        <PageHero eyebrow="// stage schedule · slot by slot" title="The programme, <em>layer by layer.</em>"
+          sub="Shows, soundchecks and load-ins by stage. Connects to your live Google Sheet for two-way sync."
+          right={<a className="btn btn-soft btn-sm" style={{whiteSpace:'nowrap'}}>⟳ Sync Sheet</a>}/>
+        <div style={{display:'flex',gap:0,borderBottom:'1px solid var(--line)',marginBottom:24}}>
+          {DAYS.map(d=><a key={d.date} onClick={()=>setSelDay(d.date)} style={{padding:'12px 18px',fontSize:13,fontWeight:500,cursor:'pointer',borderBottom:selDay===d.date?'2px solid var(--ink)':'2px solid transparent',color:selDay===d.date?'var(--ink)':'var(--ink-4)',marginBottom:-1}}>{d.label}</a>)}
+          <div style={{flex:1}}></div>
+          <div style={{display:'flex',gap:10,alignItems:'center',paddingRight:4}}>
+            {Object.entries(SMETA).map(([type,m])=><div key={type} style={{display:'flex',alignItems:'center',gap:4,fontSize:11}}><div style={{width:10,height:10,borderRadius:2,background:m.bg,border:`1px solid ${m.bd}`}}></div><span style={{color:'var(--ink-4)'}}>{type}</span></div>)}
+          </div>
+        </div>
+        {active.length===0?(
+          <div style={{padding:'80px 0',textAlign:'center',color:'var(--ink-4)'}}>
+            <div style={{fontSize:48,marginBottom:16}}>♩</div>
+            <div style={{fontFamily:'var(--font-display)',fontSize:24,fontWeight:500,marginBottom:8}}>No shows on this day</div>
+          </div>
+        ):(
+          <div style={{overflowX:'auto',marginBottom:24}}>
+            <div style={{minWidth:900}}>
+              <div style={{position:'relative',height:24,marginLeft:110,marginBottom:8,borderBottom:'1px solid var(--line)'}}>
+                {hours.map((h,i)=><div key={i} style={{position:'absolute',left:pct(h),transform:'translateX(-50%)',fontSize:10,fontFamily:'var(--font-mono)',color:'var(--ink-5)',whiteSpace:'nowrap'}}>{fmt(h)}</div>)}
+              </div>
+              {active.map(stage=>(
+                <div key={stage.id} style={{display:'flex',alignItems:'center',marginBottom:6}}>
+                  <div style={{width:110,flexShrink:0,paddingRight:10,display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{width:6,height:6,borderRadius:'50%',background:stage.color,flexShrink:0}}></span>
+                    <span style={{fontSize:12,fontWeight:600,color:'var(--ink-2)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{stage.name}</span>
+                  </div>
+                  <div style={{flex:1,position:'relative',height:44,background:'var(--bg-soft)',borderRadius:'var(--r-sm)'}}>
+                    {slots.filter(s=>s.stage===stage.id&&s.start>=START&&s.start<START+SPAN).map((sl,si)=>{
+                      const m=SMETA[sl.type]||SMETA['Live act'];
+                      return <div key={si} style={{position:'absolute',left:pct(sl.start),width:wPct(sl.dur),top:4,bottom:4,background:m.bg,border:`1px solid ${m.bd}`,borderRadius:'var(--r-sm)',padding:'0 6px',display:'flex',alignItems:'center',overflow:'hidden',minWidth:24}}><span style={{fontSize:11,fontWeight:500,color:m.fg,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{sl.artist}</span></div>;
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{padding:'14px 18px',background:'rgba(10,163,154,0.06)',border:'1px solid rgba(10,163,154,0.18)',borderRadius:'var(--r-md)',display:'flex',alignItems:'center',gap:14,marginBottom:40}}>
+          <span className="mono" style={{fontSize:11,color:'var(--teal)',fontWeight:600,whiteSpace:'nowrap'}}>GOOGLE SHEET SYNC</span>
+          <span style={{fontSize:13,color:'var(--ink-3)'}}>Configure your Google Apps Script web app URL in Settings → Integrations to enable live two-way sync with the programme sheet.</span>
+          <a className="btn btn-soft btn-sm" style={{marginLeft:'auto',whiteSpace:'nowrap'}}>Configure</a>
+        </div>
+      </main>
+    );
+  }
+  window.ScheduleView = ScheduleView;
+  </script>
+
+  <script type="text/babel">
+  // ── FLIGHTS & GROUND TRANSFERS VIEW ──────────────────────────────────────
+  function FlightsView({ t }) {
+    const artists=window.ARTISTS||[],stages=window.STAGES||[],hotels=window.HOTELS||[];
+    const [xferTab,setXferTab]=useState('all');
+    const flights=[];
+    artists.forEach(a=>(a.flights||[]).forEach(f=>flights.push({...f,artistName:a.name,tmName:a.tmName,stage:a.stage,actType:a.actType,xferStatus:a.fields.transfers})));
+    flights.sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    const mkXfers=()=>{
+      const rows=[];
+      artists.forEach(a=>{
+        const hn=(hotels.find(h=>h.id===a.hotel)||{name:'TBC'}).name;
+        const sn=(stages.find(s=>s.id===a.stage)||{name:a.stage}).name;
+        if(a.travelMode==='Flying'||a.travelMode==='Mixed'){
+          rows.push({type:'arrival',  artist:a.name,stage:a.stage,route:'CLJ → '+hn,status:a.fields.transfers});
+          rows.push({type:'departure',artist:a.name,stage:a.stage,route:hn+' → CLJ',status:a.fields.transfers});
+        }
+        rows.push({type:'internal',artist:a.name,stage:a.stage,route:'Hotel → '+sn,status:a.fields.transfers});
+        if(a.actType==='Live') rows.push({type:'internal',artist:a.name,stage:a.stage,route:'Hotel → Soundcheck ('+sn+')',status:a.fields.transfers});
+      });
+      return rows;
+    };
+    const allXfers=mkXfers();
+    const shownXfers=xferTab==='all'?allXfers:allXfers.filter(x=>x.type===xferTab);
+    const XTYPE={arrival:{label:'Arrival',cls:'b-go',icon:'↓',sub:'Airport → Hotel'},internal:{label:'Internal',cls:'b-info',icon:'↔',sub:'Hotel ↔ Stage / Soundcheck'},departure:{label:'Departure',cls:'b-warn',icon:'↑',sub:'Hotel → Airport'}};
+    return (
+      <main className="page">
+        <PageHero eyebrow="// flights & ground transfers" title="Everyone in motion, <em>at a glance.</em>"
+          sub="Full flight manifest with passenger counts, and all ground movements by transfer type."
+          right={<span className="badge b-stop" style={{padding:'5px 12px',fontSize:12}}><span className="dot dot-stop" style={{boxShadow:'none',marginRight:6}}></span>LIVE</span>}/>
+        <div className="stat-strip" style={{gridTemplateColumns:'repeat(3,1fr)'}}>
+          <div className="stat"><div className="stat-label">TOTAL LEGS</div><div className="stat-value">{flights.length}</div></div>
+          <div className="stat"><div className="stat-label">ARRIVALS</div><div className="stat-value">{flights.filter(f=>f.dir==='arr').length}</div></div>
+          <div className="stat"><div className="stat-label">DEPARTURES</div><div className="stat-value">{flights.filter(f=>f.dir==='dep').length}</div></div>
+        </div>
+        <div style={{marginBottom:48}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:16}}>
+            <div style={{fontFamily:'var(--font-display)',fontSize:22,fontWeight:500,letterSpacing:'-0.02em'}}>Flight manifest</div>
+            <span className="badge b-idle">{flights.length} legs</span>
+          </div>
+          <div className="card">
+            <table className="dt">
+              <thead><tr><th>Dir</th><th>Flight</th><th>Route</th><th>Date</th><th>Time</th><th>Artist</th><th>Stage</th><th>Pax</th><th>Party</th><th>Status</th></tr></thead>
+              <tbody>
+                {flights.map((f,i)=>(
+                  <tr key={i}>
+                    <td><span className={'badge '+(f.dir==='arr'?'b-go':'b-warn')} style={{fontSize:9}}>{f.dir==='arr'?'↓ ARR':'↑ DEP'}</span></td>
+                    <td><span className="dt-mono">{f.no}</span></td>
+                    <td><div style={{display:'flex',alignItems:'center',gap:6}}><span className="dt-mono">{f.from}</span><span style={{color:'var(--ink-4)'}}>→</span><span className="dt-mono">{f.to}</span></div></td>
+                    <td><span className="dt-mono">{f.date.slice(5)}</span></td>
+                    <td><span className="dt-mono" style={{fontWeight:600,color:'var(--ink)'}}>{f.time}</span></td>
+                    <td><div style={{display:'flex',flexDirection:'column'}}><span className="dt-name">{f.artistName}</span><span className="mono dim" style={{fontSize:10}}>TM: {f.tmName}</span></div></td>
+                    <td><StageChip stageId={f.stage}/></td>
+                    <td><span className="dt-num">{f.pax}</span></td>
+                    <td><span className={'badge '+(f.partyType==='A-Party'?'b-info':f.partyType==='Crew'?'b-idle':'b-stop')} style={{fontSize:9}}>{f.partyType}</span></td>
+                    <td><StatusBadge status={f.conf} t={t}/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div style={{marginBottom:40}}>
+          <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+            <div style={{fontFamily:'var(--font-display)',fontSize:22,fontWeight:500,letterSpacing:'-0.02em'}}>Ground transfers</div>
+            <span className="badge b-idle">{allXfers.length} routes</span>
+            <div style={{marginLeft:'auto',display:'flex',gap:4}}>
+              <a onClick={()=>setXferTab('all')} className={'btn btn-sm '+(xferTab==='all'?'btn-primary':'btn-soft')}>All</a>
+              {Object.entries(XTYPE).map(([id,x])=><a key={id} onClick={()=>setXferTab(id)} className={'btn btn-sm '+(xferTab===id?'btn-primary':'btn-soft')}><span>{x.icon}</span>{x.label}</a>)}
+            </div>
+          </div>
+          {xferTab!=='all'&&<div style={{marginBottom:12,fontSize:13,color:'var(--ink-4)'}}><strong style={{color:'var(--ink-3)'}}>{XTYPE[xferTab].label}:</strong> {XTYPE[xferTab].sub}</div>}
+          <div className="card">
+            <table className="dt">
+              <thead><tr><th>Type</th><th>Artist</th><th>Route</th><th>Stage</th><th>Status</th></tr></thead>
+              <tbody>
+                {shownXfers.map((x,i)=>(
+                  <tr key={i}>
+                    <td><span className={'badge '+XTYPE[x.type].cls}>{XTYPE[x.type].icon} {XTYPE[x.type].label}</span></td>
+                    <td><span className="dt-name">{x.artist}</span></td>
+                    <td><span className="dt-mono" style={{fontSize:12}}>{x.route}</span></td>
+                    <td><StageChip stageId={x.stage}/></td>
+                    <td><StatusBadge status={x.status} t={t}/></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    );
+  }
+  window.FlightsView = FlightsView;
+  </script>
+
+    <script type="text/babel">
   // ── APP SHELL ─────────────────────────────────────────────────────────────
   const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
     "lang":          "en",
@@ -1336,13 +1674,13 @@
     const [twk, setTweak] = useTweaks(TWEAK_DEFAULTS);
     const tt = window.makeT(twk.lang);
 
-    const [route, setRoute] = React.useState(()=>window.location.hash.replace('#','')||'tracker');
+    const [route, setRoute] = React.useState(()=>window.location.hash.replace('#','')||'welcome');
     const [drawerArtistId, setDrawerArtistId] = React.useState(null);
     const [emailInitialId, setEmailInitialId] = React.useState(null);
     const [itinInitialId,  setItinInitialId]  = React.useState(null);
 
     React.useEffect(()=>{
-      const onHash=()=>setRoute(window.location.hash.replace('#','')||'tracker');
+      const onHash=()=>setRoute(window.location.hash.replace('#','')||'welcome');
       window.addEventListener('hashchange',onHash);
       return ()=>window.removeEventListener('hashchange',onHash);
     },[]);
@@ -1361,15 +1699,19 @@
 
     return (
       <div style={{position:'relative',zIndex:2}}>
-        <TopNav active={route} onNav={navigate} t={tt}/>
+        {route!=='welcome'&&<TopNav active={route} onNav={navigate} t={tt}/>}
 
+        {route==='welcome'   && <WelcomeView   onNav={navigate} t={tt}/>}
         {route==='tracker'   && <TrackerView   t={tt} onOpenArtist={id=>setDrawerArtistId(id)}/>}
         {route==='email'     && <EmailView      t={tt} initialArtistId={emailInitialId} onOpenArtist={id=>setDrawerArtistId(id)}/>}
-        {route==='arrivals'  && <ArrivalsView   t={tt}/>}
+        {route==='timeline'  && <TimelineView   t={tt}/>}
+        {route==='schedule'  && <ScheduleView   t={tt}/>}
+        {route==='flights'   && <FlightsView    t={tt}/>}
+        {route==='arrivals'  && <FlightsView    t={tt}/>}
         {route==='itinerary' && <ItineraryView  t={tt} initialArtistId={itinInitialId}/>}
         {route==='settings'  && <SettingsView   t={tt}/>}
 
-        <PageFoot t={tt}/>
+        {route!=='welcome'&&<PageFoot t={tt}/>}
 
         {drawerArtist && <ArtistDrawer artist={drawerArtist} t={tt} onClose={()=>setDrawerArtistId(null)} onNav={navigate}/>}
 

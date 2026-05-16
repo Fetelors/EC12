@@ -1,0 +1,158 @@
+name: Hermes Pipeline
+
+# Covers three trigger points in the EC12 spec-driven workflow:
+# 1. Spec PR opened → notify local Hermes handler to validate
+# 2. Feature PR opened → notify local Hermes handler to test
+# 3. Merge to main → deploy portal to GitHub Pages
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+  push:
+    branches: [main, staging]
+
+jobs:
+
+  # ── Job 1: Notify Hermes on spec PRs ──────────────────────────────────────
+  # Fires when a PR touches openspec/changes/ (a new spec proposal).
+  # Pings the local Hermes webhook handler via the ngrok tunnel so the
+  # spec-validator skill runs and posts its result as a PR comment.
+  notify-spec-validator:
+    name: Notify Hermes spec-validator
+    if: |
+      github.event_name == 'pull_request' &&
+      contains(github.head_ref, 'openspec/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping local Hermes handler
+        env:
+          HERMES_WEBHOOK: ${{ secrets.HERMES_NGROK_URL }}
+          GH_SECRET: ${{ secrets.GITHUB_WEBHOOK_SECRET }}
+        run: |
+          echo "Notifying Hermes spec-validator for PR #${{ github.event.pull_request.number }}"
+          curl -sf \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: pull_request" \
+            -d '{
+              "action": "${{ github.event.action }}",
+              "pull_request": {
+                "number": ${{ github.event.pull_request.number }},
+                "title": "${{ github.event.pull_request.title }}",
+                "html_url": "${{ github.event.pull_request.html_url }}",
+                "head": { "ref": "${{ github.head_ref }}" },
+                "base": { "ref": "${{ github.base_ref }}" }
+              }
+            }' \
+            "$HERMES_WEBHOOK/github/webhook" \
+          && echo "✓ Hermes notified" \
+          || echo "⚠️  Could not reach Hermes handler — is ngrok running locally?"
+
+  # ── Job 2: Notify Hermes on feature PRs ───────────────────────────────────
+  # Fires when a PR is opened from a feature/* branch (code ready for testing).
+  # Pings the handler so the tester skill runs.
+  notify-tester:
+    name: Notify Hermes tester
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'opened' &&
+      startsWith(github.head_ref, 'feature/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping local Hermes handler
+        env:
+          HERMES_WEBHOOK: ${{ secrets.HERMES_NGROK_URL }}
+        run: |
+          echo "Notifying Hermes tester for feature PR #${{ github.event.pull_request.number }}"
+          curl -sf \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: pull_request" \
+            -d '{
+              "action": "opened",
+              "pull_request": {
+                "number": ${{ github.event.pull_request.number }},
+                "title": "${{ github.event.pull_request.title }}",
+                "html_url": "${{ github.event.pull_request.html_url }}",
+                "head": { "ref": "${{ github.head_ref }}" },
+                "base": { "ref": "${{ github.base_ref }}" }
+              }
+            }' \
+            "$HERMES_WEBHOOK/github/webhook" \
+          && echo "✓ Hermes notified" \
+          || echo "⚠️  Could not reach Hermes handler — is ngrok running locally?"
+
+  # ── Job 3: Deploy portal to GitHub Pages on main push ─────────────────────
+  # EC12 is a static HTML portal — no build step needed.
+  # Uploads ec12-app/src/portal/ to GitHub Pages on every merge to main.
+  deploy-production:
+    name: Deploy to GitHub Pages
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload portal artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload the static portal directory
+          path: ec12-app/src/portal
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+      - name: Notify Hermes of production deployment
+        env:
+          HERMES_WEBHOOK: ${{ secrets.HERMES_NGROK_URL }}
+        run: |
+          curl -sf \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{
+              "ref": "refs/heads/main",
+              "pusher": { "name": "github-actions" },
+              "deployment_url": "${{ steps.deploy.outputs.page_url }}"
+            }' \
+            "$HERMES_WEBHOOK/github/webhook" \
+          && echo "✓ Hermes notified of production deployment" \
+          || echo "⚠️  Could not reach Hermes handler (non-blocking)"
+
+  # ── Job 4: Notify Hermes on staging push ──────────────────────────────────
+  deploy-staging:
+    name: Notify Hermes staging-validator
+    if: |
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping local Hermes handler
+        env:
+          HERMES_WEBHOOK: ${{ secrets.HERMES_NGROK_URL }}
+        run: |
+          echo "Notifying Hermes staging-validator"
+          curl -sf \
+            -X POST \
+            -H "Content-Type: application/json" \
+            -H "X-GitHub-Event: push" \
+            -d '{
+              "ref": "refs/heads/staging",
+              "pusher": { "name": "github-actions" }
+            }' \
+            "$HERMES_WEBHOOK/github/webhook" \
+          && echo "✓ Hermes staging-validator notified" \
+          || echo "⚠️  Could not reach Hermes handler — is ngrok running locally?"

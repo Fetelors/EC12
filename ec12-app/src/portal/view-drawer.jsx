@@ -1,6 +1,8 @@
 // AIdvancing — Artist drawer
 // Slides in from right; tabs for Overview / Fields / Travel / Activity
 
+const { useState, useEffect, useRef, useCallback } = React;
+
 const FIELDS = [
   { key: 'partySize',     label: 'Party size & rooming',     owner: 'TM' },
   { key: 'tmContact',     label: 'TM contact details',       owner: 'TM' },
@@ -113,6 +115,8 @@ function ArtistDrawer({ artist, t, onClose, onNav }) {
               </div>
 
               <DetailGrid artist={artist} hotel={hotel}/>
+              
+              <InternalNotesSection artist={artist} t={t}/>
             </>
           )}
 
@@ -332,6 +336,130 @@ function ActivityTab() {
         ))}
       </div>
     </>
+  );
+}
+
+// Internal Notes component with auto-save on blur
+function InternalNotesSection({ artist, t, onSaveNotes }) {
+  const [notes, setNotes] = useState(artist.internalNotes || '');
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved'
+  const saveTimeoutRef = useRef(null);
+  const statusTimeoutRef = useRef(null);
+
+  // Sync notes when artist changes
+  useEffect(() => {
+    setNotes(artist.internalNotes || '');
+    setSaveStatus('idle');
+  }, [artist.id]);
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+      if (statusTimeoutRef.current) clearTimeout(statusTimeoutRef.current);
+    };
+  }, []);
+
+  const handleBlur = useCallback(() => {
+    // Only save if notes changed
+    if (notes === artist.internalNotes) return;
+
+    // Clear any pending save
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+
+    // Debounce the save by 500ms
+    saveTimeoutRef.current = setTimeout(() => {
+      setSaveStatus('saving');
+      
+      // Simulate save (in real app, this would call an API)
+      // Update the artist object in window.ARTISTS
+      const artistIndex = window.ARTISTS.findIndex(a => a.id === artist.id);
+      if (artistIndex !== -1) {
+        window.ARTISTS[artistIndex].internalNotes = notes;
+      }
+      
+      // Persist to localStorage for demo purposes
+      const savedNotes = JSON.parse(localStorage.getItem('ec12_artist_notes') || '{}');
+      savedNotes[artist.id] = notes;
+      localStorage.setItem('ec12_artist_notes', JSON.stringify(savedNotes));
+
+      // Call parent callback if provided
+      if (onSaveNotes) onSaveNotes(artist.id, notes);
+
+      // Show saved status briefly
+      setTimeout(() => {
+        setSaveStatus('saved');
+        // Reset to idle after 2s
+        statusTimeoutRef.current = setTimeout(() => setSaveStatus('idle'), 2000);
+      }, 300);
+    }, 500);
+  }, [notes, artist.id, artist.internalNotes, onSaveNotes]);
+
+  return (
+    <div style={{marginTop:28,paddingTop:24,borderTop:'1px solid var(--line)'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+        <div>
+          <div className="mono" style={{fontSize:11,letterSpacing:'0.06em',color:'var(--ink-4)',fontWeight:500,marginBottom:4}}>
+            INTERNAL NOTES
+          </div>
+          <div style={{fontSize:12,color:'var(--ink-4)'}}>
+            Staff-only notes — not visible to artist
+          </div>
+        </div>
+        {saveStatus !== 'idle' && (
+          <div className="mono" style={{
+            fontSize:11,
+            color: saveStatus === 'saving' ? 'var(--amber)' : 'var(--teal)',
+            display:'flex',
+            alignItems:'center',
+            gap:6,
+          }}>
+            {saveStatus === 'saving' && (
+              <>
+                <span style={{
+                  width:8,height:8,borderRadius:'50%',
+                  border:'2px solid var(--amber)',
+                  borderTopColor:'transparent',
+                  animation:'spin 1s linear infinite',
+                }}></span>
+                Saving...
+              </>
+            )}
+            {saveStatus === 'saved' && (
+              <>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="var(--teal)" strokeWidth="1.5">
+                  <path d="M2.5 6.5L5 9L9.5 3"/>
+                </svg>
+                Saved
+              </>
+            )}
+          </div>
+        )}
+      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        onBlur={handleBlur}
+        placeholder="Add internal notes about this artist (e.g., special requests, issues, follow-ups)..."
+        style={{
+          width:'100%',
+          minHeight:120,
+          padding:'14px 16px',
+          borderRadius:12,
+          border:'1px solid var(--line)',
+          background:'var(--bg-soft)',
+          color:'var(--ink-2)',
+          fontSize:13,
+          lineHeight:1.5,
+          resize:'vertical',
+          fontFamily:'inherit',
+          outline:'none',
+          transition:'border-color 0.15s',
+        }}
+        onFocus={(e) => e.target.style.borderColor = 'var(--teal)'}
+        onBlurCapture={(e) => e.target.style.borderColor = 'var(--line)'}
+      />
+    </div>
   );
 }
 

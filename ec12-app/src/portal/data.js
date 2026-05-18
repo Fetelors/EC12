@@ -55,6 +55,7 @@ window.ARTISTS = [
       { dir:'arr', no:'KL 1379', from:'AMS', to:'CLJ', date:'2026-07-16', time:'16:10', pax:5,  partyType:'Crew',    conf:'pending'   },
       { dir:'dep', no:'LH 1415', from:'CLJ', to:'FRA', date:'2026-07-18', time:'15:40', pax:14, partyType:'A-Party', conf:'pending'   },
     ],
+    internalNotes: '',
   },
   {
     id: 'a02', name: 'Hania Rani',   tier: 'Sub-headliner', origin: 'INT', stage: 'hangar',
@@ -73,6 +74,7 @@ window.ARTISTS = [
       { dir:'arr', no:'LO 583', from:'WAW', to:'CLJ', date:'2026-07-17', time:'12:50', pax:8, partyType:'A-Party', conf:'confirmed' },
       { dir:'dep', no:'LO 584', from:'CLJ', to:'WAW', date:'2026-07-19', time:'14:20', pax:8, partyType:'A-Party', conf:'confirmed' },
     ],
+    internalNotes: '',
   },
   {
     id: 'a03', name: 'Bonobo',       tier: 'Headliner',     origin: 'INT', stage: 'mainstage',
@@ -91,6 +93,7 @@ window.ARTISTS = [
       { dir:'arr', no:'BA 884',  from:'LHR', to:'OTP', date:'2026-07-18', time:'13:00', pax:12, partyType:'A-Party', conf:'partial'  },
       { dir:'arr', no:'TK 1043', from:'IST', to:'CLJ', date:'2026-07-18', time:'15:55', pax:6,  partyType:'A-Party', conf:'pending'  },
     ],
+    internalNotes: '',
   },
   {
     id: 'a04', name: 'Floating Points', tier: 'Headliner', origin: 'INT', stage: 'hangar',
@@ -109,6 +112,7 @@ window.ARTISTS = [
       { dir:'arr', no:'BA 884',  from:'LHR', to:'OTP', date:'2026-07-16', time:'13:00', pax:4, partyType:'A-Party', conf:'confirmed' },
       { dir:'dep', no:'LH 1415', from:'CLJ', to:'FRA', date:'2026-07-18', time:'06:00', pax:4, partyType:'A-Party', conf:'partial'   },
     ],
+    internalNotes: '',
   },
   {
     id: 'a05', name: 'Sevdaliza',    tier: 'Sub-headliner', origin: 'INT', stage: 'mainstage',
@@ -127,6 +131,7 @@ window.ARTISTS = [
       { dir:'arr', no:'KL 1379', from:'AMS', to:'CLJ', date:'2026-07-15', time:'16:10', pax:7, partyType:'A-Party', conf:'confirmed' },
       { dir:'arr', no:'OS 819',  from:'VIE', to:'CLJ', date:'2026-07-15', time:'17:50', pax:4, partyType:'Crew',    conf:'pending'   },
     ],
+    internalNotes: '',
   },
   {
     id: 'a06', name: 'Salvador',     tier: 'Support',       origin: 'RO',  stage: 'backyard',
@@ -142,6 +147,7 @@ window.ARTISTS = [
       hotelDetails: 'partial', flightDetails: 'confirmed', transfers: 'confirmed',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a07', name: 'KEEP',         tier: 'Support',       origin: 'RO',  stage: 'pingpong',
@@ -157,6 +163,7 @@ window.ARTISTS = [
       hotelDetails: 'confirmed', flightDetails: 'confirmed', transfers: 'pending',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a08', name: 'Overmono',     tier: 'Headliner',     origin: 'INT', stage: 'hangar',
@@ -172,6 +179,7 @@ window.ARTISTS = [
       hotelDetails: 'pending', flightDetails: 'needed', transfers: 'needed',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a09', name: 'AURORA',       tier: 'Headliner',     origin: 'INT', stage: 'mainstage',
@@ -190,6 +198,7 @@ window.ARTISTS = [
       { dir:'arr', no:'SK 4737', from:'OSL', to:'CLJ', date:'2026-07-17', time:'15:30', pax:16, partyType:'A-Party', conf:'confirmed' },
       { dir:'dep', no:'SK 4738', from:'CLJ', to:'OSL', date:'2026-07-19', time:'17:00', pax:16, partyType:'A-Party', conf:'partial'   },
     ],
+    internalNotes: '',
   },
   {
     id: 'a10', name: 'Black Coffee', tier: 'Headliner',     origin: 'INT', stage: 'hangar',
@@ -205,6 +214,7 @@ window.ARTISTS = [
       hotelDetails: 'partial', flightDetails: 'pending', transfers: 'needed',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a11', name: 'Ploho',        tier: 'Sub-headliner', origin: 'INT', stage: 'booha',
@@ -220,6 +230,7 @@ window.ARTISTS = [
       hotelDetails: 'partial', flightDetails: 'confirmed', transfers: 'partial',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a12', name: 'Berlioz',      tier: 'Support',       origin: 'INT', stage: 'beach',
@@ -237,6 +248,7 @@ window.ARTISTS = [
     flights: [
       { dir:'arr', no:'AF 1284', from:'CDG', to:'OTP', date:'2026-07-15', time:'14:10', pax:2, partyType:'A-Party', conf:'confirmed' },
     ],
+    internalNotes: '',
   },
   {
     id: 'a13', name: 'Soartișor',    tier: 'Local',         origin: 'Local', stage: 'stables',
@@ -252,6 +264,7 @@ window.ARTISTS = [
       hotelDetails: 'idle', flightDetails: 'idle', transfers: 'idle',
     },
     flights: [],
+    internalNotes: '',
   },
   {
     id: 'a14', name: 'Kelela',       tier: 'Headliner',     origin: 'INT', stage: 'hideout',
@@ -269,6 +282,7 @@ window.ARTISTS = [
     flights: [
       { dir:'arr', no:'LH 1414', from:'FRA', to:'CLJ', date:'2026-07-17', time:'14:25', pax:12, partyType:'A-Party', conf:'partial' },
     ],
+    internalNotes: '',
   },
 ];
 
